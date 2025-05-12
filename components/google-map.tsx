@@ -10,6 +10,18 @@ import {
 import { MockMap } from "./mock-map";
 import { motion } from "framer-motion";
 
+const hideGoogleElements = `
+  .gm-style-cc { display: none !important; }
+  .gmnoprint { display: none !important; }
+  .gm-style .gm-style-iw-c { display: none !important; }
+  .gm-style a[href^="https://maps.google.com/maps"] { display: none !important; }
+  .gm-style-moc { display: none !important; }
+  .gm-control-active { display: none !important; }
+  .gm-svpc { display: none !important; }
+  a[href^="http://maps.google.com/maps"] { display: none !important; }
+  a[href^="https://maps.google.com/maps"] { display: none !important; }
+`;
+
 // Add custom map styles
 const mapStyles = [
   {
@@ -201,7 +213,11 @@ export function GoogleMapComponent({
           map,
           "idle",
           function () {
-            if (map && map.getZoom() && map.getZoom() > 16) {
+            if (
+              map &&
+              typeof map.getZoom() === "number" &&
+              map.getZoom()! > 16
+            ) {
               map.setZoom(16);
             }
             google.maps.event.removeListener(listener);
@@ -216,13 +232,11 @@ export function GoogleMapComponent({
       // Apply custom styling
       map.setOptions({
         styles: mapStyles,
+        disableDefaultUI: true,
         fullscreenControl: false,
         streetViewControl: false,
         mapTypeControl: false,
-        zoomControl: true,
-        zoomControlOptions: {
-          position: google.maps.ControlPosition.RIGHT_TOP,
-        },
+        zoomControl: false,
       });
 
       setMap(map);
@@ -276,7 +290,11 @@ export function GoogleMapComponent({
             map,
             "idle",
             function () {
-              if (map && map.getZoom() && map.getZoom() > 15) {
+              if (
+                map &&
+                typeof map.getZoom() === "number" &&
+                map.getZoom()! > 15
+              ) {
                 map.setZoom(15);
               }
               google.maps.event.removeListener(listener);
@@ -334,6 +352,9 @@ export function GoogleMapComponent({
 
   return (
     <div ref={mapContainerRef} className="w-full h-full relative">
+      {/* CSS to hide Google branding elements */}
+      <style dangerouslySetInnerHTML={{ __html: hideGoogleElements }} />
+
       {isLoaded ? (
         <>
           <GoogleMap
@@ -346,10 +367,11 @@ export function GoogleMapComponent({
             onUnmount={onUnmount}
             onClick={onMapClick}
             options={{
+              disableDefaultUI: true,
               fullscreenControl: false,
               streetViewControl: false,
               mapTypeControl: false,
-              zoomControl: true,
+              zoomControl: false,
               styles: mapStyles,
             }}
           >
