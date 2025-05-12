@@ -6,15 +6,19 @@ import {
   ChevronUp,
   ChevronDown,
   MapPin,
-  Star,
   Clock,
-  ExternalLink,
+  X,
+  MessageSquare,
+  MapIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type Message = {
   id: string;
@@ -60,55 +64,17 @@ export function FloatingChat({
 }: FloatingChatProps) {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [showMessages, setShowMessages] = useState(true);
-  const [showVendors, setShowVendors] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const vendorListRef = useRef<HTMLDivElement>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState<"chat" | "vendors">("chat");
   const inputRef = useRef<HTMLInputElement>(null);
+  const vendorListRef = useRef<HTMLDivElement>(null);
+  const preferReducedMotion = useReducedMotion();
 
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  // Show vendors section when vendors are found
-  useEffect(() => {
-    if (vendors.length > 0) {
-      setShowVendors(true);
-    }
-  }, [vendors]);
-
-  // Scroll selected vendor into view
-  useEffect(() => {
-    if (selectedVendorId && vendorListRef.current) {
-      const selectedCard = vendorListRef.current.querySelector(
-        `[data-vendor-id="${selectedVendorId}"]`
-      );
-      if (selectedCard) {
-        selectedCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      }
-    }
-  }, [selectedVendorId]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-
-    onSendMessage(input);
-    setInput("");
-
-    // Return focus to input after sending
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 100);
-  };
-
-  const toggleMessages = () => {
-    setShowMessages(!showMessages);
-  };
-
-  const toggleVendors = () => {
-    setShowVendors(!showVendors);
+  // Define animation settings based on user's motion preference
+  const animationSettings = {
+    transition: preferReducedMotion
+      ? { duration: 0.1 }
+      : { type: "spring", stiffness: 500, damping: 30 },
   };
 
   const validVendors = vendors.filter(
@@ -118,6 +84,107 @@ export function FloatingChat({
       typeof vendor.location.lat === "number" &&
       typeof vendor.location.lng === "number"
   );
+
+  // Global keyboard shortcut for showing/hiding chat
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+K or Cmd+K (macOS) to toggle the chat panel
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        toggleExpanded();
+
+        // If expanding, focus the input field
+        if (!isExpanded) {
+          setTimeout(() => {
+            inputRef.current?.focus();
+          }, 150);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isExpanded]);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    if (messagesEndRef.current && activeTab === "chat") {
+      const scrollTimer = setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+      return () => clearTimeout(scrollTimer);
+    }
+  }, [messages, activeTab]);
+
+  // Focus input on mount and after sending message
+  useEffect(() => {
+    if (!isLoading && isExpanded && activeTab === "chat") {
+      inputRef.current?.focus();
+    }
+  }, [isLoading, isExpanded, activeTab]);
+
+  // Auto switch to vendors tab when vendors are found and show a nice animation
+  useEffect(() => {
+    if (validVendors.length > 0 && validVendors.length !== vendors.length) {
+      // First expand the panel
+      setIsExpanded(true);
+
+      // Then switch to vendors tab with a slight delay for better UX
+      const timer = setTimeout(() => {
+        setActiveTab("vendors");
+      }, 300);
+
+      return () => clearTimeout(timer);
+    }
+  }, [validVendors.length, vendors.length]);
+
+  // Scroll selected vendor into view
+  useEffect(() => {
+    if (selectedVendorId && vendorListRef.current) {
+      // Make sure vendors tab is active and panel is expanded when selecting a vendor
+      if (activeTab !== "vendors") {
+        setActiveTab("vendors");
+      }
+
+      if (!isExpanded) {
+        setIsExpanded(true);
+      }
+
+      // Small delay to ensure DOM is updated
+      setTimeout(() => {
+        const selectedCard = vendorListRef.current?.querySelector(
+          `[data-vendor-id="${selectedVendorId}"]`
+        );
+        selectedCard?.scrollIntoView({
+          behavior: preferReducedMotion ? "auto" : "smooth",
+          block: "nearest",
+        });
+      }, 150);
+    }
+  }, [selectedVendorId, activeTab, isExpanded, preferReducedMotion]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
+    // Expand the chat if it's collapsed
+    if (!isExpanded) {
+      setIsExpanded(true);
+      setActiveTab("chat");
+    }
+
+    // Add visual feedback by briefly disabling the input
+    const currentInput = input.trim();
+    setInput("");
+    onSendMessage(currentInput);
+
+    // Return focus to input after sending
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+  };
+
+  const toggleExpanded = () => setIsExpanded(!isExpanded);
 
   // Get vendor type color for badges and indicators
   const getVendorTypeColor = (type: string): string => {
@@ -133,207 +200,300 @@ export function FloatingChat({
 
   return (
     <div
-      ref={containerRef}
       className={cn(
-        "flex flex-col w-full max-w-md mx-auto rounded-xl shadow-lg",
+        "flex flex-col w-full max-w-md mx-auto relative",
         className
       )}
     >
-      {/* Vendors section */}
-      <AnimatePresence>
-        {validVendors.length > 0 && showVendors && (
+      <AnimatePresence mode={preferReducedMotion ? "wait" : "sync"}>
+        {isExpanded && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{
-              opacity: 1,
-              height: "auto",
-              transition: { duration: 0.3 },
-            }}
-            exit={{ opacity: 0, height: 0 }}
-            className="bg-white/95 backdrop-blur-sm rounded-t-lg shadow-lg overflow-hidden mb-2"
+            initial={{ opacity: 0, height: 0, y: 20 }}
+            animate={{ opacity: 1, height: "auto", y: 0 }}
+            exit={{ opacity: 0, height: 0, y: 20 }}
+            transition={animationSettings.transition}
+            className="bg-white/95 backdrop-blur-md rounded-t-2xl overflow-hidden shadow-lg border border-gray-100"
           >
-            <div className="p-3">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="text-sm font-semibold flex items-center">
-                  <span className="inline-block h-2 w-2 rounded-full bg-primary mr-2 animate-pulse"></span>
-                  Penjual Terdekat ({validVendors.length})
-                </h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0"
-                  onClick={toggleVendors}
-                >
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </div>
-
-              <div
-                ref={vendorListRef}
-                className="space-y-2 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar"
+            <div className="flex items-center justify-between p-3 border-b">
+              <Tabs
+                value={activeTab}
+                onValueChange={(v) => setActiveTab(v as "chat" | "vendors")}
+                className="w-full"
+                defaultValue="chat"
               >
-                {validVendors.map((vendor) => (
-                  <motion.div
-                    key={vendor.id}
-                    data-vendor-id={vendor.id}
-                    className={cn(
-                      "p-3 rounded-lg transition-all hover:shadow",
-                      selectedVendorId === vendor.id
-                        ? "border-primary bg-primary/5 shadow"
-                        : "border border-gray-100"
-                    )}
-                    onClick={() => onVendorClick && onVendorClick(vendor)}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                <TabsList className="grid w-full grid-cols-2 mb-0">
+                  <TabsTrigger value="chat" className="flex items-center gap-1">
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    <span>
+                      Chat {messages.length > 0 && `(${messages.length})`}
+                    </span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="vendors"
+                    className="flex items-center gap-1"
+                    disabled={validVendors.length === 0}
                   >
-                    <div className="flex items-start gap-2">
-                      <div
-                        className={cn(
-                          "h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-medium",
-                          getVendorTypeColor(vendor.type)
-                        )}
-                      >
-                        {vendor.name.charAt(0)}
+                    <MapIcon className="h-3.5 w-3.5" />
+                    <span>
+                      Penjual{" "}
+                      {validVendors.length > 0 && `(${validVendors.length})`}
+                    </span>
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 rounded-full -mr-1"
+                onClick={toggleExpanded}
+                aria-label="Close panel"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="h-[350px]">
+              {activeTab === "chat" && (
+                <ScrollArea className="h-full px-4 py-3">
+                  <div className="flex flex-col space-y-3 pb-2">
+                    {messages.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400">
+                        <MessageSquare className="h-12 w-12 mb-2 opacity-20" />
+                        <p className="text-sm mb-1">Belum ada percakapan</p>
+                        <p className="text-xs">
+                          Cari penjual keliling untuk memulai
+                        </p>
                       </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start">
-                          <div className="font-medium text-sm">
-                            {vendor.name}
-                          </div>
-                          <Badge
-                            variant={
-                              vendor.status === "active" ? "default" : "outline"
-                            }
-                            className="text-[10px] h-5"
-                          >
-                            {vendor.status === "active"
-                              ? "Aktif"
-                              : "Tidak Aktif"}
-                          </Badge>
-                        </div>
-                        <div className="text-xs text-muted-foreground flex items-center gap-1">
-                          <span
+                    ) : (
+                      messages.map((message) => (
+                        <motion.div
+                          key={message.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={
+                            preferReducedMotion
+                              ? { duration: 0.1 }
+                              : { duration: 0.2 }
+                          }
+                          className={cn(
+                            "w-full flex",
+                            message.role === "user"
+                              ? "justify-end"
+                              : "justify-start"
+                          )}
+                        >
+                          {message.role === "assistant" && (
+                            <Avatar className="h-6 w-6 mr-2">
+                              <div className="bg-primary text-xs text-white flex items-center justify-center h-full rounded-full">
+                                K
+                              </div>
+                            </Avatar>
+                          )}
+                          <div
                             className={cn(
-                              "h-2 w-2 rounded-full",
-                              getVendorTypeColor(vendor.type)
+                              "max-w-[85%] rounded-2xl px-4 py-2.5",
+                              message.role === "user"
+                                ? "bg-primary text-primary-foreground rounded-tr-none"
+                                : "bg-gray-100 text-gray-800 rounded-tl-none",
+                              message.pending && "opacity-70",
+                              bubbleClassName
                             )}
-                          ></span>
-                          {vendor.type}
+                          >
+                            <p className="text-sm break-words leading-relaxed">
+                              {message.content}
+                            </p>
+                          </div>
+                        </motion.div>
+                      ))
+                    )}
+                  </div>
+                  {isLoading && (
+                    <div className="flex items-center gap-2 p-2">
+                      <Avatar className="h-6 w-6 mr-2">
+                        <div className="bg-primary text-xs text-white flex items-center justify-center h-full rounded-full">
+                          K
                         </div>
-                        {vendor.description && (
-                          <div className="text-xs mt-1 text-gray-700">
-                            {vendor.description}
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between mt-1.5">
-                          <div className="flex items-center text-xs text-muted-foreground">
-                            <MapPin className="h-3 w-3 mr-1" />
-                            <span>{vendor.distance}</span>
-                          </div>
-                          <div className="flex items-center text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3 mr-1" />
-                            <span>{vendor.last_active}</span>
-                          </div>
-                        </div>
+                      </Avatar>
+                      <div className="typing-indicator px-3 py-2 bg-gray-100 rounded-2xl rounded-tl-none">
+                        <span></span>
+                        <span></span>
+                        <span></span>
                       </div>
                     </div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Messages area with transition */}
-      <AnimatePresence>
-        {showMessages && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{
-              opacity: 1,
-              height: "auto",
-              transition: { duration: 0.3 },
-            }}
-            exit={{ opacity: 0, height: 0 }}
-            className="flex-1 overflow-y-auto bg-white/90 backdrop-blur-sm rounded-t-lg shadow-lg max-h-[300px]"
-          >
-            <div className="p-4 space-y-3">
-              {messages.map((message) => (
-                <motion.div
-                  key={message.id}
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                  className={cn(
-                    "flex w-fit max-w-[80%] rounded-lg p-3",
-                    message.role === "user"
-                      ? "ml-auto bg-primary text-primary-foreground"
-                      : "bg-muted",
-                    message.pending && "opacity-70",
-                    bubbleClassName
                   )}
-                >
-                  <p className="text-sm">{message.content}</p>
-                </motion.div>
-              ))}
-              {isLoading && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="flex items-center gap-2 p-2"
-                >
-                  <div className="typing-indicator">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                  </div>
-                </motion.div>
+                  <div ref={messagesEndRef} />
+                </ScrollArea>
               )}
-              <div ref={messagesEndRef} />
+
+              {activeTab === "vendors" && (
+                <ScrollArea className="h-full">
+                  <div ref={vendorListRef} className="p-3 space-y-2">
+                    {validVendors.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400">
+                        <MapIcon className="h-12 w-12 mb-2 opacity-20" />
+                        <p className="text-sm mb-1">
+                          Tidak ada penjual ditemukan
+                        </p>
+                        <p className="text-xs">
+                          Coba cari dengan kata kunci lain
+                        </p>
+                      </div>
+                    ) : (
+                      validVendors.map((vendor) => (
+                        <motion.div
+                          key={vendor.id}
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={
+                            preferReducedMotion
+                              ? { duration: 0.1 }
+                              : { duration: 0.2 }
+                          }
+                          data-vendor-id={vendor.id}
+                          className={cn(
+                            "p-3 rounded-xl transition-all border hover:shadow-md",
+                            selectedVendorId === vendor.id
+                              ? "bg-primary/5 shadow-md border-primary"
+                              : "border-gray-100 hover:border-gray-200"
+                          )}
+                          onClick={() => onVendorClick?.(vendor)}
+                          tabIndex={0}
+                          role="button"
+                          aria-pressed={selectedVendorId === vendor.id}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              onVendorClick?.(vendor);
+                            }
+                          }}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div
+                              className={cn(
+                                "h-10 w-10 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-sm",
+                                getVendorTypeColor(vendor.type)
+                              )}
+                            >
+                              {vendor.name.charAt(0)}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex justify-between items-start">
+                                <div className="font-medium">{vendor.name}</div>
+                                <Badge
+                                  variant={
+                                    vendor.status === "active"
+                                      ? "default"
+                                      : "secondary"
+                                  }
+                                  className="text-[10px] h-5 ml-2"
+                                >
+                                  {vendor.status === "active"
+                                    ? "Aktif"
+                                    : "Tidak Aktif"}
+                                </Badge>
+                              </div>
+                              <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                <span
+                                  className={cn(
+                                    "h-2 w-2 rounded-full",
+                                    getVendorTypeColor(vendor.type)
+                                  )}
+                                ></span>
+                                {vendor.type}
+                              </div>
+                              {vendor.description && (
+                                <div className="text-xs mt-1.5 text-gray-700 leading-relaxed">
+                                  {vendor.description}
+                                </div>
+                              )}
+                              <div className="flex items-center justify-between mt-2">
+                                <div className="flex items-center text-xs text-muted-foreground bg-gray-50 px-2 py-1 rounded-full">
+                                  <MapPin className="h-3 w-3 mr-1 text-gray-400" />
+                                  <span>{vendor.distance}</span>
+                                </div>
+                                <div className="flex items-center text-xs text-muted-foreground bg-gray-50 px-2 py-1 rounded-full">
+                                  <Clock className="h-3 w-3 mr-1 text-gray-400" />
+                                  <span>{vendor.last_active}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Input area */}
       <motion.div
-        className="bg-white p-3 rounded-lg shadow-lg border border-gray-100"
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.2 }}
+        layout
+        transition={animationSettings.transition}
+        className="bg-white rounded-b-2xl shadow-lg border border-t-0 border-gray-100 z-10"
       >
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        <form
+          onSubmit={handleSubmit}
+          className="flex items-center gap-2 p-2 relative"
+        >
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="h-9 w-9 rounded-full flex items-center justify-center"
-            onClick={toggleMessages}
-            aria-label={showMessages ? "Hide messages" : "Show messages"}
+            className="h-10 w-10 rounded-full flex items-center justify-center hover:bg-gray-100 transition-all duration-200"
+            onClick={toggleExpanded}
+            aria-label={isExpanded ? "Minimize chat" : "Expand chat"}
+            title={isExpanded ? "Minimize chat" : "Expand chat"}
           >
-            {showMessages ? (
-              <ChevronDown className="h-4 w-4" />
+            {isExpanded ? (
+              <ChevronDown className="h-5 w-5" />
             ) : (
-              <ChevronUp className="h-4 w-4" />
+              <ChevronUp className="h-5 w-5" />
             )}
           </Button>
-          <Input
-            ref={inputRef}
-            type="text"
-            placeholder="Cari penjual keliling..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            className="flex-1 h-10 rounded-full border-gray-200 focus:border-primary focus:ring-primary"
-          />
+          <div className="relative flex-1">
+            <Input
+              ref={inputRef}
+              type="text"
+              placeholder={
+                isLoading ? "Menunggu..." : "Cari penjual keliling..."
+              }
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  if (isExpanded) {
+                    e.preventDefault();
+                    toggleExpanded();
+                  }
+                }
+              }}
+              disabled={isLoading}
+              className={cn(
+                "flex-1 h-10 border-0 focus:ring-0 bg-transparent transition-all duration-200 w-full",
+                isLoading
+                  ? "opacity-70 cursor-not-allowed"
+                  : "hover:bg-gray-50/50"
+              )}
+            />
+            {!isLoading && !input.trim() && (
+              <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-[10px] bg-gray-50 px-1.5 py-0.5 rounded-sm opacity-70">
+                Ctrl+K
+              </div>
+            )}
+          </div>
           <Button
             type="submit"
             size="icon"
             disabled={isLoading || !input.trim()}
             className={cn(
               "h-10 w-10 rounded-full transition-all duration-200",
-              input.trim() ? "bg-primary scale-100" : "bg-gray-200 scale-95"
+              input.trim()
+                ? "bg-primary hover:bg-primary/90 scale-100"
+                : "bg-gray-200 scale-95"
             )}
           >
             <Send
@@ -346,18 +506,8 @@ export function FloatingChat({
         </form>
       </motion.div>
 
-      {/* Add custom CSS for typing indicator */}
+      {/* Add custom CSS for typing indicator and animations */}
       <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background-color: rgba(155, 155, 155, 0.5);
-          border-radius: 20px;
-        }
         .typing-indicator {
           display: flex;
           align-items: center;
