@@ -40,7 +40,7 @@ export function AppLayout({ children, header }: AppLayoutProps) {
 
   return (
     <MobileLayout header={header} noPadding={pathname === "/find"}>
-      <div className="relative pb-16">
+      <div className="relative">
         {children}
 
         {/* Floating Dock Navigation */}

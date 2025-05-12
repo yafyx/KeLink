@@ -108,12 +108,6 @@ export default function Home() {
         <div className="pt-1">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-semibold font-jakarta">Discover</h2>
-            <Link
-              href="/categories"
-              className="text-primary text-sm font-medium"
-            >
-              See All
-            </Link>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

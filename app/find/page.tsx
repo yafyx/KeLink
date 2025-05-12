@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { MobileHeader } from "@/components/ui/mobile-header";
 import { AppLayout } from "@/components/AppLayout";
 import { GoogleMapComponent } from "@/components/google-map";
-import { FloatingChat } from "@/components/floating-chat";
+import { FloatingChat } from "@/components/find/floating-chat";
 import { motion, AnimatePresence } from "framer-motion";
 
 type Message = {
