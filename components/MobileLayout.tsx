@@ -19,9 +19,18 @@ export function MobileLayout({
   bgColor = "bg-background",
   noPadding = false,
 }: MobileLayoutProps) {
+  // Create a style object based on the bgColor
+  const backgroundStyle =
+    bgColor === "bg-background"
+      ? { backgroundColor: "hsl(var(--background))" }
+      : {}; // For custom bgColor, we'll continue to use the class name
+
   return (
     <div
-      className={`flex flex-col ${fullHeight ? "min-h-screen" : ""} ${bgColor}`}
+      className={`flex flex-col ${fullHeight ? "min-h-screen" : ""} ${
+        bgColor !== "bg-background" ? bgColor : ""
+      }`}
+      style={backgroundStyle}
     >
       {header && (
         <header className="sticky top-0 z-10 w-full safe-top">{header}</header>

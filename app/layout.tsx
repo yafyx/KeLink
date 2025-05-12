@@ -1,5 +1,5 @@
 import type React from "react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Inter_Tight } from "next/font/google";
 import "./globals.css";
 import { ClientThemeProvider } from "@/components/client-theme-provider";
@@ -18,12 +18,13 @@ export const metadata: Metadata = {
   title: "KeLink",
   description: "Ask, Find, Enjoy: Connecting You to Mobile Vendors with AI",
   generator: "v0.dev",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({

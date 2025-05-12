@@ -17,7 +17,13 @@ export function MobileHeader({
   centerContent = false,
 }: MobileHeaderProps) {
   return (
-    <div className="bg-background/80 backdrop-blur-sm border-b border-border w-full">
+    <div
+      className="backdrop-blur-sm w-full border-b"
+      style={{
+        backgroundColor: "hsl(var(--background)/0.8)",
+        borderColor: "hsl(var(--border))",
+      }}
+    >
       <div className="mobile-container">
         <div className="h-14 flex items-center justify-between">
           <div className="w-14 flex items-center justify-start">

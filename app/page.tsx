@@ -54,7 +54,7 @@ export default function Home() {
           <div className="space-y-3">
             <div className="bg-background border rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                   <Store className="h-5 w-5 text-primary" />
                 </div>
                 <div>
@@ -69,7 +69,7 @@ export default function Home() {
 
             <div className="bg-background border rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                   <MessageSquare className="h-5 w-5 text-primary" />
                 </div>
                 <div>
