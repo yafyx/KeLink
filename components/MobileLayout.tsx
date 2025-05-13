@@ -30,7 +30,7 @@ export function MobileLayout({
       className={`flex flex-col ${fullHeight ? "min-h-screen" : ""} ${
         bgColor !== "bg-background" ? bgColor : ""
       }`}
-      style={backgroundStyle}
+      style={{ ...backgroundStyle, viewTransitionName: "mobile-layout" }}
     >
       {header && (
         <header className="sticky top-0 z-10 w-full safe-top">{header}</header>

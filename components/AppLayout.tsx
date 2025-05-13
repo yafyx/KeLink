@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Store, MessageSquare, Activity } from "lucide-react";
+import { Store, MessageSquare, Activity, User } from "lucide-react";
 import { MobileLayout } from "@/components/MobileLayout";
 import { motion } from "motion/react";
 
@@ -32,16 +32,21 @@ export function AppLayout({ children, header }: AppLayoutProps) {
       label: "Chat",
       icon: <MessageSquare className="h-5 w-5" />,
     },
+    {
+      href: "/account/privacy",
+      label: "Account",
+      icon: <User className="h-5 w-5" />,
+    },
   ];
 
-  // Only show the dock on main pages
-  const mainPages = ["/", "/activity", "/chat"];
-  const shouldShowDock = mainPages.includes(pathname);
+  const mainPages = ["/", "/account/privacy"];
+  const shouldShowDock =
+    mainPages.includes(pathname) || pathname.startsWith("/account");
 
   return (
     <MobileLayout header={header} noPadding={pathname === "/find"}>
       <div className="relative">
-        {children}
+        <div style={{ viewTransitionName: "page-content" }}>{children}</div>
 
         {/* Floating Dock Navigation */}
         {shouldShowDock && (
@@ -53,7 +58,11 @@ export function AppLayout({ children, header }: AppLayoutProps) {
             >
               <div className="flex items-center gap-6">
                 {navItems.map((item) => {
-                  const isActive = pathname === item.href;
+                  const isActive =
+                    item.href === "/"
+                      ? pathname === item.href
+                      : pathname === item.href ||
+                        pathname.startsWith(item.href);
                   return (
                     <Link
                       key={item.href}
@@ -82,6 +91,17 @@ export function AppLayout({ children, header }: AppLayoutProps) {
                       >
                         {item.label}
                       </span>
+                      {isActive && (
+                        <motion.div
+                          layoutId="nav-indicator"
+                          className="absolute bottom-[calc(100%-2px)] h-1 w-10 bg-primary rounded-full"
+                          transition={{
+                            type: "spring",
+                            stiffness: 350,
+                            damping: 25,
+                          }}
+                        />
+                      )}
                     </Link>
                   );
                 })}
