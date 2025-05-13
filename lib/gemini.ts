@@ -1,17 +1,38 @@
 /**
  * lib/gemini.ts
  * 
- * Utility functions for Gemini API calls in the KeLink app.
- * 
- * Note: This is a placeholder implementation for the MVP. In the real
- * implementation, these functions would make actual calls to the Gemini API.
+ * Unified utility functions for Gemini API calls in the KeLink app.
+ * Handles both general text generation and function calling capabilities.
  */
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GenerativeModel, GoogleGenerativeAI } from "@google/generative-ai";
 
 // Initialize Google Generative AI with API key from environment variable
 // Will be initialized only when needed to avoid issues with SSR
 let genAI: GoogleGenerativeAI | null = null;
+let gemini2Flash: GenerativeModel | null = null;
+
+// Types for function calling
+export interface FunctionSchema {
+  name: string;
+  description: string;
+  parameters: {
+    type: string;
+    properties: Record<string, any>;
+    required?: string[];
+  };
+}
+
+export interface FunctionCallResult {
+  name: string;
+  args: Record<string, any>;
+}
+
+export interface ChatMessage {
+  role: "user" | "assistant" | "function";
+  content: string;
+  name?: string;
+}
 
 // Function to get or initialize the Gemini client
 function getGeminiClient(): GoogleGenerativeAI {
@@ -34,6 +55,18 @@ function getGeminiClient(): GoogleGenerativeAI {
   return genAI;
 }
 
+// Get or initialize the Gemini 2.0 Flash model
+function getGemini2Flash(): GenerativeModel {
+  if (gemini2Flash) return gemini2Flash;
+
+  const client = getGeminiClient();
+  gemini2Flash = client.getGenerativeModel({
+    model: 'gemini-2.0-flash'
+  });
+
+  return gemini2Flash;
+}
+
 /**
  * Generates a description for a vendor based on their name and type
  */
@@ -43,10 +76,7 @@ export async function generateVendorDescription(
 ): Promise<string> {
   try {
     // Use Gemini API to generate a description
-    const genAI = getGeminiClient();
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash'
-    });
+    const model = getGemini2Flash();
 
     const prompt = `
       Generate a short, engaging description for a street food vendor in Indonesia named "${vendorName}" who sells "${vendorType}".
@@ -96,8 +126,7 @@ export async function getRouteAdvice(
 
   try {
     // Direct call to Gemini API
-    const genAI = getGeminiClient();
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-001' });
+    const model = getGemini2Flash();
 
     const prompt = `
       Sebagai asisten untuk pedagang kaki lima di Indonesia, berikan saran rute untuk:
@@ -161,6 +190,202 @@ ${getVendorSpecificTips(vendorType)}
 
 Ingat untuk selalu update lokasi Anda di aplikasi KeLink agar pelanggan dapat dengan mudah menemukan Anda!`;
     }
+  }
+}
+
+/**
+ * Function calling for chat interactions
+ */
+
+// Process a chat message and handle function calling
+export async function sendChatMessage(
+  message: string,
+  chatHistory: ChatMessage[],
+  availableFunctions?: FunctionSchema[]
+): Promise<{ text: string; functionCall?: FunctionCallResult }> {
+  try {
+    // Check if API key is available
+    if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY && !process.env.GEMINI_API_KEY) {
+      return {
+        text: "API key is not configured. Please add a valid Gemini API key in your environment variables.",
+      };
+    }
+
+    // Get the Gemini model
+    const model = getGemini2Flash();
+
+    // Prepare history in the format Gemini expects
+    const contents = [];
+
+    // Add chat history
+    for (const msg of chatHistory) {
+      if (msg.role === "user") {
+        contents.push({ role: "user", parts: [{ text: msg.content }] });
+      } else if (msg.role === "assistant") {
+        contents.push({ role: "model", parts: [{ text: msg.content }] });
+      } else if (msg.role === "function" && msg.name) {
+        contents.push({
+          role: "model",
+          parts: [{
+            functionResponse: {
+              name: msg.name,
+              response: { text: msg.content }
+            }
+          }]
+        });
+      }
+    }
+
+    // Add the new user message
+    contents.push({ role: "user", parts: [{ text: message }] });
+
+    // Generate content with optional function declarations
+    const generateOptions: any = {
+      contents,
+      generationConfig: {
+        temperature: 0.2,
+      },
+    };
+
+    // Add function declarations if available
+    if (availableFunctions && availableFunctions.length > 0) {
+      generateOptions.tools = [{
+        functionDeclarations: availableFunctions
+      }];
+    }
+
+    // Send the request to Gemini
+    const result = await model.generateContent(generateOptions);
+    const response = result.response;
+
+    // Check if the response includes a function call
+    let functionCall = null;
+    try {
+      functionCall = response.functionCall();
+    } catch (e) {
+      // No function call in the response
+    }
+
+    if (functionCall) {
+      // Return both the text response and the function call details
+      return {
+        text: response.text() || "",
+        functionCall: {
+          name: functionCall.name,
+          args: functionCall.args || {},
+        },
+      };
+    }
+
+    // If no function call, return just the text response
+    return { text: response.text() || "" };
+  } catch (error) {
+    console.error("Error sending message to Gemini:", error);
+
+    // Return a fallback response
+    return {
+      text: "I'm having trouble connecting to my AI services right now. Please try again later.",
+    };
+  }
+}
+
+// Process a function result and continue the conversation
+export async function sendFunctionResult(
+  functionName: string,
+  result: string,
+  chatHistory: ChatMessage[],
+  availableFunctions?: FunctionSchema[]
+): Promise<{ text: string; functionCall?: FunctionCallResult }> {
+  try {
+    // Check if API key is available
+    if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY && !process.env.GEMINI_API_KEY) {
+      return {
+        text: "API key is not configured. Please add a valid Gemini API key in your environment variables.",
+      };
+    }
+
+    // Get the Gemini model
+    const model = getGemini2Flash();
+
+    // Prepare history in the format Gemini expects
+    const contents = [];
+
+    // Add chat history
+    for (const msg of chatHistory) {
+      if (msg.role === "user") {
+        contents.push({ role: "user", parts: [{ text: msg.content }] });
+      } else if (msg.role === "assistant") {
+        contents.push({ role: "model", parts: [{ text: msg.content }] });
+      } else if (msg.role === "function" && msg.name) {
+        contents.push({
+          role: "model",
+          parts: [{
+            functionResponse: {
+              name: msg.name,
+              response: { text: msg.content }
+            }
+          }]
+        });
+      }
+    }
+
+    // Add the function result
+    contents.push({
+      role: "model",
+      parts: [{
+        functionResponse: {
+          name: functionName,
+          response: { text: result }
+        }
+      }]
+    });
+
+    // Generate content with optional function declarations
+    const generateOptions: any = {
+      contents,
+      generationConfig: {
+        temperature: 0.2,
+      },
+    };
+
+    // Add function declarations if available
+    if (availableFunctions && availableFunctions.length > 0) {
+      generateOptions.tools = [{
+        functionDeclarations: availableFunctions
+      }];
+    }
+
+    // Send the request to Gemini
+    const response = await model.generateContent(generateOptions);
+
+    // Check if the response includes a function call
+    let functionCall = null;
+    try {
+      functionCall = response.response.functionCall();
+    } catch (e) {
+      // No function call in the response
+    }
+
+    if (functionCall) {
+      // Return both the text response and the function call details
+      return {
+        text: response.response.text() || "",
+        functionCall: {
+          name: functionCall.name,
+          args: functionCall.args || {},
+        },
+      };
+    }
+
+    // If no function call, return just the text response
+    return { text: response.response.text() || "" };
+  } catch (error) {
+    console.error("Error sending function result to Gemini:", error);
+
+    // Return a fallback response
+    return {
+      text: "I processed your request, but I'm having trouble connecting to my AI services for follow-up. Please try again later.",
+    };
   }
 }
 

@@ -27,13 +27,9 @@ import { MessageList } from "./message-list";
 import { RouteInfo } from "./route-info";
 import { RouteDetails } from "@/lib/route-mapper";
 import { VendorSheet } from "./vendor-sheet";
+import { Message as ChatMessage } from "@/hooks/use-function-chat";
 
-export type Message = {
-  id: string;
-  content: string;
-  role: "user" | "assistant";
-  pending?: boolean;
-};
+export type Message = ChatMessage;
 
 export type Vendor = {
   id: string;
@@ -217,7 +213,7 @@ export function FloatingChat({
     );
   };
 
-  // Renamed from handleSubmit to handleFormSubmit to avoid confusion
+  // Handle form submission
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const currentInput = input.trim();
@@ -248,368 +244,342 @@ export function FloatingChat({
   const getVendorTypeColor = (type: string): string => {
     const colors: Record<string, string> = {
       bakso: "bg-red-500",
-      siomay: "bg-green-500",
-      batagor: "bg-blue-500",
-      es_cendol: "bg-purple-500",
-      sate_padang: "bg-amber-500",
+      siomay: "bg-blue-500",
+      batagor: "bg-yellow-500",
+      es_cendol: "bg-green-500",
+      "es cendol": "bg-green-500",
+      es_cincau: "bg-emerald-500",
+      "es cincau": "bg-emerald-500",
+      sate: "bg-orange-500",
+      sate_padang: "bg-orange-500",
+      "sate padang": "bg-orange-500",
+      martabak: "bg-purple-500",
     };
-    return colors[type] || "bg-gray-500";
+
+    // Default color if type is not recognized
+    return colors[type.toLowerCase()] || "bg-gray-500";
   };
 
-  // Get selected vendor name for route display
+  // Find the number of vendors for each type to show in the dropdown
+  const vendorCounts: Record<string, number> = {};
+  validVendors.forEach((vendor) => {
+    const type = vendor.type.toLowerCase();
+    vendorCounts[type] = (vendorCounts[type] || 0) + 1;
+  });
+
+  // Group vendors by type with proper case
+  const vendorsByType: Record<string, Vendor[]> = {};
+  validVendors.forEach((vendor) => {
+    const type = vendor.type.toLowerCase();
+    if (!vendorsByType[type]) {
+      vendorsByType[type] = [];
+    }
+    vendorsByType[type].push(vendor);
+  });
+
+  // Filter for the selected vendor
   const selectedVendor = selectedVendorId
     ? validVendors.find((v) => v.id === selectedVendorId)
-    : null;
-
-  // Latest assistant message for the chat bubble when minimized
-  const latestAssistantMessage = messages
-    .filter((msg) => msg.role === "assistant" && !msg.pending)
-    .pop();
+    : undefined;
 
   return (
     <div
       className={cn(
-        "flex flex-col w-full max-w-md mx-auto relative",
+        "relative backdrop-blur-sm flex flex-col w-full overflow-hidden",
+        isExpanded ? "bg-white shadow-lg rounded-2xl" : "",
         className
       )}
     >
-      {/* REMOVED AnimatePresence for internal isVisible state. Parent FindPage handles this. */}
-      {/* <AnimatePresence mode={preferReducedMotion ? "wait" : "sync"}> */}
-      {/* {isVisible && ( */}
-      <>
-        {isExpanded && (
-          <motion.div
-            initial={{ opacity: 0, height: 0, y: 20 }}
-            animate={{ opacity: 1, height: "auto", y: 0 }}
-            exit={{ opacity: 0, height: 0, y: 20 }}
-            transition={animationSettings.transition}
-            className="bg-white/95 backdrop-blur-md rounded-t-2xl overflow-hidden shadow-lg border border-gray-100 flex flex-col"
-          >
-            <Tabs
-              defaultValue="chat"
-              value={activeTab}
-              onValueChange={setActiveTab}
-              className="w-full"
-            >
-              <div className="border-b">
-                <TabsList className="w-full rounded-none border-b-0 bg-transparent p-0">
-                  <TabsTrigger
-                    value="chat"
-                    className="flex-1 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none py-3"
-                  >
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Chat
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="vendors"
-                    className="flex-1 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none py-3"
-                    disabled={validVendors.length === 0}
-                  >
-                    <MapIcon className="h-4 w-4 mr-2" />
-                    Vendors{" "}
-                    {validVendors.length > 0 && (
-                      <Badge
-                        variant="secondary"
-                        className="ml-2 h-5 w-5 p-0 flex items-center justify-center"
-                      >
-                        {validVendors.length}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                  {showRoute && selectedVendorId && routeDetails && (
-                    <TabsTrigger
-                      value="route"
-                      className="flex-1 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none py-3"
-                    >
-                      <Navigation className="h-4 w-4 mr-2" />
-                      Route
-                    </TabsTrigger>
-                  )}
-                </TabsList>
-              </div>
-
-              <TabsContent
+      {/* If expanded, show the tabbed interface */}
+      {isExpanded ? (
+        <Tabs
+          defaultValue="chat"
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="w-full"
+        >
+          <div className="border-b px-1 flex justify-between items-center">
+            <TabsList className="h-12">
+              <TabsTrigger
                 value="chat"
-                className="mt-0 p-0"
-                style={{ height: "300px" }}
+                className="data-[state=active]:bg-gray-100/80 px-3 relative"
               >
-                <motion.div
-                  layout
-                  className="overflow-hidden"
-                  style={{ height: "auto", minHeight: 0 }}
-                >
-                  <MessageList
-                    messages={messages}
-                    isLoading={isLoading}
-                    validVendors={validVendors}
-                    activeDropdowns={activeDropdowns}
-                    toggleDropdown={toggleDropdown}
-                    selectedVendorId={selectedVendorId}
-                    onVendorClick={onVendorClick}
-                    getVendorTypeColor={getVendorTypeColor}
-                    animationSettings={animationSettings}
-                    preferReducedMotion={preferReducedMotion}
-                    bubbleClassName={bubbleClassName}
-                    messagesEndRef={messagesEndRef}
-                    toggleExpanded={localToggleExpanded}
-                    onViewAllVendors={() => setVendorSheetOpen(true)}
-                  />
-                </motion.div>
-              </TabsContent>
-
-              <TabsContent
+                <MessageSquare className="h-4 w-4 mr-1" />
+                Chat
+                {activeTab !== "chat" &&
+                  messages.filter((m) => m.role === "assistant" && !m.pending)
+                    .length > 0 && (
+                    <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />
+                  )}
+              </TabsTrigger>
+              <TabsTrigger
                 value="vendors"
-                className="mt-0 p-0"
-                style={{ height: "300px" }}
+                className="data-[state=active]:bg-gray-100/80 px-3 relative"
+                disabled={validVendors.length === 0}
               >
-                <div
-                  ref={vendorListRef}
-                  className="h-full overflow-auto p-3 space-y-2"
+                <MapPin className="h-4 w-4 mr-1" />
+                Vendors
+                {activeTab !== "vendors" && validVendors.length > 0 && (
+                  <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />
+                )}
+              </TabsTrigger>
+              {routeDetails && selectedVendor && (
+                <TabsTrigger
+                  value="route"
+                  className="data-[state=active]:bg-gray-100/80 px-3 relative"
                 >
-                  {validVendors.length === 0 ? (
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-sm text-gray-500">No vendors found</p>
+                  <Navigation className="h-4 w-4 mr-1" />
+                  Route
+                </TabsTrigger>
+              )}
+            </TabsList>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mr-2 h-8 w-8 rounded-full"
+              onClick={onMinimizeChat}
+            >
+              <MinusCircle className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <TabsContent
+            value="chat"
+            className="mt-0 focus-visible:outline-none focus-visible:ring-0 border-0"
+          >
+            <MessageList
+              messages={messages}
+              isLoading={isLoading}
+              validVendors={validVendors}
+              activeDropdowns={activeDropdowns}
+              toggleDropdown={toggleDropdown}
+              selectedVendorId={selectedVendorId}
+              onVendorClick={onVendorClick}
+              getVendorTypeColor={getVendorTypeColor}
+              animationSettings={animationSettings}
+              preferReducedMotion={preferReducedMotion}
+              bubbleClassName={bubbleClassName}
+              messagesEndRef={messagesEndRef}
+              toggleExpanded={localToggleExpanded}
+              onViewAllVendors={() => setActiveTab("vendors")}
+            />
+          </TabsContent>
+
+          <TabsContent
+            value="vendors"
+            className="mt-0 focus-visible:outline-none focus-visible:ring-0 border-0 relative"
+          >
+            <div className="h-[350px] relative">
+              <ScrollArea className="h-full flex flex-col w-full">
+                <div
+                  className="flex flex-col p-4 space-y-4"
+                  ref={vendorListRef}
+                >
+                  {Object.entries(vendorsByType).length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-60 text-gray-400">
+                      <MapIcon className="h-12 w-12 mb-2 opacity-30" />
+                      <p className="text-sm">Tidak ada penjual ditemukan</p>
+                      <p className="text-xs mt-1">
+                        Coba cari dengan kata kunci lain
+                      </p>
                     </div>
                   ) : (
-                    validVendors.map((vendor) => (
-                      <div
-                        key={vendor.id}
-                        data-vendor-id={vendor.id}
-                        className={cn(
-                          "rounded-lg p-3 transition-all cursor-pointer hover:bg-gray-50",
-                          selectedVendorId === vendor.id
-                            ? "bg-gray-100"
-                            : "bg-white",
-                          "border border-gray-100 shadow-sm"
-                        )}
-                        onClick={() => onVendorClick && onVendorClick(vendor)}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="font-medium text-sm">
-                              {vendor.name}
+                    Object.entries(vendorsByType).map(([type, vendors]) => (
+                      <div key={type} className="space-y-2">
+                        <div
+                          className="flex items-center justify-between cursor-pointer"
+                          onClick={() => toggleDropdown(type)}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <div
+                              className={`h-3 w-3 rounded-full ${getVendorTypeColor(
+                                type
+                              )}`}
+                            ></div>
+                            <h3 className="font-medium capitalize">
+                              {type.replace("_", " ")}
                             </h3>
-                            <div className="flex items-center mt-1 space-x-2">
-                              <Badge
-                                variant="secondary"
-                                className={cn(
-                                  "text-[10px] px-1.5 py-0 h-4",
-                                  getVendorTypeColor(vendor.type).replace(
-                                    "bg-",
-                                    "bg-opacity-10 text-"
-                                  )
-                                )}
-                              >
-                                {vendor.type.replace("_", " ")}
-                              </Badge>
-                              <span
-                                className={cn(
-                                  "text-xs flex items-center",
-                                  vendor.status === "active"
-                                    ? "text-green-600"
-                                    : "text-gray-500"
-                                )}
-                              >
-                                <span
-                                  className={cn(
-                                    "inline-block h-1.5 w-1.5 rounded-full mr-1",
-                                    vendor.status === "active"
-                                      ? "bg-green-500"
-                                      : "bg-gray-400"
-                                  )}
-                                ></span>
-                                {vendor.status === "active"
-                                  ? "Active"
-                                  : "Inactive"}
-                              </span>
-                            </div>
+                            <Badge variant="outline" className="ml-2">
+                              {vendors.length}
+                            </Badge>
                           </div>
-                          <div className="flex flex-col items-end">
-                            {vendor.distance && (
-                              <div className="text-xs text-gray-500 flex items-center">
-                                <MapPin className="h-3 w-3 mr-1" />
-                                {vendor.distance}
-                              </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 rounded-full"
+                          >
+                            {activeDropdowns.includes(type) ? (
+                              <MinusCircle className="h-4 w-4" />
+                            ) : (
+                              <PlusCircle className="h-4 w-4" />
                             )}
-                            <div className="text-[10px] text-gray-400 mt-1">
-                              {vendor.last_active}
-                            </div>
-                          </div>
+                          </Button>
                         </div>
-                        {vendor.description && (
-                          <p className="text-xs text-gray-600 mt-2">
-                            {vendor.description}
-                          </p>
-                        )}
 
-                        {selectedVendorId === vendor.id && onToggleRoute && (
-                          <div className="flex justify-end mt-2">
-                            <Button
-                              variant={showRoute ? "default" : "outline"}
-                              size="sm"
-                              className="text-xs h-7 px-2 gap-1 rounded-full"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onToggleRoute();
-                              }}
+                        <AnimatePresence>
+                          {activeDropdowns.includes(type) && (
+                            <motion.div
+                              initial={
+                                preferReducedMotion
+                                  ? { opacity: 1, height: "auto" }
+                                  : { opacity: 0, height: 0 }
+                              }
+                              animate={
+                                preferReducedMotion
+                                  ? { opacity: 1, height: "auto" }
+                                  : { opacity: 1, height: "auto" }
+                              }
+                              exit={
+                                preferReducedMotion
+                                  ? { opacity: 0, height: 0 }
+                                  : { opacity: 0, height: 0 }
+                              }
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden"
                             >
-                              <Navigation className="h-3 w-3" />
-                              {showRoute ? "Hide Route" : "Show Route"}
-                            </Button>
-                          </div>
-                        )}
+                              <div className="space-y-2 mt-2">
+                                {vendors.map((vendor) => (
+                                  <div
+                                    key={vendor.id}
+                                    data-vendor-id={vendor.id}
+                                    className={cn(
+                                      "p-3 rounded-lg border cursor-pointer transition-all duration-200",
+                                      selectedVendorId === vendor.id
+                                        ? "bg-primary/5 border-primary/30"
+                                        : "bg-white hover:bg-gray-50 border-gray-200"
+                                    )}
+                                    onClick={() =>
+                                      onVendorClick && onVendorClick(vendor)
+                                    }
+                                  >
+                                    <div className="flex justify-between items-start">
+                                      <div>
+                                        <h4 className="font-medium">
+                                          {vendor.name}
+                                        </h4>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                          {vendor.description ||
+                                            `${vendor.type} pedagang keliling`}
+                                        </p>
+                                      </div>
+                                      {vendor.distance && (
+                                        <Badge
+                                          variant="outline"
+                                          className="ml-2 text-xs"
+                                        >
+                                          {vendor.distance}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
+                                      <div className="flex items-center">
+                                        <Clock className="h-3 w-3 mr-1" />
+                                        {vendor.last_active}
+                                      </div>
+                                      <div
+                                        className={cn(
+                                          "px-1.5 py-0.5 rounded-full text-white text-[10px] uppercase font-medium",
+                                          vendor.status === "active"
+                                            ? "bg-green-500"
+                                            : "bg-gray-400"
+                                        )}
+                                      >
+                                        {vendor.status}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     ))
                   )}
                 </div>
-              </TabsContent>
+              </ScrollArea>
 
-              {showRoute &&
-                routeDetails &&
-                selectedVendorId &&
-                selectedVendor && (
-                  <TabsContent
-                    value="route"
-                    className="mt-0 p-3"
-                    style={{ height: "300px", overflowY: "auto" }}
-                  >
-                    <RouteInfo
-                      distanceText={routeDetails.distance.text}
-                      durationText={routeDetails.duration.text}
-                      durationValue={routeDetails.duration.value}
-                      instructions={routeDetails.instructions}
-                      vendorName={selectedVendor.name}
-                      onClose={onToggleRoute}
-                    />
-                  </TabsContent>
-                )}
-            </Tabs>
-          </motion.div>
-        )}
-
-        {/* Latest assistant message when collapsed - only shown when chat is visible but collapsed */}
-        {!isExpanded && latestAssistantMessage && (
-          <motion.div
-            layout
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            onClick={localToggleExpanded}
-            className="mb-2 max-w-[85%] cursor-pointer"
-          >
-            <div
-              className={cn(
-                "py-2 px-3 rounded-2xl bg-white/95 backdrop-blur-md shadow-sm border border-gray-100 text-sm",
-                bubbleClassName
-              )}
-            >
-              <div className="line-clamp-2">
-                {latestAssistantMessage.content}
-              </div>
+              {/* Bottom fade effect */}
+              <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white to-transparent pointer-events-none" />
             </div>
-          </motion.div>
-        )}
+          </TabsContent>
 
-        <motion.div
-          layout
-          transition={animationSettings.transition}
-          className="bg-white rounded-2xl shadow-lg border border-gray-100 z-10"
+          <TabsContent
+            value="route"
+            className="mt-0 focus-visible:outline-none focus-visible:ring-0 border-0"
+          >
+            {routeDetails && selectedVendor ? (
+              <div className="h-[350px] flex flex-col">
+                <RouteInfo
+                  routeDetails={routeDetails}
+                  vendorName={selectedVendor.name}
+                  showRoute={showRoute || false}
+                  onToggleRoute={onToggleRoute}
+                />
+              </div>
+            ) : (
+              <div className="h-[350px] flex items-center justify-center">
+                <div className="text-center">
+                  <Navigation className="h-12 w-12 mx-auto text-gray-300 mb-2" />
+                  <p className="text-gray-500">
+                    Pilih penjual untuk melihat rute
+                  </p>
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          <div className="p-2 border-t">
+            <ChatInput
+              input={input}
+              setInput={setInput}
+              onFormSubmit={handleFormSubmit}
+              isLoading={isLoading}
+              isExpanded={isExpanded}
+              toggleExpanded={localToggleExpanded}
+              inputRef={inputRef}
+              onMinimize={onMinimizeChat}
+            />
+          </div>
+        </Tabs>
+      ) : (
+        // Collapsed view just shows the mini chat bubble
+        <div
+          className={cn(
+            "flex items-center gap-3 p-3 bg-white/95 rounded-full shadow-md cursor-pointer transition-transform hover:scale-102 active:scale-98",
+            bubbleClassName
+          )}
+          onClick={localToggleExpanded}
         >
-          <ChatInput
-            input={input}
-            setInput={setInput}
-            onFormSubmit={handleFormSubmit}
-            isLoading={isLoading}
-            isExpanded={isExpanded}
-            toggleExpanded={localToggleExpanded}
-            inputRef={inputRef}
-            onMinimize={onMinimizeChat}
-          />
-        </motion.div>
-      </>
-      {/* </AnimatePresence> */}
+          <div className="bg-primary h-10 w-10 flex items-center justify-center rounded-full">
+            <MessageSquare className="text-white h-5 w-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">Chat with KeLink</p>
+            <p className="text-xs text-gray-500 truncate">
+              Cari penjual keliling atau tanya jalan...
+            </p>
+          </div>
+          <ChevronUp className="h-5 w-5 text-gray-400" />
+        </div>
+      )}
 
-      {/* Add the VendorSheet component */}
+      {/* Vendor detail sheet */}
       <VendorSheet
         open={vendorSheetOpen}
         onOpenChange={setVendorSheetOpen}
-        vendors={validVendors}
-        selectedVendorId={selectedVendorId}
-        onVendorClick={onVendorClick}
-        getVendorTypeColor={getVendorTypeColor}
-        animationSettings={animationSettings}
-        preferReducedMotion={preferReducedMotion}
+        vendor={selectedVendor}
+        onViewRoute={
+          selectedVendor && onToggleRoute
+            ? () => {
+                setVendorSheetOpen(false);
+                onToggleRoute();
+                setActiveTab("route");
+              }
+            : undefined
+        }
       />
-
-      {/* Add custom CSS for typing indicator and animations */}
-      <style jsx global>{`
-        .typing-indicator {
-          display: flex;
-          align-items: center;
-          gap: 3px;
-        }
-        .typing-indicator span {
-          width: 5px;
-          height: 5px;
-          border-radius: 50%;
-          background-color: hsl(var(--primary));
-          display: inline-block;
-          opacity: 0.6;
-        }
-        .typing-indicator span:nth-child(1) {
-          animation: pulse 1s infinite 0.1s;
-        }
-        .typing-indicator span:nth-child(2) {
-          animation: pulse 1s infinite 0.3s;
-        }
-        .typing-indicator span:nth-child(3) {
-          animation: pulse 1s infinite 0.5s;
-        }
-        @keyframes pulse {
-          0%,
-          100% {
-            opacity: 0.6;
-          }
-          50% {
-            opacity: 1;
-          }
-        }
-
-        /* Push-up animation styles */
-        @keyframes push-up {
-          0% {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        /* Force hardware acceleration for smoother animations */
-        .will-change-transform {
-          will-change: transform;
-        }
-
-        /* Custom scrollbar styles */
-        .scrollbar-thin::-webkit-scrollbar {
-          width: 4px;
-        }
-
-        .scrollbar-thin::-webkit-scrollbar-track {
-          background: transparent;
-        }
-
-        .scrollbar-thin::-webkit-scrollbar-thumb {
-          background-color: rgba(0, 0, 0, 0.2);
-          border-radius: 20px;
-        }
-
-        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-          background-color: rgba(0, 0, 0, 0.3);
-        }
-      `}</style>
     </div>
   );
 }

@@ -37,13 +37,11 @@ import {
   calculateEstimatedArrival,
   calculateRoute,
 } from "@/lib/route-mapper";
-
-type Message = {
-  id: string;
-  content: string;
-  role: "user" | "assistant";
-  pending?: boolean;
-};
+import {
+  useFunctionChat,
+  Message as ChatMessage,
+} from "@/hooks/use-function-chat";
+import { availableFunctions } from "@/lib/function-calling/functions";
 
 type Vendor = {
   id: string;
@@ -103,16 +101,17 @@ const SAMPLE_VENDORS: Vendor[] = [
 ];
 
 export default function FindPage() {
-  const [messages, setMessages] = useState<Message[]>([
+  // Initialize with a welcome message
+  const initialMessages: ChatMessage[] = [
     {
       id: "1",
       role: "assistant",
       content:
         "Halo! Saya dapat membantu Anda mencari penjual keliling terdekat. Apa yang Anda cari hari ini?",
     },
-  ]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  ];
+
+  // State for the component
   const [foundVendors, setFoundVendors] = useState<Vendor[]>([]);
   const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -127,7 +126,7 @@ export default function FindPage() {
   // Default Jakarta location if geolocation fails
   const defaultLocation = { lat: -6.2088, lng: 106.8456 };
 
-  // Use the new geolocation hook
+  // Use the geolocation hook
   const {
     location: userLocation,
     loading: isLocating,
@@ -136,6 +135,80 @@ export default function FindPage() {
     update: updateLocation,
     requestPermission,
   } = useGeolocation(defaultLocation);
+
+  // Handler for vendors found via function call
+  const handleVendorsFound = (vendors: Vendor[]) => {
+    // Process vendors if they have proper location data
+    const processedVendors = vendors.map((vendor) => {
+      // Create a deep copy to avoid mutating the original
+      const vendorCopy = { ...vendor };
+
+      // Ensure vendor has a valid location
+      if (!vendorCopy.location || typeof vendorCopy.location !== "object") {
+        vendorCopy.location = {
+          lat: userLocation
+            ? userLocation.lat + (Math.random() * 0.01 - 0.005)
+            : -6.2088,
+          lng: userLocation
+            ? userLocation.lng + (Math.random() * 0.01 - 0.005)
+            : 106.8456,
+        };
+      } else {
+        // Convert from API format (lon) to frontend format (lng) if needed
+        vendorCopy.location = {
+          lat:
+            typeof vendorCopy.location.lat === "number"
+              ? vendorCopy.location.lat
+              : userLocation?.lat || -6.2088,
+          lng:
+            typeof vendorCopy.location.lng === "number"
+              ? vendorCopy.location.lng
+              : typeof (vendorCopy.location as any).lon === "number"
+              ? (vendorCopy.location as any).lon
+              : userLocation?.lng || 106.8456,
+        };
+      }
+
+      return vendorCopy;
+    });
+
+    setFoundVendors(processedVendors);
+  };
+
+  // Handler for route details found via function call
+  const handleRouteFound = (route: RouteDetails) => {
+    setRouteDetails(route);
+    setShowRouteToVendor(true);
+    setIsLoadingRoute(false);
+  };
+
+  // Handler for location request via function call
+  const handleLocationRequest = async () => {
+    // For users who denied permission, show permission request dialog
+    if (permissionState === "denied") {
+      setShowPermissionRequest(true);
+      return;
+    }
+
+    // If permission is prompt or unknown, request permission
+    if (permissionState === "prompt" || permissionState === "unknown") {
+      await requestPermission();
+    } else {
+      // Just update location if permission already granted
+      await updateLocation();
+    }
+  };
+
+  // Use the function chat hook
+  const { messages, isProcessing, processingFunctionCall, sendMessage } =
+    useFunctionChat(initialMessages, {
+      userLocation,
+      foundVendors,
+      onVendorResults: handleVendorsFound,
+      onRouteResult: handleRouteFound,
+      onLocationRequest: handleLocationRequest,
+      functionSchemas: availableFunctions,
+    });
 
   // Added: Handler for FloatingChat's expansion toggle
   const handleToggleChatExpansion = () => {
@@ -146,17 +219,13 @@ export default function FindPage() {
   useEffect(() => {
     if (foundVendors.length > 0 && isChatVisible) {
       setIsExpanded(true);
-      // setActiveTab("vendors"); // activeTab is internal to FloatingChat
     }
   }, [foundVendors, isChatVisible, setIsExpanded]);
 
   // Auto-expand chat when a vendor is selected (if chat is visible)
-  // This might be too aggressive, depending on UX preference.
-  // For now, we expand if a vendor is selected and chat is open.
   useEffect(() => {
     if (selectedVendorId && isChatVisible) {
       setIsExpanded(true);
-      // setActiveTab("vendors"); // activeTab is internal to FloatingChat
     }
   }, [selectedVendorId, isChatVisible, setIsExpanded]);
 
@@ -169,7 +238,6 @@ export default function FindPage() {
       isChatVisible
     ) {
       setIsExpanded(true);
-      // setActiveTab("route"); // activeTab is internal to FloatingChat
     }
   }, [
     showRouteToVendor,
@@ -228,213 +296,9 @@ export default function FindPage() {
     setShowPermissionRequest(false);
     // If user skips, add a helpful message
     if (permissionState === "denied") {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          role: "assistant",
-          content:
-            "Lokasi Anda tidak tersedia. Hasil pencarian mungkin tidak akurat atau menampilkan sampel data saja.",
-        },
-      ]);
-    }
-  };
-
-  const handleSubmit = async (message: string) => {
-    if (!message.trim()) return;
-
-    // If location permission is prompt or unknown, show permission request before continuing
-    if (
-      (permissionState === "prompt" || permissionState === "unknown") &&
-      !showPermissionRequest
-    ) {
-      setShowPermissionRequest(true);
-      return;
-    }
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: message,
-    };
-
-    const pendingMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      role: "assistant",
-      content: "...",
-      pending: true,
-    };
-
-    setMessages((prev) => [...prev, userMessage, pendingMessage]);
-    setIsLoading(true);
-    setIsExpanded(true);
-
-    try {
-      // Ensure location uses consistent property names (API expects 'lon', not 'lng')
-      const locationForApi = userLocation
-        ? {
-            lat: userLocation.lat,
-            lon: userLocation.lng, // Convert lng to lon for API compatibility
-          }
-        : null;
-
-      // Call the find API endpoint
-      const response = await fetch("/api/find", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: message,
-          location: locationForApi,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ error: "Unknown error" }));
-        console.error("API error:", errorData);
-        throw new Error(
-          `API error: ${
-            errorData.error || response.statusText || response.status
-          }`
-        );
-      }
-
-      const data = await response.json();
-
-      // Update vendors if any were found
-      if (data.response.vendors && data.response.vendors.length > 0) {
-        // Ensure each vendor has a proper location structure
-        const processedVendors = data.response.vendors.map((vendor: any) => {
-          // Create a deep copy to avoid mutating the original
-          const vendorCopy = { ...vendor };
-
-          // Ensure vendor has a valid location
-          if (!vendorCopy.location || typeof vendorCopy.location !== "object") {
-            vendorCopy.location = {
-              lat: userLocation
-                ? userLocation.lat + (Math.random() * 0.01 - 0.005)
-                : -6.2088,
-              lng: userLocation
-                ? userLocation.lng + (Math.random() * 0.01 - 0.005)
-                : 106.8456,
-            };
-          } else {
-            // Convert from API format (lon) to frontend format (lng) if needed
-            vendorCopy.location = {
-              lat:
-                typeof vendorCopy.location.lat === "number"
-                  ? vendorCopy.location.lat
-                  : userLocation?.lat || -6.2088,
-              lng:
-                typeof vendorCopy.location.lng === "number"
-                  ? vendorCopy.location.lng
-                  : typeof vendorCopy.location.lon === "number"
-                  ? vendorCopy.location.lon
-                  : userLocation?.lng || 106.8456,
-            };
-          }
-
-          return vendorCopy;
-        });
-
-        setFoundVendors(processedVendors);
-      } else {
-        console.log("No vendors found in API response, using sample data");
-
-        // Fallback to sample data for testing
-        if (
-          message.toLowerCase().includes("bakso") ||
-          message.toLowerCase().includes("makanan") ||
-          message.toLowerCase().includes("jual")
-        ) {
-          setFoundVendors(SAMPLE_VENDORS);
-
-          setMessages((prev) => {
-            const newMessages = [...prev];
-            const pendingIndex = newMessages.findIndex((msg) => msg.pending);
-
-            if (pendingIndex !== -1) {
-              newMessages[pendingIndex] = {
-                id: Date.now().toString(),
-                role: "assistant",
-                content: `Saya menemukan ${SAMPLE_VENDORS.length} penjual di sekitar Anda. Anda dapat melihat lokasi mereka pada peta.`,
-              };
-            }
-
-            return newMessages;
-          });
-
-          // Exit early since we've handled the response
-          setIsLoading(false);
-          return;
-        } else {
-          setFoundVendors([]);
-        }
-      }
-
-      setMessages((prev) => {
-        const newMessages = [...prev];
-        const pendingIndex = newMessages.findIndex((msg) => msg.pending);
-
-        if (pendingIndex !== -1) {
-          // Replace the pending message with the actual response
-          newMessages[pendingIndex] = {
-            id: Date.now().toString(),
-            role: "assistant",
-            content: data.response.text,
-          };
-        }
-
-        return newMessages;
-      });
-    } catch (error) {
-      console.error("Error sending message:", error);
-
-      // Always use sample data for demo purposes when the API fails
-      if (
-        message.toLowerCase().includes("bakso") ||
-        message.toLowerCase().includes("makanan") ||
-        message.toLowerCase().includes("jual") ||
-        message.toLowerCase().includes("makan")
-      ) {
-        setFoundVendors(SAMPLE_VENDORS);
-
-        setMessages((prev) => {
-          const newMessages = [...prev];
-          const pendingIndex = newMessages.findIndex((msg) => msg.pending);
-
-          if (pendingIndex !== -1) {
-            newMessages[pendingIndex] = {
-              id: Date.now().toString(),
-              role: "assistant",
-              content: `Saya menemukan ${SAMPLE_VENDORS.length} penjual di sekitar Anda. Anda dapat melihat lokasi mereka pada peta.`,
-            };
-          }
-
-          return newMessages;
-        });
-      } else {
-        setMessages((prev) => {
-          const newMessages = [...prev];
-          const pendingIndex = newMessages.findIndex((msg) => msg.pending);
-
-          if (pendingIndex !== -1) {
-            newMessages[pendingIndex] = {
-              id: Date.now().toString(),
-              role: "assistant",
-              content:
-                "Maaf, terjadi kesalahan. Silakan coba lagi nanti. Coba tanyakan tentang 'bakso' atau 'makanan' untuk melihat contoh hasil.",
-            };
-          }
-
-          return newMessages;
-        });
-      }
-    } finally {
-      setIsLoading(false);
+      sendMessage(
+        "Saya tidak bisa mengakses lokasi Anda. Tolong beri izin lokasi."
+      );
     }
   };
 
@@ -483,21 +347,6 @@ export default function FindPage() {
     }
   };
 
-  // Track if we're submitting a query to add loading state to the UI
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Add loading state to form submission
-  const handleMessageSubmit = async (message: string) => {
-    if (isSubmitting) return;
-
-    setIsSubmitting(true);
-    try {
-      await handleSubmit(message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   // Function to toggle route display
   const toggleRouteDisplay = async () => {
     const newState = !showRouteToVendor;
@@ -520,29 +369,18 @@ export default function FindPage() {
           );
 
           setRouteDetails(route);
+          setIsLoadingRoute(false);
 
-          // Add a message about the route
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: Date.now().toString(),
-              role: "assistant",
-              content: `Saya telah menunjukkan rute terbaik ke ${selectedVendor.name}. Waktu tempuh sekitar ${route?.duration.text} dengan jarak ${route?.distance.text}.`,
-            },
-          ]);
+          // Add a message about the route via the chat system
+          if (route) {
+            sendMessage(`Tunjukkan rute ke ${selectedVendor.name}`);
+          }
         } catch (error) {
           console.error("Error calculating route:", error);
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: Date.now().toString(),
-              role: "assistant",
-              content:
-                "Maaf, tidak dapat menghitung rute saat ini. Silakan coba lagi nanti.",
-            },
-          ]);
-        } finally {
           setIsLoadingRoute(false);
+          sendMessage(
+            "Gagal menghitung rute ke vendor yang dipilih. Coba lagi nanti."
+          );
         }
       }
     } else {
@@ -696,8 +534,8 @@ export default function FindPage() {
             >
               <FloatingChat
                 messages={messages}
-                isLoading={isLoading || isSubmitting}
-                onSendMessage={handleMessageSubmit}
+                isLoading={isProcessing}
+                onSendMessage={sendMessage}
                 vendors={foundVendors}
                 selectedVendorId={selectedVendorId || undefined}
                 onVendorClick={handleVendorClick}

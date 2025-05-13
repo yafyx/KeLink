@@ -1,107 +1,166 @@
 "use client";
 
-import * as React from "react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { VendorCard } from "./vendor-card";
-import { Vendor } from "./floating-chat";
+import { MapPin, Navigation, Clock, Phone, MapIcon, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Credenza,
+  CredenzaContent,
+  CredenzaHeader,
+  CredenzaTitle,
+  CredenzaBody,
+  CredenzaFooter,
+  CredenzaClose,
+} from "@/components/ui/credenza";
 import { cn } from "@/lib/utils";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+interface Vendor {
+  id: string;
+  name: string;
+  type: string;
+  description?: string;
+  distance?: string;
+  status: "active" | "inactive";
+  last_active: string;
+  location: {
+    lat: number;
+    lng: number;
+  };
+}
 
 interface VendorSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  vendors: Vendor[];
-  selectedVendorId?: string;
-  onVendorClick?: (vendor: Vendor) => void;
-  getVendorTypeColor: (type: string) => string;
-  animationSettings: any;
-  preferReducedMotion: boolean | null | undefined;
+  vendor?: Vendor;
+  onViewRoute?: () => void;
 }
 
 export function VendorSheet({
   open,
   onOpenChange,
-  vendors,
-  selectedVendorId,
-  onVendorClick,
-  getVendorTypeColor,
-  animationSettings,
-  preferReducedMotion,
+  vendor,
+  onViewRoute,
 }: VendorSheetProps) {
-  // Group vendors by type
-  const vendorsByType: Record<string, Vendor[]> = {};
+  if (!vendor) return null;
 
-  vendors.forEach((vendor) => {
-    if (!vendorsByType[vendor.type]) {
-      vendorsByType[vendor.type] = [];
-    }
-    vendorsByType[vendor.type].push(vendor);
-  });
+  // Get vendor type color
+  const getVendorTypeColor = (type: string): string => {
+    const colors: Record<string, string> = {
+      bakso: "bg-red-500",
+      siomay: "bg-blue-500",
+      batagor: "bg-yellow-500",
+      es_cendol: "bg-green-500",
+      "es cendol": "bg-green-500",
+      es_cincau: "bg-emerald-500",
+      "es cincau": "bg-emerald-500",
+      sate: "bg-orange-500",
+      sate_padang: "bg-orange-500",
+      "sate padang": "bg-orange-500",
+      martabak: "bg-purple-500",
+    };
 
-  // Get the types for tab creation
-  const vendorTypes = Object.keys(vendorsByType);
+    return colors[type.toLowerCase()] || "bg-gray-500";
+  };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[85vh] p-0 pt-0 rounded-t-xl">
-        <SheetHeader className="px-4 pt-6 pb-2">
-          <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4" />
-          <SheetTitle className="text-center">Pedagang Terdekat</SheetTitle>
-        </SheetHeader>
+    <Credenza open={open} onOpenChange={onOpenChange}>
+      <CredenzaContent className="max-w-md mx-auto">
+        <CredenzaHeader className="pb-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div
+                className={cn(
+                  "w-3 h-3 rounded-full",
+                  getVendorTypeColor(vendor.type)
+                )}
+              />
+              <CredenzaTitle className="text-xl">{vendor.name}</CredenzaTitle>
+            </div>
+            <CredenzaClose className="rounded-full w-8 h-8 hover:bg-gray-100 flex items-center justify-center">
+              <X className="h-4 w-4" />
+            </CredenzaClose>
+          </div>
+          <div className="flex justify-between items-center mt-1">
+            <Badge variant="outline" className="capitalize">
+              {vendor.type.replace("_", " ")}
+            </Badge>
+            <Badge
+              variant={vendor.status === "active" ? "default" : "secondary"}
+              className={cn(
+                "text-xs",
+                vendor.status === "active"
+                  ? "bg-green-500 hover:bg-green-600"
+                  : ""
+              )}
+            >
+              {vendor.status === "active" ? "Active" : "Inactive"}
+            </Badge>
+          </div>
+        </CredenzaHeader>
 
-        <Tabs defaultValue={vendorTypes[0]} className="w-full">
-          <TabsList className="w-full h-auto flex overflow-x-auto px-4 py-2 bg-transparent rounded-none gap-2 justify-start">
-            {vendorTypes.map((type) => (
-              <TabsTrigger
-                key={type}
-                value={type}
-                className="px-3 py-1.5 rounded-full data-[state=active]:bg-primary data-[state=active]:text-white flex items-center gap-1.5"
-              >
-                <span className="capitalize">{type.replace("_", " ")}</span>
-                <Badge
-                  variant="secondary"
-                  className={cn(
-                    "ml-1 h-5 min-w-5 p-0 flex items-center justify-center",
-                    "data-[state=active]:bg-white data-[state=active]:text-primary"
-                  )}
-                >
-                  {vendorsByType[type].length}
-                </Badge>
-              </TabsTrigger>
-            ))}
-          </TabsList>
+        <CredenzaBody className="px-4 py-2">
+          <ScrollArea className="max-h-[60vh]">
+            <div className="space-y-4">
+              {/* Description */}
+              <p className="text-sm text-gray-600">
+                {vendor.description || `${vendor.type} pedagang keliling`}
+              </p>
 
-          {vendorTypes.map((type) => (
-            <TabsContent key={type} value={type} className="m-0 p-0">
-              <ScrollArea className="h-[calc(85vh-110px)] px-4 py-2">
-                <div className="space-y-3">
-                  {vendorsByType[type].map((vendor) => (
-                    <VendorCard
-                      key={vendor.id}
-                      vendor={vendor}
-                      selectedVendorId={selectedVendorId}
-                      onVendorClick={(v) => {
-                        onVendorClick && onVendorClick(v);
-                        onOpenChange(false);
-                      }}
-                      getVendorTypeColor={getVendorTypeColor}
-                      animationSettings={animationSettings}
-                      preferReducedMotion={preferReducedMotion}
-                    />
-                  ))}
+              {/* Location and timing info */}
+              <div className="flex flex-col gap-2 bg-gray-50 p-3 rounded-md">
+                <div className="flex items-center text-sm text-gray-600 gap-2">
+                  <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
+                  <span>
+                    {vendor.distance
+                      ? `${vendor.distance} dari lokasi Anda`
+                      : "Lokasi tersedia di peta"}
+                  </span>
                 </div>
-              </ScrollArea>
-            </TabsContent>
-          ))}
-        </Tabs>
-      </SheetContent>
-    </Sheet>
+                <div className="flex items-center text-sm text-gray-600 gap-2">
+                  <Clock className="h-4 w-4 text-primary flex-shrink-0" />
+                  <span>Terakhir aktif: {vendor.last_active}</span>
+                </div>
+              </div>
+
+              {/* Map preview placeholder */}
+              <div className="relative aspect-video bg-gray-100 rounded-md overflow-hidden flex flex-col items-center justify-center">
+                <MapIcon className="h-10 w-10 text-gray-300 mb-2" />
+                <p className="text-sm text-gray-500">
+                  Lihat lokasi {vendor.name} di peta
+                </p>
+              </div>
+
+              {/* Additional info - can be filled with more data when available */}
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Catatan</h4>
+                <p className="text-sm text-gray-600">
+                  Ketersediaan penjual dapat berubah sewaktu-waktu. Silakan
+                  hubungi penjual untuk informasi lebih lanjut.
+                </p>
+              </div>
+            </div>
+          </ScrollArea>
+        </CredenzaBody>
+
+        <CredenzaFooter>
+          <div className="flex gap-2 w-full">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => onOpenChange(false)}
+            >
+              Tutup
+            </Button>
+            {onViewRoute && (
+              <Button className="flex-1 gap-1" onClick={onViewRoute}>
+                <Navigation className="h-4 w-4" />
+                Lihat Rute
+              </Button>
+            )}
+          </div>
+        </CredenzaFooter>
+      </CredenzaContent>
+    </Credenza>
   );
 }
