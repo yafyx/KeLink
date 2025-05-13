@@ -9,6 +9,7 @@ export interface DecodedToken {
     email: string;
     name?: string;
     peddlerType?: string;
+    role?: 'user' | 'peddler';
     [key: string]: any;
 }
 

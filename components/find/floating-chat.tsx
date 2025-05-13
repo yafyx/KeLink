@@ -28,11 +28,11 @@ import { RouteInfo } from "./route-info";
 import { RouteDetails } from "@/lib/route-mapper";
 import { PeddlerSheet } from "./peddler/peddler-sheet";
 import { Message as ChatMessage } from "@/hooks/use-function-chat";
-import { Peddler } from "@/lib/peddlers";
+import { Peddler as PeddlerType } from "@/lib/peddlers";
 
 export type Message = ChatMessage;
 
-export type Peddler = Peddler;
+export type Peddler = PeddlerType;
 
 interface FloatingChatProps {
   messages: Message[];

@@ -71,9 +71,7 @@
 
 ## Documentation & Onboarding
 
-- [ ] Create comprehensive API documentation
 - [ ] Add peddler onboarding guide/tutorial
-- [ ] Document codebase with JSDoc comments
 - [ ] Create user help/FAQ section
 
 ## Future Enhancements

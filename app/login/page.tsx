@@ -1,16 +1,16 @@
 "use client";
 
 import { GalleryVerticalEnd, ArrowLeft } from "lucide-react";
-import { PeddlerLoginForm } from "@/components/peddler-login-form";
+import { LoginForm } from "@/components/login-form";
 import { MobileLayout } from "@/components/MobileLayout";
 import { MobileHeader } from "@/components/ui/mobile-header";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
-export default function VendorLoginPage() {
+export default function UserLoginPage() {
   const HeaderComponent = (
     <MobileHeader
-      title="Peddler Login"
+      title="User Login"
       centerContent={true}
       leftAction={
         <Link href="/">
@@ -35,7 +35,7 @@ export default function VendorLoginPage() {
             </div>
             KeLink
           </a>
-          <PeddlerLoginForm />
+          <LoginForm />
         </div>
       </div>
     </MobileLayout>
