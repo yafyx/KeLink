@@ -30,6 +30,10 @@ import {
   FlameKindling,
   UtensilsCrossed,
   Beef,
+  UserRound,
+  Bell,
+  TrendingUp,
+  Sparkles,
 } from "lucide-react";
 import { MobileHeader } from "@/components/ui/mobile-header";
 import { AppLayout } from "@/components/AppLayout";
@@ -133,14 +137,25 @@ export default function Home() {
         <MobileHeader
           title="KeLink"
           centerContent={true}
+          leftAction={
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative bg-primary hover:bg-primary/90"
+              aria-label="User profile"
+              onClick={() => router.push("/account")}
+            >
+              <UserRound className="h-7 w-7 fill-white" />
+            </Button>
+          }
           rightAction={
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9"
-              aria-label="Menu"
+              className="relative"
+              aria-label="Notifications"
             >
-              <Menu className="h-5 w-5" />
+              <Bell className="h-7 w-7" />
             </Button>
           }
         />
@@ -154,22 +169,23 @@ export default function Home() {
       >
         {/* Hero Banner */}
         <motion.div
-          className="bg-gradient-to-br from-primary/95 to-primary-dark relative pt-4 pb-8 px-4 mb-4 overflow-hidden"
+          className="bg-gradient-to-br from-primary/90 via-primary to-primary-dark relative pt-6 pb-10 px-4 mb-6 overflow-hidden rounded-b-3xl shadow-lg"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
           {/* Decorative Elements */}
           <div className="absolute top-0 left-0 w-full h-full">
-            <div className="absolute top-8 right-4 w-24 h-24 rounded-full bg-white/10 blur-xl" />
-            <div className="absolute bottom-4 left-8 w-16 h-16 rounded-full bg-white/5 blur-lg" />
+            <div className="absolute top-8 right-4 w-32 h-32 rounded-full bg-white/10 blur-xl" />
+            <div className="absolute bottom-4 left-8 w-24 h-24 rounded-full bg-white/5 blur-lg" />
+            <div className="absolute top-20 left-12 w-16 h-16 rounded-full bg-white/8 blur-md" />
           </div>
 
           {/* Location and Search Section */}
           <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="h-8 w-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                <MapPin className="h-4 w-4 text-white flex-shrink-0" />
+            <div className="flex items-center gap-2 mb-4">
+              <div className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                <MapPin className="h-5 w-5 text-white flex-shrink-0" />
               </div>
               <div className="flex flex-col">
                 <p className="text-xs text-white/70">Your Location</p>
@@ -183,8 +199,8 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="mb-4">
-              <h1 className="text-2xl font-bold text-white mb-1 font-jakarta">
+            <div className="mb-5">
+              <h1 className="text-3xl font-bold text-white mb-2 font-jakarta">
                 Find Street Food
               </h1>
               <p className="text-sm text-white/80">
@@ -194,7 +210,7 @@ export default function Home() {
 
             <Button
               onClick={handleNavigateToFind}
-              className="w-full py-6 bg-white hover:bg-white/95 text-primary justify-between h-auto font-medium rounded-xl shadow-lg"
+              className="w-full py-6 bg-white hover:bg-white/95 text-primary justify-between h-auto font-medium rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-[1.02]"
               disabled={isLoading}
             >
               <div className="flex items-center">
@@ -206,22 +222,59 @@ export default function Home() {
           </div>
         </motion.div>
 
-        {/* Categories Section */}
+        {/* Trending Banner */}
         <motion.div
           className="px-4 mb-6"
+          variants={itemVariants}
+          initial="hidden"
+          animate="show"
+          transition={{ delay: 0.2 }}
+        >
+          <Card className="border-0 shadow-md bg-gradient-to-r from-amber-50 to-amber-100 overflow-hidden rounded-xl">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-amber-200 flex-shrink-0 flex items-center justify-center">
+                  <TrendingUp className="h-6 w-6 text-amber-600" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-bold text-base font-jakarta text-gray-900">
+                      Trending Now
+                    </h3>
+                    <Sparkles className="h-4 w-4 text-amber-500" />
+                  </div>
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium">Siomay Mang Ujang</span> is
+                    trending in your area!
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Categories Section */}
+        <motion.div
+          className="px-4 mb-8"
           variants={containerVariants}
           initial="hidden"
           animate="show"
         >
-          <div className="mb-3">
-            <h2 className="text-base font-semibold font-jakarta text-gray-900">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold font-jakarta text-gray-900">
               Categories
             </h2>
+            <Link
+              href="/categories"
+              className="text-primary text-sm font-medium"
+            >
+              View All
+            </Link>
           </div>
 
           <div className="px-1">
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 pb-1">
-              {categories.map((category) => {
+            <div className="grid grid-cols-4 gap-3 pb-1">
+              {categories.slice(0, 8).map((category) => {
                 const isSelected = selectedCategory === category.id;
                 const CategoryIcon = category.icon;
 
@@ -237,22 +290,22 @@ export default function Home() {
                         setSelectedCategory(isSelected ? null : category.id)
                       }
                       className={cn(
-                        "flex flex-col items-center justify-center py-2 px-2 rounded-xl transition-all w-full h-full",
+                        "flex flex-col items-center justify-center py-2 px-2 rounded-xl transition-all w-full h-full shadow-sm",
                         isSelected
-                          ? "bg-primary/10 text-primary"
+                          ? "bg-primary text-white"
                           : "bg-white text-gray-700 hover:bg-gray-100"
                       )}
                     >
                       <div
                         className={cn(
                           "h-10 w-10 rounded-full flex items-center justify-center mb-1",
-                          isSelected ? "bg-primary/15" : "bg-gray-100"
+                          isSelected ? "bg-white/20" : "bg-gray-100"
                         )}
                       >
                         <CategoryIcon
                           className={cn(
                             "h-5 w-5",
-                            isSelected ? "text-primary" : "text-gray-700"
+                            isSelected ? "text-white" : "text-gray-700"
                           )}
                         />
                       </div>
@@ -269,27 +322,27 @@ export default function Home() {
 
         {/* Feature Banner */}
         <motion.div
-          className="px-4 mb-6"
+          className="px-4 mb-8"
           variants={itemVariants}
           initial="hidden"
           animate="show"
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.3 }}
         >
           <FeatureBanner
-            className="w-full"
+            className="w-full rounded-xl overflow-hidden shadow-md"
             onButtonClick={handleNavigateToFind}
           />
         </motion.div>
 
         {/* Popular Searches */}
         <motion.div
-          className="px-4 mb-6"
+          className="px-4 mb-8"
           variants={containerVariants}
           initial="hidden"
           animate="show"
         >
-          <div className="mb-3">
-            <h2 className="text-base font-semibold font-jakarta text-gray-900">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold font-jakarta text-gray-900">
               Popular Searches
             </h2>
           </div>
@@ -304,7 +357,7 @@ export default function Home() {
                 <Link href={`/find?query=${item}`}>
                   <Badge
                     variant="outline"
-                    className="px-3 py-1.5 bg-white hover:bg-gray-100 text-gray-800 border-gray-200 cursor-pointer"
+                    className="px-4 py-2 bg-white hover:bg-gray-100 text-gray-800 border-gray-200 cursor-pointer shadow-sm rounded-full"
                   >
                     {item}
                   </Badge>
@@ -316,13 +369,13 @@ export default function Home() {
 
         {/* Nearby Peddlers */}
         <motion.div
-          className="px-4 mb-6"
+          className="px-4 mb-8"
           variants={containerVariants}
           initial="hidden"
           animate="show"
         >
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-semibold font-jakarta text-gray-900">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold font-jakarta text-gray-900">
               Peddlers Nearby
             </h2>
             <Link href="/find" className="text-primary text-sm font-medium">
@@ -336,14 +389,14 @@ export default function Home() {
               whileHover={{ scale: 1.02, y: -2 }}
               whileTap={{ scale: 0.98 }}
             >
-              <Card className="border border-gray-100 shadow-sm overflow-hidden rounded-xl bg-white hover:shadow-md transition-all">
+              <Card className="border-0 shadow-md overflow-hidden rounded-xl bg-white hover:shadow-lg transition-all">
                 <CardContent className="p-0">
                   <Link
                     href="/find?peddler=siomay-mang-ujang"
                     className="block"
                   >
                     <div className="flex">
-                      <div className="relative w-28 h-28">
+                      <div className="relative w-32 h-32">
                         <Image
                           src="/placeholder.jpg"
                           alt="Siomay Mang Ujang Peddler"
@@ -376,8 +429,8 @@ export default function Home() {
                           />
                         </button>
                       </div>
-                      <div className="p-3 flex-1">
-                        <div className="flex items-center justify-between">
+                      <div className="p-4 flex-1">
+                        <div className="flex items-center justify-between mb-1">
                           <h3 className="font-semibold text-base font-jakarta text-gray-900">
                             Siomay Mang Ujang
                           </h3>
@@ -385,19 +438,19 @@ export default function Home() {
                             Active
                           </Badge>
                         </div>
-                        <div className="flex items-center gap-1 mt-1.5">
+                        <div className="flex items-center gap-1 mt-2">
                           <MapPin className="h-3.5 w-3.5 text-primary/80" />
                           <p className="text-xs text-gray-700">
                             500m away • 5 min walk
                           </p>
                         </div>
-                        <div className="flex items-center gap-1 mt-1">
+                        <div className="flex items-center gap-1 mt-1.5">
                           <Clock className="h-3.5 w-3.5 text-gray-500" />
                           <p className="text-xs text-gray-600">
                             Last seen: 5 min ago
                           </p>
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-1.5">
+                        <div className="mt-3 flex flex-wrap gap-1.5">
                           <Badge className="bg-primary/10 text-primary border-0 px-2 py-0.5 text-xs">
                             Siomay
                           </Badge>
@@ -417,14 +470,14 @@ export default function Home() {
               whileHover={{ scale: 1.02, y: -2 }}
               whileTap={{ scale: 0.98 }}
             >
-              <Card className="border border-gray-100 shadow-sm overflow-hidden rounded-xl bg-white hover:shadow-md transition-all">
+              <Card className="border-0 shadow-md overflow-hidden rounded-xl bg-white hover:shadow-lg transition-all">
                 <CardContent className="p-0">
                   <Link
                     href="/find?peddler=es-cendol-bu-tini"
                     className="block"
                   >
                     <div className="flex">
-                      <div className="relative w-28 h-28">
+                      <div className="relative w-32 h-32">
                         <Image
                           src="/placeholder.jpg"
                           alt="Es Cendol Bu Tini Peddler"
@@ -457,8 +510,8 @@ export default function Home() {
                           />
                         </button>
                       </div>
-                      <div className="p-3 flex-1">
-                        <div className="flex items-center justify-between">
+                      <div className="p-4 flex-1">
+                        <div className="flex items-center justify-between mb-1">
                           <h3 className="font-semibold text-base font-jakarta text-gray-900">
                             Es Cendol Bu Tini
                           </h3>
@@ -466,19 +519,19 @@ export default function Home() {
                             Active
                           </Badge>
                         </div>
-                        <div className="flex items-center gap-1 mt-1.5">
+                        <div className="flex items-center gap-1 mt-2">
                           <MapPin className="h-3.5 w-3.5 text-primary/80" />
                           <p className="text-xs text-gray-700">
                             350m away • 3 min walk
                           </p>
                         </div>
-                        <div className="flex items-center gap-1 mt-1">
+                        <div className="flex items-center gap-1 mt-1.5">
                           <Clock className="h-3.5 w-3.5 text-gray-500" />
                           <p className="text-xs text-gray-600">
                             Last seen: 2 min ago
                           </p>
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-1.5">
+                        <div className="mt-3 flex flex-wrap gap-1.5">
                           <Badge className="bg-primary/10 text-primary border-0 px-2 py-0.5 text-xs">
                             Es Cendol
                           </Badge>
@@ -497,13 +550,13 @@ export default function Home() {
 
         {/* Quick Services */}
         <motion.div
-          className="px-4 mb-6"
+          className="px-4 mb-8"
           variants={containerVariants}
           initial="hidden"
           animate="show"
         >
-          <div className="mb-3">
-            <h2 className="text-base font-semibold font-jakarta text-gray-900">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold font-jakarta text-gray-900">
               Quick Services
             </h2>
           </div>
@@ -515,7 +568,7 @@ export default function Home() {
               whileTap={{ scale: 0.96 }}
             >
               <Link href="/find" className="block h-full">
-                <Card className="border border-gray-100 shadow-sm overflow-hidden h-full rounded-xl bg-gradient-to-br from-blue-50 to-blue-100">
+                <Card className="border-0 shadow-md overflow-hidden h-full rounded-xl bg-gradient-to-br from-blue-50 to-blue-100">
                   <CardContent className="p-4">
                     <div className="flex flex-col h-full">
                       <div className="h-12 w-12 rounded-full bg-blue-200/50 flex items-center justify-center mb-3">
@@ -539,7 +592,7 @@ export default function Home() {
               whileTap={{ scale: 0.96 }}
             >
               <Link href="/find?tracking=true" className="block h-full">
-                <Card className="border border-gray-100 shadow-sm overflow-hidden h-full rounded-xl bg-gradient-to-br from-green-50 to-green-100">
+                <Card className="border-0 shadow-md overflow-hidden h-full rounded-xl bg-gradient-to-br from-green-50 to-green-100">
                   <CardContent className="p-4">
                     <div className="flex flex-col h-full">
                       <div className="h-12 w-12 rounded-full bg-green-200/50 flex items-center justify-center mb-3">
@@ -567,7 +620,7 @@ export default function Home() {
           animate="show"
           transition={{ delay: 0.3 }}
         >
-          <Card className="border-0 shadow-md bg-gradient-to-br from-primary/5 to-primary/10 overflow-hidden rounded-xl">
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-primary/5 to-primary/10 overflow-hidden rounded-xl">
             <CardContent className="p-5">
               <div className="flex items-center gap-4">
                 <div className="h-16 w-16 rounded-full bg-primary/20 flex-shrink-0 flex items-center justify-center">

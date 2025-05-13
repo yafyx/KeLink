@@ -25,13 +25,13 @@ export function MobileHeader({
       }}
     >
       <div className="mobile-container">
-        <div className="h-14 flex items-center justify-between">
-          <div className="w-14 flex items-center justify-start">
+        <div className="h-20 flex items-center justify-between">
+          <div className="w-16 flex items-center justify-start">
             {leftAction}
           </div>
 
           <h1
-            className={`text-lg font-semibold truncate font-jakarta ${
+            className={`text-xl font-semibold truncate font-jakarta ${
               centerContent
                 ? "absolute left-1/2 transform -translate-x-1/2"
                 : ""
@@ -40,7 +40,7 @@ export function MobileHeader({
             {title}
           </h1>
 
-          <div className="w-14 flex items-center justify-end">
+          <div className="w-16 flex items-center justify-end">
             {rightAction}
           </div>
         </div>
