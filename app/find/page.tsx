@@ -204,7 +204,7 @@ export default function FindPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to get response from find API");
+        throw new Error(`API responded with status ${response.status}`);
       }
 
       const data = await response.json();
@@ -243,7 +243,37 @@ export default function FindPage() {
 
         setFoundVendors(processedVendors);
       } else {
-        setFoundVendors([]);
+        console.log("No vendors found in API response, using sample data");
+
+        // Fallback to sample data for testing
+        if (
+          message.toLowerCase().includes("bakso") ||
+          message.toLowerCase().includes("makanan") ||
+          message.toLowerCase().includes("jual")
+        ) {
+          setFoundVendors(SAMPLE_VENDORS);
+
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            const pendingIndex = newMessages.findIndex((msg) => msg.pending);
+
+            if (pendingIndex !== -1) {
+              newMessages[pendingIndex] = {
+                id: Date.now().toString(),
+                role: "assistant",
+                content: `Saya menemukan ${SAMPLE_VENDORS.length} penjual di sekitar Anda. Anda dapat melihat lokasi mereka pada peta.`,
+              };
+            }
+
+            return newMessages;
+          });
+
+          // Exit early since we've handled the response
+          setIsLoading(false);
+          return;
+        } else {
+          setFoundVendors([]);
+        }
       }
 
       setMessages((prev) => {
@@ -264,11 +294,12 @@ export default function FindPage() {
     } catch (error) {
       console.error("Error sending message:", error);
 
-      // For testing/development: Use sample data when API fails
+      // Always use sample data for demo purposes when the API fails
       if (
         message.toLowerCase().includes("bakso") ||
         message.toLowerCase().includes("makanan") ||
-        message.toLowerCase().includes("jual")
+        message.toLowerCase().includes("jual") ||
+        message.toLowerCase().includes("makan")
       ) {
         setFoundVendors(SAMPLE_VENDORS);
 

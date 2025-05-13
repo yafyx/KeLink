@@ -1,206 +1,302 @@
-import { NextResponse } from 'next/server'
+import { findNearbyVendors } from '@/lib/vendors';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { NextResponse } from 'next/server';
 
-export async function POST(request: Request) {
-    try {
-        const { message, location } = await request.json()
+// Initialize Google Generative AI with API key
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
-        // For the MVP, we're implementing a mock response function
-        // In the real implementation, this would call the Gemini API with function calling
+// Type definitions for the query analysis
+interface QueryAnalysisResult {
+    isLookingForVendors: boolean;
+    vendorType: string;
+    keywords: string[];
+    directResponse: string;
+}
 
-        const response = await mockGeminiResponse(message, location)
+// Mock database of vendors for fallback when Firestore is not accessible
+const mockVendors = [
+    {
+        id: 'v1',
+        name: 'Bakso Pak Jono',
+        type: 'Bakso',
+        description: 'Bakso daging sapi asli dengan kuah gurih dan pangsit goreng renyah.',
+        location: { lat: -6.3823, lon: 106.8231 },
+        status: 'active',
+        last_active: new Date().toISOString()
+    },
+    {
+        id: 'v2',
+        name: 'Bakso Malang Bu Siti',
+        type: 'Bakso',
+        description: 'Bakso Malang dengan berbagai pilihan topping dan mie.',
+        location: { lat: -6.3895, lon: 106.8320 },
+        status: 'active',
+        last_active: new Date().toISOString()
+    },
+    {
+        id: 'v3',
+        name: 'Siomay & Batagor Mang Ujang',
+        type: 'Siomay/Batagor',
+        description: 'Siomay dan batagor dengan saus kacang khas Bandung.',
+        location: { lat: -6.3756, lon: 106.8245 },
+        status: 'active',
+        last_active: new Date().toISOString()
+    },
+    {
+        id: 'v4',
+        name: 'Es Cendol Pak Wawan',
+        type: 'Es Cendol',
+        description: 'Es cendol dengan santan kental dan gula merah asli.',
+        location: { lat: -6.3802, lon: 106.8210 },
+        status: 'active',
+        last_active: new Date().toISOString()
+    }
+];
 
-        return NextResponse.json({ response }, { status: 200 })
-    } catch (error) {
-        console.error('Error processing find request:', error)
-        return NextResponse.json(
-            { error: 'Failed to process your request' },
-            { status: 500 }
-        )
+// Helper functions for fallback mode
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371e3; // Earth radius in meters
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+        Math.cos(φ1) * Math.cos(φ2) *
+        Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+function formatDistance(distance: number): string {
+    if (distance < 1000) {
+        return `${Math.round(distance)}m`;
+    } else {
+        return `${(distance / 1000).toFixed(1)}km`;
     }
 }
 
-// Mock function to simulate Gemini API responses
-// Will be replaced with actual Gemini API call with function calling
-async function mockGeminiResponse(query: string, location: { lat: number; lon: number } | null) {
-    // Simulate processing time
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    // Types for the vendor data (copied from findNearby/route.ts)
-    type Vendor = {
-        id: string;
-        name: string;
-        type: string;
-        description: string;
-        location: {
-            lat: number;
-            lon: number;
-        };
-        distance?: string;
-        status: 'active' | 'inactive';
-        last_active: string;
-    };
-
-    type VendorWithDistance = Vendor & {
-        raw_distance?: number;
-    };
-
-    // Mock database of vendors (copied from findNearby/route.ts)
-    const mockVendors: Vendor[] = [
-        {
-            id: 'v1',
-            name: 'Bakso Pak Jono',
-            type: 'Bakso',
-            description: 'Bakso daging sapi asli dengan kuah gurih dan pangsit goreng renyah.',
-            location: { lat: -6.3823, lon: 106.8231 },
-            status: 'active',
-            last_active: new Date().toISOString()
-        },
-        {
-            id: 'v2',
-            name: 'Bakso Malang Bu Siti',
-            type: 'Bakso',
-            description: 'Bakso Malang dengan berbagai pilihan topping dan mie.',
-            location: { lat: -6.3895, lon: 106.8320 },
-            status: 'active',
-            last_active: new Date().toISOString()
-        },
-        {
-            id: 'v3',
-            name: 'Siomay & Batagor Mang Ujang',
-            type: 'Siomay/Batagor',
-            description: 'Siomay dan batagor dengan saus kacang khas Bandung.',
-            location: { lat: -6.3756, lon: 106.8245 },
-            status: 'active',
-            last_active: new Date().toISOString()
-        },
-        {
-            id: 'v4',
-            name: 'Es Cendol Pak Wawan',
-            type: 'Es Cendol',
-            description: 'Es cendol dengan santan kental dan gula merah asli.',
-            location: { lat: -6.3802, lon: 106.8210 },
-            status: 'active',
-            last_active: new Date().toISOString()
-        },
-        {
-            id: 'v5',
-            name: 'Es Kelapa Muda Bu Ratna',
-            type: 'Es Kelapa',
-            description: 'Es kelapa muda segar dengan pilihan topping.',
-            location: { lat: -6.3850, lon: 106.8275 },
-            status: 'active',
-            last_active: new Date().toISOString()
-        },
-        {
-            id: 'v6',
-            name: 'Es Cincau Mas Budi',
-            type: 'Es Cincau',
-            description: 'Es cincau hijau dengan susu dan sirup.',
-            location: { lat: -6.3900, lon: 106.8350 },
-            status: 'active',
-            last_active: new Date().toISOString()
-        },
-        {
-            id: 'v7',
-            name: 'Martabak Manis Bang Deni',
-            type: 'Martabak',
-            description: 'Martabak manis dengan berbagai varian rasa.',
-            location: { lat: -6.3810, lon: 106.8290 },
-            status: 'inactive',
-            last_active: new Date(Date.now() - 86400000).toISOString() // 1 day ago
-        }
-    ];
-
-    // Helper functions (copied from findNearby/route.ts)
-    function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-        const R = 6371e3; // Earth radius in meters
-        const φ1 = (lat1 * Math.PI) / 180;
-        const φ2 = (lat2 * Math.PI) / 180;
-        const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-        const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-        const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c;
-    }
-
-    function formatDistance(distance: number): string {
-        if (distance < 1000) {
-            return `${Math.round(distance)}m`;
-        } else {
-            return `${(distance / 1000).toFixed(1)}km`;
-        }
-    }
-
-    const lowercaseQuery = query.toLowerCase();
-    const max_distance = 5000; // Default max distance in meters
-
+// Fallback function to find nearby vendors when Firestore is not accessible
+async function findNearbyVendorsFallback(
+    location: { lat: number; lon: number },
+    vendorType: string = '',
+    keywords: string[] = [],
+    maxDistance: number = 5000
+) {
     // Filter active vendors
     let filteredVendors = mockVendors.filter(vendor => vendor.status === 'active');
 
-    // Filter by keywords (from user query)
-    // This will search in name, type, and description
-    if (query && query.trim().length > 0) {
+    // Filter by type if provided
+    if (vendorType && vendorType.trim() !== '') {
+        const lowerCaseType = vendorType.toLowerCase();
+        filteredVendors = filteredVendors.filter(
+            vendor => vendor.type.toLowerCase().includes(lowerCaseType)
+        );
+    } else if (keywords && keywords.length > 0) {
+        // If no specific vendor type but keywords are provided
         filteredVendors = filteredVendors.filter(vendor => {
             const vendorText = `${vendor.name} ${vendor.type} ${vendor.description}`.toLowerCase();
-            // Simple keyword matching, can be improved (e.g., splitting query into multiple keywords)
-            return vendorText.includes(lowercaseQuery);
+            return keywords.some(keyword =>
+                vendorText.includes(keyword.toLowerCase())
+            );
         });
     }
 
-    let vendorsForResponse: Vendor[] = [];
+    // If no results with strict filtering, make a more lenient search
+    if (filteredVendors.length === 0) {
+        // Include all vendors for these common food terms
+        const commonFoodTerms = ['makanan', 'food', 'jual', 'pedagang', 'penjual', 'cari'];
+        if (keywords.some(keyword => commonFoodTerms.includes(keyword.toLowerCase()))) {
+            filteredVendors = mockVendors.filter(vendor => vendor.status === 'active');
+        }
 
-    if (location && location.lat && location.lon) {
-        const vendorsWithDistance: VendorWithDistance[] = filteredVendors
-            .map(vendor => {
-                const distance = calculateDistance(
-                    location.lat,
-                    location.lon,
-                    vendor.location.lat,
-                    vendor.location.lon
-                );
+        // For "bakso" specifically, match the bakso vendors
+        if (keywords.some(keyword => keyword.toLowerCase().includes('bakso'))) {
+            filteredVendors = mockVendors.filter(
+                vendor => vendor.type.toLowerCase().includes('bakso') && vendor.status === 'active'
+            );
+        }
+    }
+
+    // If still no results and query contains any common food keyword, return all active vendors
+    if (filteredVendors.length === 0) {
+        const foodKeywords = ['makan', 'food', 'jajan', 'kuliner', 'lapar', 'laper'];
+        if (keywords.some(keyword =>
+            foodKeywords.some(food => keyword.toLowerCase().includes(food))
+        )) {
+            filteredVendors = mockVendors.filter(vendor => vendor.status === 'active');
+        }
+    }
+
+    // Calculate distance and filter by max_distance
+    const vendorsWithDistance = filteredVendors
+        .map(vendor => {
+            const distance = calculateDistance(
+                location.lat,
+                location.lon,
+                vendor.location.lat,
+                vendor.location.lon
+            );
+            return {
+                ...vendor,
+                distance: formatDistance(distance),
+                raw_distance: distance
+            };
+        })
+        .filter(vendor => (vendor.raw_distance as number) <= maxDistance)
+        .sort((a, b) => (a.raw_distance as number) - (b.raw_distance as number));
+
+    // Return vendors without the raw_distance property
+    return vendorsWithDistance.map(({ raw_distance, ...vendor }) => vendor);
+}
+
+export async function POST(request: Request) {
+    try {
+        const { message, location } = await request.json();
+
+        if (!message || !message.trim()) {
+            return NextResponse.json(
+                { error: 'Message is required' },
+                { status: 400 }
+            );
+        }
+
+        // Use Gemini AI to determine if the query is looking for vendors
+        const result = await analyzeUserQuery(message);
+
+        // If the query is not looking for vendors, respond with a direct message
+        if (!result.isLookingForVendors) {
+            return NextResponse.json({
+                response: {
+                    text: result.directResponse,
+                    vendors: [] // No vendors to return
+                }
+            }, { status: 200 });
+        }
+
+        // If the query is looking for vendors but no location provided
+        if (!location || !location.lat || !location.lon) {
+            return NextResponse.json({
+                response: {
+                    text: "Saya perlu mengetahui lokasi Anda untuk membantu mencari penjual terdekat. Mohon izinkan akses lokasi.",
+                    vendors: []
+                }
+            }, { status: 200 });
+        }
+
+        // Search for vendors using the extracted information
+        let vendors;
+        try {
+            // Try to use the main findNearbyVendors function
+            vendors = await findNearbyVendors({
+                userLocation: location,
+                keywords: result.keywords,
+                vendorType: result.vendorType,
+                maxDistance: 5000 // Default max distance in meters
+            });
+        } catch (firestoreError) {
+            console.error('Error with Firestore, falling back to mock data:', firestoreError);
+            // Fallback to mock data if Firestore fails
+            vendors = await findNearbyVendorsFallback(
+                location,
+                result.vendorType,
+                result.keywords,
+                5000
+            );
+        }
+
+        // Format response based on search results
+        let responseText: string;
+        if (vendors.length > 0) {
+            responseText = `Saya menemukan ${vendors.length} penjual ${result.vendorType || result.keywords.join(", ")} yang aktif di sekitar Anda:\n`;
+            vendors.forEach((vendor, index) => {
+                responseText += `${index + 1}. ${vendor.name} (${vendor.type})${vendor.distance ? ` (sekitar ${vendor.distance})` : ''}\n`;
+            });
+            responseText += "\nIngin info lebih lanjut tentang salah satu penjual?";
+        } else {
+            responseText = `Maaf, saat ini saya tidak menemukan penjual "${result.vendorType || result.keywords.join(", ")}" yang aktif di sekitar Anda. Coba cari jenis makanan lain.`;
+        }
+
+        return NextResponse.json({
+            response: {
+                text: responseText,
+                vendors: vendors.map(v => ({
+                    id: v.id,
+                    name: v.name,
+                    type: v.type,
+                    distance: v.distance ?? 'N/A',
+                    status: v.status,
+                    last_active: v.last_active,
+                }))
+            }
+        }, { status: 200 });
+    } catch (error) {
+        console.error('Error processing find request:', error);
+        return NextResponse.json(
+            { error: 'Failed to process your request' },
+            { status: 500 }
+        );
+    }
+}
+
+// Function to analyze user query with Gemini AI
+async function analyzeUserQuery(query: string): Promise<QueryAnalysisResult> {
+    try {
+        // Define the prompt for Gemini
+        const prompt = `
+        Analisis kueri pengguna berikut untuk mencari penjual keliling:
+        "${query}"
+        
+        Berikan respons dalam format JSON dengan struktur berikut:
+        {
+          "isLookingForVendors": boolean, // apakah pengguna mencari penjual keliling
+          "vendorType": string, // jenis penjual yang dicari (misalnya "bakso", "siomay", dll.) atau kosong jika tidak spesifik
+          "keywords": string[], // kata kunci penting dari query
+          "directResponse": string // respons langsung jika bukan mencari penjual
+        }
+        
+        Contoh jenis makanan keliling Indonesia: bakso, siomay, batagor, es kelapa, es cincau, martabak, dll.
+        Jika pengguna tidak mencari penjual, berikan respons natural dalam Bahasa Indonesia.
+        `;
+
+        // Get the generative model
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+        // Generate content based on the prompt
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text();
+
+        // Parse the JSON response
+        try {
+            // Extract JSON from the text (in case there's any wrapper text)
+            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                const parsedResult = JSON.parse(jsonMatch[0]) as Partial<QueryAnalysisResult>;
                 return {
-                    ...vendor,
-                    distance: formatDistance(distance),
-                    raw_distance: distance
+                    isLookingForVendors: parsedResult.isLookingForVendors || false,
+                    vendorType: parsedResult.vendorType || '',
+                    keywords: parsedResult.keywords || [],
+                    directResponse: parsedResult.directResponse || 'Maaf, saya tidak mengerti maksud Anda. Bisa tolong jelaskan apa yang Anda cari?'
                 };
-            })
-            .filter(vendor => (vendor.raw_distance as number) <= max_distance)
-            .sort((a, b) => (a.raw_distance as number) - (b.raw_distance as number));
+            }
+        } catch (parseError) {
+            console.error('Error parsing AI response:', parseError);
+        }
 
-        vendorsForResponse = vendorsWithDistance.map(({ raw_distance, ...vendor }) => vendor);
-    } else {
-        // If no location, use the filtered vendors directly without distance calculation/filtering
-        // The Vendor type allows distance to be optional
-        vendorsForResponse = filteredVendors;
-    }
-
-
-    if (vendorsForResponse.length > 0) {
-        let responseText = `Saya menemukan ${vendorsForResponse.length} penjual \"${query}\" yang aktif di sekitar Anda:\n`;
-        vendorsForResponse.forEach((vendor, index) => {
-            // Access vendor.distance safely, as it might be undefined
-            responseText += `${index + 1}. ${vendor.name} (${vendor.type})${vendor.distance ? ` (sekitar ${vendor.distance})` : ''}\n`;
-        });
-        responseText += "\nIngin info lebih lanjut tentang salah satu penjual?";
-
+        // Fallback response if parsing fails
         return {
-            text: responseText,
-            vendors: vendorsForResponse.map(v => ({ // Ensure the returned vendor objects match the expected structure
-                id: v.id,
-                name: v.name,
-                type: v.type,
-                // Use optional chaining and provide default if distance is undefined
-                distance: v.distance ?? 'N/A',
-                status: v.status,
-                last_active: v.last_active,
-            }))
+            isLookingForVendors: false,
+            vendorType: '',
+            keywords: [],
+            directResponse: 'Maaf, saya tidak bisa memproses permintaan Anda saat ini. Bisa coba ulangi dengan cara lain?'
         };
-    } else {
+    } catch (error) {
+        console.error('Error analyzing user query:', error);
+        // Fallback to assume they are looking for vendors with the query as keyword
         return {
-            text: `Maaf, saat ini saya tidak menemukan penjual "${query}" yang aktif di sekitar Anda. Coba cari jenis makanan lain.`,
-            vendors: []
+            isLookingForVendors: true,
+            vendorType: '',
+            keywords: [query],
+            directResponse: ''
         };
     }
 } 

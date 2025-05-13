@@ -1,83 +1,150 @@
-# KeLink
+# KeLink - Mobile Vendor Finder
 
-KeLink is a platform that connects street food vendors with customers in Indonesia. The application helps vendors plan optimal routes while allowing customers to find and chat with nearby vendors.
+KeLink is a platform that connects street food vendors in Indonesia with customers. This application helps customers find mobile food vendors around them, and helps vendors optimize their routes and connect with their customers.
 
 ## Features
 
-- **Vendor Management**: Registration, login, and profile management for street food vendors
-- **Route Advice**: AI-powered route recommendations for vendors
-- **Live Tracking**: Enables vendors to share their location with customers
-- **Customer Chat**: Allows customers to find and chat with vendors
+### For Customers
+
+- **Find Vendors:** Search for food vendors near your location using natural language queries
+- **Interactive Map:** View vendor locations on an interactive map
+- **Chat Interface:** Interact with the app using a conversational interface
+- **Multilingual Support:** Available in Indonesian language
+
+### For Vendors
+
+- **Profile Management:** Create and manage a vendor profile
+- **Location Sharing:** Share real-time location with potential customers
+- **Status Toggle:** Go "live" when actively selling and "offline" when not
+- **Route Optimization:** Get AI-powered advice for optimizing your selling route
+- **Analytics Dashboard:** View customer interaction statistics
+
+## Tech Stack
+
+- **Frontend:** Next.js, React, TailwindCSS, Shadcn/UI
+- **Backend:** Next.js API Routes
+- **Database:** Firestore (Firebase)
+- **Authentication:** JWT with Firebase Auth
+- **AI/ML:** Google Gemini API for natural language processing and route optimization
+- **Maps:** Google Maps API
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18.0.0 or higher
-- pnpm (or npm/yarn)
-- Google account for API keys
+- Node.js 18+ and npm/pnpm
+- Firebase account with Firestore enabled
+- Google Gemini API key
+- Google Maps API key
 
 ### Installation
 
-1. Clone the repository
+1. Clone the repository:
 
    ```bash
-   git clone https://github.com/yourusername/KeLink.git
-   cd KeLink
+   git clone https://github.com/yourusername/kelink.git
+   cd kelink
    ```
 
-2. Install dependencies
+2. Install dependencies:
 
    ```bash
+   npm install
+   # or
    pnpm install
    ```
 
-3. Set up environment variables
-
-   - Copy `.env.example` to `.env.local`
-   - Fill in the required API keys and credentials
-
-4. Run the development server
+3. Copy the `.env.example` file to `.env.local` and fill in your API keys and configuration:
 
    ```bash
+   cp .env.example .env.local
+   ```
+
+4. Set up Firebase:
+
+   - Create a Firebase project in the Firebase console
+   - Enable Firestore database
+   - Set up Firebase Authentication
+   - Generate a private key for the Firebase Admin SDK and add it to your environment variables
+
+5. Run the development server:
+
+   ```bash
+   npm run dev
+   # or
    pnpm dev
    ```
 
-### Setting up Google Gemini API
+6. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
 
-The application uses Google's Gemini API for generating route advice. Follow these steps to set up your API key:
+## Deployment
 
-1. Visit [Google AI Studio](https://aistudio.google.com/)
-2. Sign in with your Google account
-3. Navigate to "Get API Key" from the left sidebar menu
-4. Click "Create API Key"
-5. Copy the generated API key
-6. Add the key to your `.env.local` file:
+### Deploying to Vercel
 
+1. Create a Vercel account if you don't have one.
+2. Install the Vercel CLI:
    ```bash
-   GEMINI_API_KEY=your_api_key_here
-   NEXT_PUBLIC_GEMINI_API_KEY=your_api_key_here
+   npm install -g vercel
    ```
+3. Log in to Vercel:
+   ```bash
+   vercel login
+   ```
+4. Deploy the project:
+   ```bash
+   vercel
+   ```
+5. Add your environment variables in the Vercel dashboard.
 
-Note: The application uses both server-side and client-side implementations of the Gemini API, which is why both environment variables are needed.
+### Environment Variables
 
-### Setting up Firebase
+Make sure to set the following environment variables in your deployment environment:
 
-The application uses Firebase for authentication and data storage. Follow these steps to set up Firebase:
-
-1. Go to the [Firebase Console](https://console.firebase.google.com/)
-2. Create a new project
-3. Set up Authentication (Email/Password)
-4. Set up Firestore Database
-5. Generate a service account key (Project settings > Service accounts > Generate new private key)
-6. Add the Firebase configuration to your `.env.local` file
+```
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=
+FIREBASE_PROJECT_ID=
+FIREBASE_CLIENT_EMAIL=
+FIREBASE_PRIVATE_KEY=
+FIREBASE_DATABASE_URL=
+FIREBASE_STORAGE_BUCKET=
+JWT_SECRET=
+GEMINI_API_KEY=
+NEXT_PUBLIC_GEMINI_API_KEY=
+```
 
 ## Project Structure
 
-- `/app`: Next.js app router files
-  - `/api`: Backend API endpoints
-  - `/find`: Customer-facing pages
-  - `/vendor`: Vendor-facing pages
-- `/components`: React components
-- `/lib`: Utility functions and shared code
-- `/hooks`: Custom React hooks
+- `/app` - Next.js app directory with pages and API routes
+  - `/api` - Backend API endpoints
+  - `/find` - Customer-facing vendor search interface
+  - `/vendor` - Vendor portal for profile management, dashboard, and route advice
+- `/components` - Reusable React components
+- `/lib` - Utility functions and shared code
+- `/public` - Static assets
+- `/hooks` - Custom React hooks
+
+## Testing
+
+1. **Vendor Flow Testing:**
+
+   - Test registration and login
+   - Test profile updates
+   - Test location sharing and status toggling
+   - Test route advice functionality
+
+2. **Customer Flow Testing:**
+   - Test searching for vendors
+   - Test geolocation permission handling
+   - Test chatbot responses
+   - Test map interactions
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgements
+
+- Shadcn/UI for the beautiful component library
+- Google Gemini for the AI capabilities
+- Firebase for database and authentication
+- The street vendors of Indonesia for inspiration

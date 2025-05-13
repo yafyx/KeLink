@@ -41,14 +41,130 @@ export default function VendorDashboardPage() {
   const [isActive, setIsActive] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [locationWatchId, setLocationWatchId] = useState<number | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch vendor profile when component mounts
+  useEffect(() => {
+    const fetchVendorProfile = async () => {
+      try {
+        setIsLoading(true);
+        // Check for JWT token in localStorage
+        const token = localStorage.getItem("vendor_token");
+
+        if (!token) {
+          // Redirect to login if no token found
+          window.location.href = "/vendor/login";
+          return;
+        }
+
+        // Fetch vendor profile from the API
+        const response = await fetch("/api/vendors/profile", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          // Handle unauthorized or other errors
+          if (response.status === 401) {
+            localStorage.removeItem("vendor_token");
+            window.location.href = "/vendor/login";
+            return;
+          }
+          throw new Error("Failed to fetch vendor profile");
+        }
+
+        const data = await response.json();
+
+        // Update vendor state with the fetched data
+        setVendor({
+          id: data.id,
+          name: data.name,
+          type: data.type,
+          description: data.description,
+          isActive: data.status === "active",
+          location: data.location
+            ? {
+                lat: data.location.lat,
+                lng: data.location.lon,
+              }
+            : null,
+        });
+
+        setIsActive(data.status === "active");
+        setIsAuthenticated(true);
+      } catch (error) {
+        console.error("Error fetching vendor profile:", error);
+        // You might want to show an error message to the user
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchVendorProfile();
+  }, []);
 
   const toggleActive = async () => {
-    if (!vendor.isActive && !vendor.location) {
+    setIsUpdatingStatus(true);
+    try {
       // If trying to go active but no location, get location first
-      await updateLocation();
-    }
+      if (!isActive && !vendor.location) {
+        const locationSuccess = await updateLocation();
+        if (!locationSuccess) {
+          setIsUpdatingStatus(false);
+          return;
+        }
+      }
 
-    setVendor((prev) => ({ ...prev, isActive: !prev.isActive }));
+      // Get current location if switching to active
+      const newLocation = !isActive ? vendor.location : vendor.location;
+
+      if (!newLocation) {
+        alert(
+          "Location is required to go active. Please update your location."
+        );
+        setIsUpdatingStatus(false);
+        return;
+      }
+
+      // Call the API to update status
+      const token = localStorage.getItem("vendor_token");
+      if (!token) {
+        alert("You need to log in again.");
+        window.location.href = "/vendor/login";
+        return;
+      }
+
+      const response = await fetch("/api/vendors/location", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          location: {
+            lat: newLocation.lat,
+            lon: newLocation.lng,
+          },
+          is_active: !isActive,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update status");
+      }
+
+      // Update local state
+      setVendor((prev) => ({ ...prev, isActive: !prev.isActive }));
+      setIsActive(!isActive);
+    } catch (error) {
+      console.error("Error updating active status:", error);
+      alert("Failed to update status. Please try again.");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
   };
 
   const updateLocation = async () => {
@@ -67,6 +183,34 @@ export default function VendorDashboardPage() {
           lng: position.coords.longitude,
         };
 
+        // Update location in the backend
+        const token = localStorage.getItem("vendor_token");
+        if (!token) {
+          alert("You need to log in again.");
+          window.location.href = "/vendor/login";
+          return false;
+        }
+
+        const response = await fetch("/api/vendors/location", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            location: {
+              lat: newLocation.lat,
+              lon: newLocation.lng,
+            },
+            is_active: vendor.isActive,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to update location");
+        }
+
+        // Update local state
         setVendor((prev) => ({ ...prev, location: newLocation }));
         return true;
       } else {
@@ -104,9 +248,9 @@ export default function VendorDashboardPage() {
   };
 
   const handleLogout = () => {
-    // In a real implementation, this would call your backend API
-    // to log out the vendor
-    window.location.href = "/";
+    // Clear the token from localStorage
+    localStorage.removeItem("vendor_token");
+    window.location.href = "/vendor/login";
   };
 
   // Toggle location sharing
@@ -122,21 +266,43 @@ export default function VendorDashboardPage() {
       // Start watching location
       if (navigator.geolocation) {
         const watchId = navigator.geolocation.watchPosition(
-          (position) => {
+          async (position) => {
             const newLocation = {
               lat: position.coords.latitude,
               lng: position.coords.longitude,
             };
-            setVendor((prev) => ({ ...prev, location: newLocation }));
-            // In a real app, we would send this to the server
-            console.log("Location updated:", newLocation);
 
-            // Mock API call to update location
-            // fetch('/api/vendors/updateLocation', {
-            //   method: 'POST',
-            //   headers: { 'Content-Type': 'application/json' },
-            //   body: JSON.stringify({ location: newLocation })
-            // })
+            // Update local state
+            setVendor((prev) => ({ ...prev, location: newLocation }));
+
+            // Send updated location to the server
+            try {
+              const token = localStorage.getItem("vendor_token");
+              if (!token) {
+                alert("You need to log in again.");
+                window.location.href = "/vendor/login";
+                return;
+              }
+
+              await fetch("/api/vendors/location", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                  location: {
+                    lat: newLocation.lat,
+                    lon: newLocation.lng,
+                  },
+                  is_active: vendor.isActive,
+                }),
+              });
+
+              console.log("Location updated:", newLocation);
+            } catch (error) {
+              console.error("Error updating location on server:", error);
+            }
           },
           (error) => {
             console.error("Error getting location:", error);
@@ -164,6 +330,26 @@ export default function VendorDashboardPage() {
       }
     };
   }, [locationWatchId]);
+
+  // If still loading, show a loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 mx-auto animate-spin text-primary" />
+          <h3 className="mt-4 text-lg font-medium">
+            Loading vendor dashboard...
+          </h3>
+        </div>
+      </div>
+    );
+  }
+
+  // If not authenticated, redirect to login
+  if (!isAuthenticated && !isLoading) {
+    window.location.href = "/vendor/login";
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
