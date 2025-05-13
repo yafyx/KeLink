@@ -103,7 +103,7 @@ export default function Home() {
 
           <Button
             onClick={handleNavigateToFind}
-            className="w-full py-2 bg-gray-50 hover:bg-gray-100 border-gray-200 text-muted-foreground justify-start h-auto text-sm font-normal rounded-full shadow-sm"
+            className="w-full py-2 bg-gray-50 hover:bg-gray-100 border border-gray-100 text-muted-foreground justify-start h-auto text-sm font-normal rounded-full shadow-sm"
             variant="outline"
             disabled={isLoading}
           >
@@ -115,7 +115,7 @@ export default function Home() {
 
         {/* Promo Banner */}
         <motion.div
-          className="relative h-44 w-full rounded-xl overflow-hidden group shadow-md"
+          className="relative h-44 w-full rounded-xl overflow-hidden group shadow-sm border border-gray-100"
           initial={{ y: 10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -143,7 +143,7 @@ export default function Home() {
             <Link href="/find" className="mt-4 w-fit">
               <Button
                 size="sm"
-                className="gap-2 rounded-full bg-white text-primary hover:bg-white/90 shadow-lg font-medium px-5"
+                className="gap-2 rounded-full bg-white text-primary hover:bg-white/90 shadow-sm font-medium px-5"
               >
                 Try Now <ArrowRight className="h-3 w-3" />
               </Button>
@@ -165,7 +165,7 @@ export default function Home() {
           <div className="grid grid-cols-2 gap-4">
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
               <Link href="/find?filter=nearby" className="block">
-                <Card className="border-0 shadow-sm overflow-hidden bg-gradient-to-br from-blue-50 to-blue-100">
+                <Card className="border border-gray-100 shadow-sm overflow-hidden bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="h-12 w-12 rounded-full bg-blue-100 border-2 border-blue-200 flex items-center justify-center">
@@ -187,7 +187,7 @@ export default function Home() {
 
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
               <Link href="/find?filter=trending" className="block">
-                <Card className="border-0 shadow-sm overflow-hidden bg-gradient-to-br from-amber-50 to-amber-100">
+                <Card className="border border-gray-100 shadow-sm overflow-hidden bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="h-12 w-12 rounded-full bg-amber-100 border-2 border-amber-200 flex items-center justify-center">
@@ -227,7 +227,7 @@ export default function Home() {
 
           <div className="space-y-4">
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Card className="border-0 shadow-sm overflow-hidden rounded-xl">
+              <Card className="border border-gray-100 shadow-sm overflow-hidden rounded-xl">
                 <CardContent className="p-0">
                   <Link href="/find?vendor=siomay-mang-ujang" className="block">
                     <div className="flex">
@@ -238,7 +238,7 @@ export default function Home() {
                           fill
                           className="object-cover"
                         />
-                        <div className="absolute top-2 left-2 bg-white rounded-full p-1 shadow-sm">
+                        <div className="absolute top-2 left-2 bg-white rounded-full p-1 shadow-sm border border-gray-100">
                           <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
                         </div>
                       </div>
@@ -276,7 +276,7 @@ export default function Home() {
             </motion.div>
 
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Card className="border-0 shadow-sm overflow-hidden rounded-xl">
+              <Card className="border border-gray-100 shadow-sm overflow-hidden rounded-xl">
                 <CardContent className="p-0">
                   <Link href="/find?vendor=es-cendol-bu-tini" className="block">
                     <div className="flex">
@@ -287,7 +287,7 @@ export default function Home() {
                           fill
                           className="object-cover"
                         />
-                        <div className="absolute top-2 left-2 bg-white rounded-full p-1 shadow-sm">
+                        <div className="absolute top-2 left-2 bg-white rounded-full p-1 shadow-sm border border-gray-100">
                           <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
                         </div>
                       </div>
@@ -342,7 +342,7 @@ export default function Home() {
           <div className="grid grid-cols-2 gap-4">
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
               <Link href="/find" className="block h-full">
-                <Card className="border-0 shadow-sm overflow-hidden h-full">
+                <Card className="border border-gray-100 shadow-sm overflow-hidden h-full rounded-xl">
                   <CardContent className="p-4">
                     <div className="flex flex-col h-full">
                       <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center mb-3">
@@ -362,7 +362,7 @@ export default function Home() {
 
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
               <Link href="/find?tracking=true" className="block h-full">
-                <Card className="border-0 shadow-sm overflow-hidden h-full">
+                <Card className="border border-gray-100 shadow-sm overflow-hidden h-full rounded-xl">
                   <CardContent className="p-4">
                     <div className="flex flex-col h-full">
                       <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center mb-3">
@@ -389,7 +389,7 @@ export default function Home() {
           transition={{ delay: 0.6 }}
         >
           <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Card className="border border-primary/20 shadow-sm bg-primary/5 overflow-hidden rounded-xl">
+            <Card className="border border-gray-100 shadow-sm bg-primary/5 overflow-hidden rounded-xl">
               <CardContent className="p-5">
                 <div className="flex items-center gap-4">
                   <div className="h-14 w-14 rounded-full bg-primary/10 flex-shrink-0 flex items-center justify-center">
