@@ -1,5 +1,5 @@
+import { addReview, deleteReview, getPeddlerReviews, hasUserReviewed, updateReview } from '@/lib/peddler-reviews';
 import { RateLimiter } from '@/lib/rate-limiter';
-import { addReview, deleteReview, getVendorReviews, hasUserReviewed, updateReview } from '@/lib/reviews';
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
         const limit = limitParam ? parseInt(limitParam, 10) : 10;
 
         // Get reviews for this peddler
-        const { reviews, hasMore } = await getVendorReviews(vendorId, limit, lastReviewId || undefined);
+        const { reviews, hasMore } = await getPeddlerReviews(vendorId, limit, lastReviewId || undefined);
 
         return NextResponse.json(
             { reviews, hasMore },
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
 
         // Create the review
         const review = await addReview({
-            vendorId,
+            peddlerId: vendorId,
             userId,
             rating,
             comment: comment || '',
