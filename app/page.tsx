@@ -16,11 +16,12 @@ import {
 } from "lucide-react";
 import { MobileHeader } from "@/components/ui/mobile-header";
 import { AppLayout } from "@/components/AppLayout";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useGeolocation } from "@/hooks/use-geolocation";
+import { FeatureBanner } from "@/components/feature-card";
 
 export default function Home() {
   const router = useRouter();
@@ -28,6 +29,9 @@ export default function Home() {
     useGeolocation();
   const [locationText, setLocationText] = useState("Current Location");
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedVendorId, setSelectedVendorId] = useState<
+    string | undefined
+  >();
 
   useEffect(() => {
     if (location) {
@@ -113,42 +117,16 @@ export default function Home() {
           </Button>
         </motion.div>
 
-        {/* Promo Banner */}
+        {/* Feature Banner */}
         <motion.div
-          className="relative h-44 w-full rounded-xl overflow-hidden group shadow-sm border border-gray-100"
           initial={{ y: 10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/40 z-10" />
-          <Image
-            src="/placeholder.jpg"
-            alt="Mobile Vendor Discovery"
-            fill
-            className="object-cover transition-all duration-500 group-hover:scale-105"
-            priority
+          <FeatureBanner
+            className="w-full"
+            onButtonClick={handleNavigateToFind}
           />
-          <div className="absolute inset-0 z-20 flex flex-col justify-center p-5">
-            <div className="bg-white/20 text-white px-3 py-1 rounded-full w-fit text-xs font-medium mb-2 backdrop-blur-sm">
-              New Feature
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-white font-jakarta">
-              Ask, Find, Enjoy!
-            </h1>
-            <p className="text-sm text-white/90 mt-1 max-w-xs">
-              Find mobile vendors near you with our AI chatbot
-            </p>
-            <Link href="/find" className="mt-4 w-fit">
-              <Button
-                size="sm"
-                className="gap-2 rounded-full bg-white text-primary hover:bg-white/90 shadow-sm font-medium px-5"
-              >
-                Try Now <ArrowRight className="h-3 w-3" />
-              </Button>
-            </Link>
-          </div>
         </motion.div>
 
         {/* Categories Section */}
