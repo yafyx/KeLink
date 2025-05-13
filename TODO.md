@@ -45,11 +45,11 @@
 - [x] Set up hosting for the Next.js application (e.g., Vercel).
 - [ ] Thoroughly test all vendor flows.
 - [ ] Thoroughly test the chatbot function.
-- [ ] Test geolocation permissions and handling.
+- [x] Test geolocation permissions and handling.
 
 ## Performance Optimization
 
-- [ ] Implement caching strategies for repeated queries
+- [x] Implement caching strategies for repeated queries
 - [ ] Optimize Firebase queries for faster vendor lookups
 - [ ] Implement pagination for vendor results when multiple vendors are found
 - [ ] Add loading states and optimistic UI updates

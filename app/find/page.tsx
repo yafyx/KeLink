@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, MapPin, ArrowLeft, Compass, Search } from "lucide-react";
+import {
+  Send,
+  MapPin,
+  ArrowLeft,
+  Compass,
+  Search,
+  AlertCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -21,6 +28,8 @@ import { AppLayout } from "@/components/AppLayout";
 import { GoogleMapComponent } from "@/components/google-map";
 import { FloatingChat } from "@/components/find/floating-chat";
 import { motion, AnimatePresence } from "framer-motion";
+import { useGeolocation } from "@/hooks/use-geolocation";
+import { PermissionRequest } from "@/components/find/permission-request";
 
 type Message = {
   id: string;
@@ -97,53 +106,37 @@ export default function FindPage() {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [userLocation, setUserLocation] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
   const [foundVendors, setFoundVendors] = useState<Vendor[]>([]);
   const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null);
-  const [isLocating, setIsLocating] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showPermissionRequest, setShowPermissionRequest] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
-  // Get user location when component mounts
+  // Default Jakarta location if geolocation fails
+  const defaultLocation = { lat: -6.2088, lng: 106.8456 };
+
+  // Use the new geolocation hook
+  const {
+    location: userLocation,
+    loading: isLocating,
+    error: locationError,
+    permissionState,
+    update: updateLocation,
+    requestPermission,
+  } = useGeolocation(defaultLocation);
+
+  // Check if we should show the permission request dialog
   useEffect(() => {
-    setIsLocating(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-          console.log(
-            "User location:",
-            position.coords.latitude,
-            position.coords.longitude
-          );
-          setIsLocating(false);
-        },
-        (error) => {
-          console.error("Error getting location:", error);
-          // Use a default location for Jakarta if geolocation fails
-          setUserLocation({
-            lat: -6.2088,
-            lng: 106.8456,
-          });
-          setIsLocating(false);
-        }
-      );
+    // Show the permission request dialog when:
+    // 1. The app is loaded for the first time and permission state is prompt
+    // 2. The user has denied permission
+    if (permissionState === "prompt" || permissionState === "denied") {
+      setShowPermissionRequest(true);
     } else {
-      // Geolocation not supported
-      setUserLocation({
-        lat: -6.2088,
-        lng: 106.8456,
-      });
-      setIsLocating(false);
+      setShowPermissionRequest(false);
     }
-  }, []);
+  }, [permissionState]);
 
   // Ensure map container takes full height
   useEffect(() => {
@@ -170,8 +163,41 @@ export default function FindPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const handlePermissionRequest = async () => {
+    const granted = await requestPermission();
+    // If granted, automatically hide the permission request
+    if (granted) {
+      setShowPermissionRequest(false);
+    }
+  };
+
+  const handleSkipPermission = () => {
+    setShowPermissionRequest(false);
+    // If user skips, add a helpful message
+    if (permissionState === "denied") {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          role: "assistant",
+          content:
+            "Lokasi Anda tidak tersedia. Hasil pencarian mungkin tidak akurat atau menampilkan sampel data saja.",
+        },
+      ]);
+    }
+  };
+
   const handleSubmit = async (message: string) => {
     if (!message.trim()) return;
+
+    // If location permission is prompt or unknown, show permission request before continuing
+    if (
+      (permissionState === "prompt" || permissionState === "unknown") &&
+      !showPermissionRequest
+    ) {
+      setShowPermissionRequest(true);
+      return;
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -362,22 +388,19 @@ export default function FindPage() {
   );
 
   // Get current location
-  const handleLocateMe = () => {
-    setIsLocating(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-          setIsLocating(false);
-        },
-        (error) => {
-          console.error("Error refreshing location:", error);
-          setIsLocating(false);
-        }
-      );
+  const handleLocateMe = async () => {
+    // For users who denied permission, show permission request dialog
+    if (permissionState === "denied") {
+      setShowPermissionRequest(true);
+      return;
+    }
+
+    // If permission is prompt or unknown, request permission
+    if (permissionState === "prompt" || permissionState === "unknown") {
+      await requestPermission();
+    } else {
+      // Just update location if permission already granted
+      await updateLocation();
     }
   };
 
@@ -404,18 +427,36 @@ export default function FindPage() {
           <Button
             variant="outline"
             size="icon"
-            className="h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-md border-0"
+            className={cn(
+              "h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-md border-0",
+              permissionState === "denied" && "bg-red-50"
+            )}
             onClick={handleLocateMe}
             disabled={isLocating}
           >
-            <Compass
-              className={cn(
-                "h-5 w-5 text-primary",
-                isLocating && "animate-spin"
-              )}
-            />
+            {isLocating ? (
+              <Compass className="h-5 w-5 text-primary animate-spin" />
+            ) : permissionState === "denied" ? (
+              <AlertCircle className="h-5 w-5 text-red-500" />
+            ) : (
+              <Compass className="h-5 w-5 text-primary" />
+            )}
           </Button>
         </motion.div>
+
+        {/* Permission request dialog */}
+        <AnimatePresence>
+          {showPermissionRequest && (
+            <div className="absolute inset-0 bg-black/10 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <PermissionRequest
+                permissionState={permissionState}
+                onRequestPermission={handlePermissionRequest}
+                onSkip={handleSkipPermission}
+                className="max-w-md w-full"
+              />
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* Floating chat positioned at the bottom */}
         <AnimatePresence>

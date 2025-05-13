@@ -3,9 +3,13 @@ import { findNearbyVendors } from '@/lib/vendors';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import NodeCache from 'node-cache';
 
 // Initialize Google Generative AI with API key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+
+// Initialize cache with a default TTL (e.g., 5 minutes)
+const vendorCache = new NodeCache({ stdTTL: 300, checkperiod: 120 });
 
 // Type definitions for the query analysis
 interface QueryAnalysisResult {
@@ -173,7 +177,7 @@ export async function POST(request: Request) {
                 return consentCookie?.value === "true";
             } catch (error) {
                 console.error("Error checking consent:", error);
-                return false;
+                return false; // Default to no consent if error
             }
         })();
 
@@ -182,7 +186,9 @@ export async function POST(request: Request) {
 
         // Store the user query for analytics, respecting consent
         if (location) {
-            await dataProtection.storeUserQuery(message, location, hasConsent);
+            // Anonymize location *before* storing if no consent
+            const locationToStore = hasConsent ? location : dataProtection.anonymizeLocation(location);
+            await dataProtection.storeUserQuery(message, locationToStore, hasConsent);
         }
 
         // If the query is not looking for vendors, respond with a direct message
@@ -210,25 +216,41 @@ export async function POST(request: Request) {
             ? location
             : dataProtection.anonymizeLocation(location);
 
-        // Search for vendors using the extracted information
-        let vendors;
-        try {
-            // Try to use the main findNearbyVendors function
-            vendors = await findNearbyVendors({
-                userLocation: processedLocation,
-                keywords: result.keywords,
-                vendorType: result.vendorType,
-                maxDistance: 5000 // Default max distance in meters
-            });
-        } catch (firestoreError) {
-            console.error('Error with Firestore, falling back to mock data:', firestoreError);
-            // Fallback to mock data if Firestore fails
-            vendors = await findNearbyVendorsFallback(
-                processedLocation,
-                result.vendorType,
-                result.keywords,
-                5000
-            );
+        // Create a cache key
+        const cacheKey = `vendors_${processedLocation.lat}_${processedLocation.lon}_${result.vendorType}_${result.keywords.sort().join('-')}`;
+
+        // Check cache first
+        const cachedVendors = vendorCache.get<any[]>(cacheKey);
+        let vendors: any[]; // Define vendors variable
+
+        if (cachedVendors) {
+            console.log(`Cache hit for key: ${cacheKey}`);
+            vendors = cachedVendors;
+        } else {
+            console.log(`Cache miss for key: ${cacheKey}. Fetching vendors...`);
+            // Search for vendors using the extracted information
+            try {
+                // Try to use the main findNearbyVendors function
+                vendors = await findNearbyVendors({
+                    userLocation: processedLocation,
+                    keywords: result.keywords,
+                    vendorType: result.vendorType,
+                    maxDistance: 5000 // Default max distance in meters
+                });
+                // Store in cache on successful fetch from primary source
+                vendorCache.set(cacheKey, vendors);
+            } catch (firestoreError) {
+                console.error('Error with Firestore, falling back to mock data:', firestoreError);
+                // Fallback to mock data if Firestore fails - *don't cache fallback results*
+                vendors = await findNearbyVendorsFallback(
+                    processedLocation,
+                    result.vendorType,
+                    result.keywords,
+                    5000
+                );
+                // Optionally, you might want to cache fallback results with a shorter TTL or not at all.
+                // For now, we are not caching fallback results.
+            }
         }
 
         // Format response based on search results
