@@ -75,7 +75,7 @@ export function VendorSection({
           </div>
           <div>
             <span className="font-medium capitalize">
-              Penjual {displayType}
+              {displayType} Vendors
             </span>
             <Badge
               variant="secondary"
@@ -129,13 +129,13 @@ export function VendorSection({
                       }
                     }}
                   >
-                    Lihat {vendorsForType.length - maxVendorsToShow} lainnya...
+                    View {vendorsForType.length - maxVendorsToShow} more...
                   </div>
                 )}
               </>
             ) : (
               <div className="text-center text-xs text-gray-500 py-2">
-                Tidak ada penjual {displayType} terdekat saat ini
+                No nearby {displayType} vendors at this time
               </div>
             )}
           </motion.div>

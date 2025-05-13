@@ -71,7 +71,7 @@ export function VendorCard({
                 : "bg-gray-200 text-gray-700"
             )}
           >
-            {vendor.status === "active" ? "Aktif" : "Tidak Aktif"}
+            {vendor.status === "active" ? "Active" : "Not Active"}
           </Badge>
         </div>
 

@@ -14,17 +14,26 @@ import {
   CredenzaClose,
 } from "@/components/ui/credenza";
 import { cn } from "@/lib/utils";
-import { RouteDetails } from "@/lib/route-mapper";
-import type { Vendor } from "./floating-chat";
+
+interface Vendor {
+  id: string;
+  name: string;
+  type: string;
+  description?: string;
+  distance?: string;
+  status: "active" | "inactive";
+  last_active: string;
+  location: {
+    lat: number;
+    lng: number;
+  };
+}
 
 interface VendorSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   vendor?: Vendor;
   onViewRoute?: () => void;
-  routeDetails?: RouteDetails | null;
-  showRoute?: boolean;
-  onToggleRoute?: () => void;
 }
 
 export function VendorSheet({
@@ -32,9 +41,6 @@ export function VendorSheet({
   onOpenChange,
   vendor,
   onViewRoute,
-  routeDetails,
-  showRoute,
-  onToggleRoute,
 }: VendorSheetProps) {
   if (!vendor) return null;
 
@@ -79,21 +85,17 @@ export function VendorSheet({
             <Badge variant="outline" className="capitalize">
               {vendor.type.replace("_", " ")}
             </Badge>
-            {vendor.operationalStatus && (
             <Badge
-                variant={
-                  vendor.operationalStatus === "open" ? "default" : "secondary"
-                }
+              variant={vendor.status === "active" ? "default" : "secondary"}
               className={cn(
                 "text-xs",
-                  vendor.operationalStatus === "open"
+                vendor.status === "active"
                   ? "bg-green-500 hover:bg-green-600"
                   : ""
               )}
             >
-                {vendor.operationalStatus === "open" ? "Active" : "Inactive"}
+              {vendor.status === "active" ? "Active" : "Inactive"}
             </Badge>
-            )}
           </div>
         </CredenzaHeader>
 
@@ -102,7 +104,7 @@ export function VendorSheet({
             <div className="space-y-4">
               {/* Description */}
               <p className="text-sm text-gray-600">
-                {vendor.description || `${vendor.type} pedagang keliling`}
+                {vendor.description || `${vendor.type} street vendor`}
               </p>
 
               {/* Location and timing info */}
@@ -111,19 +113,13 @@ export function VendorSheet({
                   <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
                   <span>
                     {vendor.distance
-                      ? `${
-                          typeof vendor.distance === "number"
-                            ? vendor.distance < 1
-                              ? `${Math.round(vendor.distance * 1000)}m`
-                              : `${vendor.distance.toFixed(1)}km`
-                            : vendor.distance
-                        } dari lokasi Anda`
-                      : "Lokasi tersedia di peta"}
+                      ? `${vendor.distance} from your location`
+                      : "Location available on map"}
                   </span>
                 </div>
                 <div className="flex items-center text-sm text-gray-600 gap-2">
                   <Clock className="h-4 w-4 text-primary flex-shrink-0" />
-                  <span>Terakhir aktif: {vendor.lastSeen || "Unknown"}</span>
+                  <span>Last active: {vendor.last_active}</span>
                 </div>
               </div>
 
@@ -131,16 +127,16 @@ export function VendorSheet({
               <div className="relative aspect-video bg-gray-100 rounded-md overflow-hidden flex flex-col items-center justify-center">
                 <MapIcon className="h-10 w-10 text-gray-300 mb-2" />
                 <p className="text-sm text-gray-500">
-                  Lihat lokasi {vendor.name} di peta
+                  View {vendor.name}'s location on the map
                 </p>
               </div>
 
               {/* Additional info - can be filled with more data when available */}
               <div className="space-y-2">
-                <h4 className="text-sm font-medium">Catatan</h4>
+                <h4 className="text-sm font-medium">Notes</h4>
                 <p className="text-sm text-gray-600">
-                  Ketersediaan penjual dapat berubah sewaktu-waktu. Silakan
-                  hubungi penjual untuk informasi lebih lanjut.
+                  Vendor availability may change. Please contact the vendor for
+                  more information.
                 </p>
               </div>
             </div>
@@ -154,12 +150,12 @@ export function VendorSheet({
               className="flex-1"
               onClick={() => onOpenChange(false)}
             >
-              Tutup
+              Close
             </Button>
             {onViewRoute && (
               <Button className="flex-1 gap-1" onClick={onViewRoute}>
                 <Navigation className="h-4 w-4" />
-                Lihat Rute
+                View Route
               </Button>
             )}
           </div>

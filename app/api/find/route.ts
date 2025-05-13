@@ -319,19 +319,19 @@ async function analyzeUserQuery(query: string): Promise<QueryAnalysisResult> {
     try {
         // Define the prompt for Gemini
         const prompt = `
-        Analisis kueri pengguna berikut untuk mencari penjual keliling:
+        Analyze the following user query to find street vendors:
         "${query}"
         
-        Berikan respons dalam format JSON dengan struktur berikut:
+        Provide a response in JSON format with the following structure:
         {
-          "isLookingForVendors": boolean, // apakah pengguna mencari penjual keliling
-          "vendorType": string, // jenis penjual yang dicari (misalnya "bakso", "siomay", dll.) atau kosong jika tidak spesifik
-          "keywords": string[], // kata kunci penting dari query
-          "directResponse": string // respons langsung jika bukan mencari penjual
+          "isLookingForVendors": boolean, // whether the user is looking for street vendors
+          "vendorType": string, // type of vendor being sought (e.g. "bakso", "siomay", etc.) or empty if not specific
+          "keywords": string[], // important keywords from the query
+          "directResponse": string // direct response if not looking for vendors
         }
         
-        Contoh jenis makanan keliling Indonesia: bakso, siomay, batagor, es kelapa, es cincau, martabak, dll.
-        Jika pengguna tidak mencari penjual, berikan respons natural dalam Bahasa Indonesia.
+        Examples of Indonesian street food types: bakso, siomay, batagor, es kelapa, es cincau, martabak, etc.
+        If the user is not looking for vendors, provide a natural response in English.
         `;
 
         // Get the generative model
@@ -351,7 +351,7 @@ async function analyzeUserQuery(query: string): Promise<QueryAnalysisResult> {
                     isLookingForVendors: parsedResult.isLookingForVendors || false,
                     vendorType: parsedResult.vendorType || '',
                     keywords: parsedResult.keywords || [],
-                    directResponse: parsedResult.directResponse || 'Maaf, saya tidak mengerti maksud Anda. Bisa tolong jelaskan apa yang Anda cari?'
+                    directResponse: parsedResult.directResponse || 'Sorry, I don\'t understand what you mean. Could you please explain what you are looking for?'
                 };
             }
         } catch (parseError) {
@@ -363,7 +363,7 @@ async function analyzeUserQuery(query: string): Promise<QueryAnalysisResult> {
             isLookingForVendors: false,
             vendorType: '',
             keywords: [],
-            directResponse: 'Maaf, saya tidak bisa memproses permintaan Anda saat ini. Bisa coba ulangi dengan cara lain?'
+            directResponse: 'Sorry, I can\'t process your request at this time. Could you try rephrasing it?'
         };
     } catch (error) {
         console.error('Error analyzing user query:', error);

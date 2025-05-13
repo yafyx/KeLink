@@ -10,6 +10,8 @@ import {
   AlertCircle,
   Navigation,
   MessageSquare,
+  Target,
+  LocateFixed,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -107,7 +109,7 @@ export default function FindPage() {
       id: "1",
       role: "assistant",
       content:
-        "Halo! Saya dapat membantu Anda mencari penjual keliling terdekat. Apa yang Anda cari hari ini?",
+        "Hello! I can help you find nearby street vendors. What are you looking for today?",
     },
   ];
 
@@ -121,7 +123,6 @@ export default function FindPage() {
   const [isLoadingRoute, setIsLoadingRoute] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const [isChatVisible, setIsChatVisible] = useState(true);
 
   // Default Jakarta location if geolocation fails
   const defaultLocation = { lat: -6.2088, lng: 106.8456 };
@@ -213,35 +214,24 @@ export default function FindPage() {
 
   // Auto-expand chat when vendors are found
   useEffect(() => {
-    if (foundVendors.length > 0 && isChatVisible) {
+    if (foundVendors.length > 0) {
       setIsExpanded(true);
     }
-  }, [foundVendors, isChatVisible, setIsExpanded]);
+  }, [foundVendors, setIsExpanded]);
 
-  // Auto-expand chat when a vendor is selected (if chat is visible)
+  // Auto-expand chat when a vendor is selected
   useEffect(() => {
-    if (selectedVendorId && isChatVisible) {
+    if (selectedVendorId) {
       setIsExpanded(true);
     }
-  }, [selectedVendorId, isChatVisible, setIsExpanded]);
+  }, [selectedVendorId, setIsExpanded]);
 
-  // Auto-expand chat when route is shown (if chat is visible)
+  // Auto-expand chat when route is shown
   useEffect(() => {
-    if (
-      showRouteToVendor &&
-      routeDetails &&
-      selectedVendorId &&
-      isChatVisible
-    ) {
+    if (showRouteToVendor && routeDetails && selectedVendorId) {
       setIsExpanded(true);
     }
-  }, [
-    showRouteToVendor,
-    routeDetails,
-    selectedVendorId,
-    isChatVisible,
-    setIsExpanded,
-  ]);
+  }, [showRouteToVendor, routeDetails, selectedVendorId, setIsExpanded]);
 
   // Check if we should show the permission request dialog
   useEffect(() => {
@@ -293,7 +283,7 @@ export default function FindPage() {
     // If user skips, add a helpful message
     if (permissionState === "denied") {
       sendMessage(
-        "Saya tidak bisa mengakses lokasi Anda. Tolong beri izin lokasi."
+        "I can't access your location. Please allow location permissions."
       );
     }
   };
@@ -385,11 +375,6 @@ export default function FindPage() {
     }
   };
 
-  // Function to toggle chat visibility
-  const toggleChatVisibility = () => {
-    setIsChatVisible(!isChatVisible);
-  };
-
   // When a new message arrives from assistant, ensure chat is visible
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
@@ -398,7 +383,7 @@ export default function FindPage() {
       lastMessage.role === "assistant" &&
       !lastMessage.pending
     ) {
-      setIsChatVisible(true);
+      setIsExpanded(true);
     }
   }, [messages]);
 
@@ -438,7 +423,7 @@ export default function FindPage() {
             ) : permissionState === "denied" ? (
               <AlertCircle className="h-5 w-5 text-red-500" />
             ) : (
-              <Compass className="h-5 w-5 text-primary" />
+              <LocateFixed className="h-5 w-5 text-primary" />
             )}
           </Button>
         </motion.div>
@@ -475,30 +460,6 @@ export default function FindPage() {
           </motion.div>
         )}
 
-        {/* Chat toggle button - always visible */}
-        <motion.div
-          className="absolute top-4 right-28 z-10"
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-        >
-          <Button
-            variant={isChatVisible ? "default" : "outline"}
-            size="icon"
-            className={cn(
-              "h-10 w-10 rounded-full backdrop-blur-sm shadow-md border-0",
-              isChatVisible ? "bg-primary" : "bg-white/90"
-            )}
-            onClick={toggleChatVisibility}
-          >
-            <MessageSquare
-              className={cn(
-                "h-5 w-5",
-                isChatVisible ? "text-white" : "text-primary"
-              )}
-            />
-          </Button>
-        </motion.div>
-
         {/* Permission request dialog */}
         <AnimatePresence>
           {showPermissionRequest && (
@@ -515,40 +476,37 @@ export default function FindPage() {
 
         {/* Floating chat positioned at the bottom - only render when visible */}
         <AnimatePresence>
-          {isChatVisible && (
-            <motion.div
-              className="absolute bottom-6 left-0 right-0 px-4 z-10 w-full"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              transition={{
-                delay: 0.3,
-                type: "spring",
-                stiffness: 300,
-                damping: 30,
-              }}
-            >
-              <FloatingChat
-                messages={messages}
-                isLoading={isProcessing}
-                onSendMessage={sendMessage}
-                vendors={foundVendors}
-                selectedVendorId={selectedVendorId || undefined}
-                onVendorClick={handleVendorClick}
-                isExpanded={isExpanded}
-                onToggleExpanded={handleToggleChatExpansion}
-                onMinimizeChat={toggleChatVisibility}
-                className={cn(
-                  "max-w-md mx-auto",
-                  isExpanded ? "rounded-xl shadow-xl" : "shadow-lg"
-                )}
-                bubbleClassName="rounded-xl shadow-sm"
-                routeDetails={routeDetails}
-                showRoute={showRouteToVendor}
-                onToggleRoute={toggleRouteDisplay}
-              />
-            </motion.div>
-          )}
+          <motion.div
+            className="absolute bottom-6 left-0 right-0 px-4 z-10 w-full"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{
+              delay: 0.3,
+              type: "spring",
+              stiffness: 300,
+              damping: 30,
+            }}
+          >
+            <FloatingChat
+              messages={messages}
+              isLoading={isProcessing}
+              onSendMessage={sendMessage}
+              vendors={foundVendors}
+              selectedVendorId={selectedVendorId || undefined}
+              onVendorClick={handleVendorClick}
+              isExpanded={isExpanded}
+              onToggleExpanded={handleToggleChatExpansion}
+              className={cn(
+                "max-w-md mx-auto",
+                isExpanded ? "rounded-xl shadow-xl" : "shadow-lg"
+              )}
+              bubbleClassName="rounded-xl shadow-sm"
+              routeDetails={routeDetails}
+              showRoute={showRouteToVendor}
+              onToggleRoute={toggleRouteDisplay}
+            />
+          </motion.div>
         </AnimatePresence>
 
         {/* Status indicators */}

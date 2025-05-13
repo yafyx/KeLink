@@ -21,20 +21,20 @@ export async function POST(request: Request) {
 
         // Construct prompt for Gemini API
         const prompt = `
-            Sebagai asisten untuk pedagang kaki lima di Indonesia, berikan saran rute untuk:
+            As an assistant for street vendors in Indonesia, provide route advice for:
             
-            Jenis pedagang: ${vendor_type}
-            Lokasi: ${city}
-            Area yang direncanakan: ${planned_areas.join(', ')}
-            ${time_of_day ? `Waktu: ${time_of_day}` : ''}
+            Vendor type: ${vendor_type}
+            Location: ${city}
+            Planned areas: ${planned_areas.join(', ')}
+            ${time_of_day ? `Time of day: ${time_of_day}` : ''}
             
-            Berikan saran rute termasuk:
-            1. Rekomendasi waktu terbaik untuk berjualan berdasarkan jenis pedagang
-            2. Prioritas rute di area yang direncanakan
-            3. Tips khusus untuk penjual jenis ${vendor_type}
-            4. Wawasan khusus tentang ${city} yang relevan untuk pedagang
+            Provide route suggestions including:
+            1. Recommended best times to sell based on vendor type
+            2. Route priorities in the planned areas
+            3. Special tips for ${vendor_type} vendors
+            4. Specific insights about ${city} relevant to vendors
             
-            Format respons Anda dalam bahasa Indonesia yang jelas dan terstruktur.
+            Format your response in clear and structured English.
         `
 
         const result = await model.generateContent(prompt)

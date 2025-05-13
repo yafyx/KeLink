@@ -14,7 +14,6 @@ interface ChatInputProps {
   isExpanded: boolean;
   toggleExpanded: () => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
-  onMinimize?: () => void;
 }
 
 export function ChatInput({
@@ -25,7 +24,6 @@ export function ChatInput({
   isExpanded,
   toggleExpanded,
   inputRef,
-  onMinimize,
 }: ChatInputProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey && !(isLoading || !input.trim())) {
@@ -63,9 +61,7 @@ export function ChatInput({
           ref={inputRef}
           type="text"
           placeholder={
-            isLoading
-              ? "Menunggu..."
-              : "Tanya saya atau cari pedagang keliling..."
+            isLoading ? "Waiting..." : "Ask me or search for street vendors..."
           }
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -104,20 +100,6 @@ export function ChatInput({
           )}
         />
       </Button>
-
-      {onMinimize && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 w-8 rounded-full absolute -top-9 right-0 bg-white shadow-sm flex items-center justify-center hover:bg-gray-100"
-          onClick={onMinimize}
-          aria-label="Hide chat"
-          title="Hide chat"
-        >
-          <MinusCircle className="h-4 w-4" />
-        </Button>
-      )}
     </form>
   );
 }

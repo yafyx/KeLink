@@ -393,7 +393,7 @@ export function MockMap({
         </div>
         <div className="text-slate-500 mt-1 flex items-center">
           <MapPin className="h-3 w-3 mr-1" />
-          <span>{validVendors.length} penjual terdekat</span>
+          <span>{validVendors.length} nearby vendors</span>
         </div>
       </div>
 

@@ -597,9 +597,7 @@ export default function VendorDashboardPage() {
               />
               <div className="text-center">
                 <h3 className="text-lg font-medium">
-                  {isSharing
-                    ? "Lokasi Sedang Dibagikan"
-                    : "Lokasi Tidak Dibagikan"}
+                  {isSharing ? "Location Being Shared" : "Location Not Shared"}
                 </h3>
                 {vendor.location && isSharing && (
                   <p className="text-sm text-muted-foreground">
@@ -612,20 +610,20 @@ export default function VendorDashboardPage() {
                 onClick={toggleLocationSharing}
                 variant={isSharing ? "destructive" : "default"}
               >
-                {isSharing ? "Berhenti Bagikan Lokasi" : "Mulai Bagikan Lokasi"}
+                {isSharing ? "Stop Sharing Location" : "Start Sharing Location"}
               </Button>
             </div>
 
             <Separator />
 
             <div className="space-y-2">
-              <h3 className="text-lg font-medium">Lokasi Berjualan Hari Ini</h3>
+              <h3 className="text-lg font-medium">Today's Selling Locations</h3>
               <p className="text-sm text-muted-foreground">
-                Tambahkan lokasi tempat Anda berencana berjualan hari ini.
+                Add locations where you plan to sell today.
               </p>
               <div className="flex gap-2">
-                <Input placeholder="Contoh: Jl. Margonda Raya, Depok" />
-                <Button variant="outline">Tambah</Button>
+                <Input placeholder="Example: Jl. Margonda Raya, Depok" />
+                <Button variant="outline">Add</Button>
               </div>
 
               <div className="mt-4">
