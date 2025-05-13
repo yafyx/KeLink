@@ -1,4 +1,9 @@
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextResponse } from 'next/server'
+
+// Initialize Google Generative AI with API key
+// Use server-side env variable
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
 
 export async function POST(request: Request) {
     try {
@@ -11,22 +16,71 @@ export async function POST(request: Request) {
             )
         }
 
-        // For MVP, we'll use a mock response based on the inputs
-        // In the real implementation, this would call the Gemini API
-        const response = generateRouteAdvice(vendor_type, planned_areas, city, time_of_day)
+        // Call Gemini API to generate route advice
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
 
-        return NextResponse.json({ advice: response }, { status: 200 })
+        // Construct prompt for Gemini API
+        const prompt = `
+            Sebagai asisten untuk pedagang kaki lima di Indonesia, berikan saran rute untuk:
+            
+            Jenis pedagang: ${vendor_type}
+            Lokasi: ${city}
+            Area yang direncanakan: ${planned_areas.join(', ')}
+            ${time_of_day ? `Waktu: ${time_of_day}` : ''}
+            
+            Berikan saran rute termasuk:
+            1. Rekomendasi waktu terbaik untuk berjualan berdasarkan jenis pedagang
+            2. Prioritas rute di area yang direncanakan
+            3. Tips khusus untuk penjual jenis ${vendor_type}
+            4. Wawasan khusus tentang ${city} yang relevan untuk pedagang
+            
+            Format respons Anda dalam bahasa Indonesia yang jelas dan terstruktur.
+        `
+
+        const result = await model.generateContent(prompt)
+        const response = result.response
+        const text = response.text()
+
+        return NextResponse.json({ advice: text }, { status: 200 })
     } catch (error) {
         console.error('Error generating route advice:', error)
+
+        let vendorType = '';
+        let plannedAreas: string[] = [];
+        let city = '';
+        let timeOfDay: string | undefined;
+
+        try {
+            // Try to extract request data if possible
+            const requestData = await request.json();
+            vendorType = requestData.vendor_type || '';
+            plannedAreas = requestData.planned_areas || [];
+            city = requestData.city || '';
+            timeOfDay = requestData.time_of_day;
+        } catch (jsonError) {
+            console.error('Error parsing request in error handler:', jsonError);
+        }
+
+        // Fallback to the mock response if API call fails
+        const fallbackResponse = generateRouteAdvice(
+            vendorType,
+            plannedAreas,
+            city,
+            timeOfDay
+        )
+
         return NextResponse.json(
-            { error: 'Failed to generate route advice' },
-            { status: 500 }
+            {
+                advice: fallbackResponse,
+                note: "Using fallback response due to API error"
+            },
+            { status: 200 }
         )
     }
 }
 
 // Mock function to generate route advice
-// Will be replaced with actual Gemini API call
+// Will be used as fallback if the Gemini API call fails
 function generateRouteAdvice(
     vendorType: string,
     plannedAreas: string[],

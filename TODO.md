@@ -11,11 +11,12 @@
   - [x] `/api/vendors/login`: Implement vendor login logic (verify credentials, generate token - JWT).
   - [x] `/api/vendors/profile`: Implement authenticated endpoint for vendor profile CRUD.
   - [x] `/api/vendors/location`: Implement authenticated endpoint to receive and update vendor location and `is_active` status in Firestore.
-  - [ ] `/api/vendors/route-advice`: Implement authenticated endpoint: - [ ] Receive vendor input (target areas/stops, vendor type, time).
-  - [ ] Construct a suitable prompt for an AI API (gemini-2.5-flash-preview-04-17).
-  - [ ] Call generative AI to get advice.
-  - [ ] Return the generated advice.
-- [ ] **Chatbot Endpoint (`/api/chatbot`):**
+  - [x] `/api/vendors/route-advice`: Implement authenticated endpoint:
+    - [x] Receive vendor input (target areas/stops, vendor type, time).
+    - [x] Construct a suitable prompt for an AI API (gemini-2.5-flash-001).
+    - [x] Call generative AI to get advice.
+    - [x] Return the generated advice.
+- [ ] **Find Endpoint (`/api/find`):**
   - [ ] Implement the findNearbyVendors function to search vendors near a location.
   - [ ] Implement the endpoint logic:
     - [ ] Receive user query and location.

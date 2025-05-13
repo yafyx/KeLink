@@ -7,6 +7,33 @@
  * implementation, these functions would make actual calls to the Gemini API.
  */
 
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+// Initialize Google Generative AI with API key from environment variable
+// Will be initialized only when needed to avoid issues with SSR
+let genAI: GoogleGenerativeAI | null = null;
+
+// Function to get or initialize the Gemini client
+function getGeminiClient(): GoogleGenerativeAI {
+  // If already initialized, return the existing instance
+  if (genAI) return genAI;
+
+  // Check if we're in a browser environment (client side)
+  const isBrowser = typeof window !== 'undefined';
+
+  if (isBrowser) {
+    // In browser environment, use the NEXT_PUBLIC_ variable if available
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+    genAI = new GoogleGenerativeAI(apiKey);
+  } else {
+    // In server environment, use the server-side env variable
+    const apiKey = process.env.GEMINI_API_KEY || '';
+    genAI = new GoogleGenerativeAI(apiKey);
+  }
+
+  return genAI;
+}
+
 /**
  * Generates a description for a vendor based on their name and type
  */
@@ -14,26 +41,41 @@ export async function generateVendorDescription(
   vendorName: string,
   vendorType: string
 ): Promise<string> {
-  // In a real implementation, this would call the Gemini API with a prompt
-  // For the MVP, we'll just simulate a delay and return a hardcoded response
+  try {
+    // Use Gemini API to generate a description
+    const genAI = getGeminiClient();
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash'
+    });
 
-  // Simulate API call delay
-  await new Promise((resolve) => setTimeout(resolve, 1500))
+    const prompt = `
+      Generate a short, engaging description for a street food vendor in Indonesia named "${vendorName}" who sells "${vendorType}".
+      The description should highlight the quality, taste, and specialties of their food.
+      Write the description in Indonesian language.
+      Keep it under 100 words.
+    `;
 
-  // Mock AI-generated descriptions based on vendor type
-  switch (vendorType.toLowerCase()) {
-    case 'bakso':
-      return `${vendorName} menyajikan bakso dengan daging sapi pilihan yang diproses secara higienis. Kuah kaldu yang kaya rasa dengan tambahan bawang goreng dan seledri segar. Tersedia berbagai pilihan seperti bakso urat, bakso telur, dan bakso special dengan isian daging cincang. Dilengkapi dengan mie, bihun, dan pangsit goreng yang renyah.`
-    case 'siomay':
-    case 'batagor':
-      return `${vendorName} menawarkan siomay ikan tenggiri dengan tekstur yang lembut dan rasa yang gurih. Disajikan dengan bumbu kacang yang kaya akan rasa, perpaduan antara kacang tanah, bawang putih, dan cabai. Tersedia juga tahu, kentang, pare, dan telur sebagai pelengkap.`
-    case 'es cendol':
-    case 'es':
-      return `${vendorName} menghadirkan es cendol dengan cendol yang kenyal dan segar, dibuat dari tepung beras pilihan. Disajikan dengan santan kental, gula merah asli, dan es serut yang menyegarkan. Nikmati sensasi manis dan gurih yang menyatu dalam setiap sendoknya.`
-    case 'martabak':
-      return `${vendorName} spesialis martabak dengan berbagai varian rasa. Martabak manis kami memiliki tekstur yang lembut di dalam dan renyah di luar, dengan topping melimpah seperti cokelat, keju, kacang, dan susu. Martabak telur kami dibuat dengan isian daging cincang, telur, dan rempah-rempah pilihan.`
-    default:
-      return `${vendorName} menyajikan makanan/minuman berkualitas tinggi dengan bahan-bahan segar dan pilihan. Diproses secara higienis dan dengan resep tradisional yang telah diwariskan selama bertahun-tahun. Rasakan kenikmatan otentik dalam setiap sajian kami.`
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    return response.text();
+  } catch (error) {
+    console.error('Error generating vendor description with Gemini:', error);
+
+    // Fallback to mock responses if the API call fails
+    switch (vendorType.toLowerCase()) {
+      case 'bakso':
+        return `${vendorName} menyajikan bakso dengan daging sapi pilihan yang diproses secara higienis. Kuah kaldu yang kaya rasa dengan tambahan bawang goreng dan seledri segar. Tersedia berbagai pilihan seperti bakso urat, bakso telur, dan bakso special dengan isian daging cincang. Dilengkapi dengan mie, bihun, dan pangsit goreng yang renyah.`
+      case 'siomay':
+      case 'batagor':
+        return `${vendorName} menawarkan siomay ikan tenggiri dengan tekstur yang lembut dan rasa yang gurih. Disajikan dengan bumbu kacang yang kaya akan rasa, perpaduan antara kacang tanah, bawang putih, dan cabai. Tersedia juga tahu, kentang, pare, dan telur sebagai pelengkap.`
+      case 'es cendol':
+      case 'es':
+        return `${vendorName} menghadirkan es cendol dengan cendol yang kenyal dan segar, dibuat dari tepung beras pilihan. Disajikan dengan santan kental, gula merah asli, dan es serut yang menyegarkan. Nikmati sensasi manis dan gurih yang menyatu dalam setiap sendoknya.`
+      case 'martabak':
+        return `${vendorName} spesialis martabak dengan berbagai varian rasa. Martabak manis kami memiliki tekstur yang lembut di dalam dan renyah di luar, dengan topping melimpah seperti cokelat, keju, kacang, dan susu. Martabak telur kami dibuat dengan isian daging cincang, telur, dan rempah-rempah pilihan.`
+      default:
+        return `${vendorName} menyajikan makanan/minuman berkualitas tinggi dengan bahan-bahan segar dan pilihan. Diproses secara higienis dan dengan resep tradisional yang telah diwariskan selama bertahun-tahun. Rasakan kenikmatan otentik dalam setiap sajian kami.`
+    }
   }
 }
 
@@ -46,44 +88,66 @@ export async function getRouteAdvice(
   city: string = 'Depok',
   timeOfDay?: string
 ): Promise<string> {
-  // In a real implementation, this would call the backend API which uses Gemini
-  // For the MVP, we'll simulate a delay and return a mock response
-
-  // Simulate API call delay
-  await new Promise((resolve) => setTimeout(resolve, 2000))
-
   // Parse the planned areas text into an array
   const plannedAreas = plannedAreasText
     .split('\n')
     .map((area) => area.trim())
     .filter((area) => area.length > 0)
 
-  // Call the backend API
   try {
-    const response = await fetch('/api/vendors/route-advice', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        vendor_type: vendorType,
-        planned_areas: plannedAreas,
-        city,
-        time_of_day: timeOfDay || getCurrentTimeOfDay(),
-      }),
-    })
+    // Direct call to Gemini API
+    const genAI = getGeminiClient();
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-001' });
 
-    if (!response.ok) {
-      throw new Error('Failed to get route advice')
-    }
+    const prompt = `
+      Sebagai asisten untuk pedagang kaki lima di Indonesia, berikan saran rute untuk:
+      
+      Jenis pedagang: ${vendorType}
+      Lokasi: ${city}
+      Area yang direncanakan: ${plannedAreas.join(', ')}
+      ${timeOfDay ? `Waktu: ${timeOfDay}` : `Waktu: ${getCurrentTimeOfDay()}`}
+      
+      Berikan saran rute termasuk:
+      1. Rekomendasi waktu terbaik untuk berjualan berdasarkan jenis pedagang
+      2. Prioritas rute di area yang direncanakan
+      3. Tips khusus untuk penjual jenis ${vendorType}
+      4. Wawasan khusus tentang ${city} yang relevan untuk pedagang
+      
+      Format respons Anda dalam bahasa Indonesia yang jelas dan terstruktur.
+    `;
 
-    const data = await response.json()
-    return data.advice
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    return response.text();
   } catch (error) {
-    // If the API call fails, return a generic response as fallback
-    console.error('Error getting route advice:', error)
+    console.error('Error getting route advice with Gemini:', error);
 
-    return `Saran rute untuk penjual ${vendorType} di ${city}:
+    // Try calling the backend API if direct Gemini call fails
+    try {
+      const response = await fetch('/api/vendors/route-advice', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          vendor_type: vendorType,
+          planned_areas: plannedAreas,
+          city,
+          time_of_day: timeOfDay || getCurrentTimeOfDay(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get route advice from backend API');
+      }
+
+      const data = await response.json();
+      return data.advice;
+    } catch (backendError) {
+      console.error('Backend API call also failed:', backendError);
+
+      // Fallback to a generic response if both methods fail
+      return `Saran rute untuk penjual ${vendorType} di ${city}:
 
 ${getTimeContextForType(vendorType, getCurrentTimeOfDay())}
 
@@ -95,7 +159,8 @@ Berdasarkan rencana Anda di ${plannedAreas.join(', ')}, saya sarankan untuk memp
 Tips khusus untuk penjual ${vendorType}:
 ${getVendorSpecificTips(vendorType)}
 
-Ingat untuk selalu update lokasi Anda di aplikasi KeLink agar pelanggan dapat dengan mudah menemukan Anda!`
+Ingat untuk selalu update lokasi Anda di aplikasi KeLink agar pelanggan dapat dengan mudah menemukan Anda!`;
+    }
   }
 }
 
