@@ -4,18 +4,17 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import {
   GoogleMap,
   useJsApiLoader,
-  Marker,
   InfoWindow,
   Polyline,
 } from "@react-google-maps/api";
 import { MockMap } from "./mock-map";
 import { motion } from "framer-motion";
 import { RouteDetails, RoutePoint, calculateRoute } from "@/lib/route-mapper";
+import ReactDOM from "react-dom/client";
 
 const hideGoogleElements = `
   .gm-style-cc { display: none !important; }
   .gmnoprint { display: none !important; }
-  .gm-style .gm-style-iw-c { display: none !important; }
   .gm-style a[href^="https://maps.google.com/maps"] { display: none !important; }
   .gm-style-moc { display: none !important; }
   .gm-control-active { display: none !important; }
@@ -121,6 +120,164 @@ const vendorTypeColors: Record<string, string> = {
   default: "#757575", // gray
 };
 
+// Custom HTML Marker components
+const UserLocationMarkerIcon = () => (
+  <div
+    style={{
+      width: "24px",
+      height: "24px",
+      borderRadius: "50%",
+      backgroundColor: "#4285F4",
+      border: "2px solid white",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+    }}
+  >
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="white">
+      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+    </svg>
+  </div>
+);
+
+interface VendorMarkerIconProps {
+  type: string;
+  isSelected: boolean;
+}
+
+const VendorMarkerIcon = ({ type, isSelected }: VendorMarkerIconProps) => {
+  const color = vendorTypeColors[type] || vendorTypeColors.default;
+  const scale = isSelected ? 1.2 : 1; // Adjust scale for bounce effect
+  const bounceAnimation = isSelected ? "bounce 0.8s infinite" : "none";
+
+  return (
+    <div
+      style={{
+        width: `${28 * scale}px`,
+        height: `${28 * scale}px`,
+        transformOrigin: "bottom center",
+        animation: bounceAnimation,
+      }}
+    >
+      <style>
+        {`
+          @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0) scale(${scale});}
+            40% {transform: translateY(-10px) scale(${scale * 1.1});}
+            60% {transform: translateY(-5px) scale(${scale * 1.05});}
+          }
+        `}
+      </style>
+      <svg
+        viewBox="0 0 24 24"
+        fill={color}
+        style={{
+          width: "100%",
+          height: "100%",
+          filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.3))",
+        }}
+      >
+        {/* Simplified pin shape, original SVG was complex for direct HTML styling */}
+        <path d="M12 2C8.14 2 5 5.14 5 9c0 5.25 7 13 7 13s7-7.75 7-13C12 15.86 12 2 12 2zm0 9a2.5 2.5 0 000-5 2.5 2.5 0 000 5z" />
+        {/* Outer circle to mimic original design's feel, with white stroke */}
+        <circle
+          cx="12"
+          cy="9"
+          r="3.5"
+          fill="transparent"
+          stroke="white"
+          strokeWidth="1.5"
+        />
+        {/* Inner dot */}
+        <circle cx="12" cy="9" r="1.5" fill="white" />
+      </svg>
+    </div>
+  );
+};
+
+// Define AdvancedMarkerWrapper component
+interface AdvancedMarkerWrapperProps {
+  map: google.maps.Map | null;
+  position: google.maps.LatLngLiteral;
+  zIndex?: number;
+  onClick?: () => void;
+  children?: React.ReactNode;
+  gMapApi?: typeof google.maps; // Pass google.maps object
+  onMarkerInstance?: (
+    marker: google.maps.marker.AdvancedMarkerElement | null
+  ) => void; // Callback to get marker instance
+}
+
+const AdvancedMarkerWrapper: React.FC<AdvancedMarkerWrapperProps> = ({
+  map,
+  position,
+  zIndex,
+  onClick,
+  children,
+  gMapApi,
+  onMarkerInstance,
+}) => {
+  const [marker, setMarker] =
+    useState<google.maps.marker.AdvancedMarkerElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const [root, setRoot] = useState<ReactDOM.Root | null>(null);
+
+  useEffect(() => {
+    if (!map || !gMapApi || !gMapApi.marker) {
+      if (marker) {
+        marker.map = null;
+        setMarker(null);
+        if (onMarkerInstance) onMarkerInstance(null);
+      }
+      return;
+    }
+
+    if (!contentRef.current) {
+      contentRef.current = document.createElement("div");
+    }
+
+    const newAdvancedMarker = new gMapApi.marker.AdvancedMarkerElement({
+      position,
+      map,
+      zIndex,
+      content: contentRef.current,
+    });
+
+    setMarker(newAdvancedMarker);
+    if (onMarkerInstance) onMarkerInstance(newAdvancedMarker);
+
+    if (!root && contentRef.current) {
+      setRoot(ReactDOM.createRoot(contentRef.current));
+    }
+
+    return () => {
+      newAdvancedMarker.map = null;
+      setMarker(null);
+      if (onMarkerInstance) onMarkerInstance(null);
+    };
+  }, [map, position, zIndex, gMapApi, onMarkerInstance]);
+
+  useEffect(() => {
+    if (root && children) {
+      root.render(<div>{children}</div>);
+    } else if (root && !children) {
+      root.render(null);
+    }
+  }, [root, children]);
+
+  useEffect(() => {
+    if (marker && onClick && gMapApi) {
+      const listener = marker.addListener("click", onClick);
+      return () => {
+        gMapApi.event.removeListener(listener);
+      };
+    }
+  }, [marker, onClick, gMapApi]);
+
+  return null;
+};
+
 export function GoogleMapComponent({
   userLocation,
   peddlers = [],
@@ -136,6 +293,7 @@ export function GoogleMapComponent({
   const { isLoaded, loadError } = useJsApiLoader({
     id: "google-map-script",
     googleMapsApiKey: apiKey,
+    libraries: ["marker"],
   });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -145,7 +303,12 @@ export function GoogleMapComponent({
   const [routeDetails, setRouteDetails] = useState<RouteDetails | null>(null);
   const [isLoadingRoute, setIsLoadingRoute] = useState(false);
 
-  // Use mock map if no API key is provided
+  const [selectedMarkerInstance, setSelectedMarkerInstance] =
+    useState<google.maps.marker.AdvancedMarkerElement | null>(null);
+  const peddlerMarkerRefs = useRef<
+    Record<string, google.maps.marker.AdvancedMarkerElement | null>
+  >({});
+
   if (!hasApiKey) {
     return (
       <MockMap
@@ -158,21 +321,18 @@ export function GoogleMapComponent({
     );
   }
 
-  // Add effect to ensure map container has proper height
   useEffect(() => {
     if (mapContainerRef.current && mapContainerRef.current.parentElement) {
       mapContainerRef.current.style.height = "100%";
-      mapContainerRef.current.style.minHeight = "calc(100vh - 64px)"; // Adjust based on your header height
+      mapContainerRef.current.style.minHeight = "calc(100vh - 64px)";
     }
   }, []);
 
-  // Set selected peddler when selectedVendorId changes
   useEffect(() => {
     if (selectedVendorId) {
       const peddler = peddlers.find((v) => v.id === selectedVendorId);
       setSelectedVendor(peddler || null);
 
-      // If showRoute is true and we have both user location and peddler, calculate the route
       if (showRoute && userLocation && peddler) {
         calculateBestRoute(userLocation, peddler.location);
       } else {
@@ -204,16 +364,13 @@ export function GoogleMapComponent({
     function callback(map: google.maps.Map) {
       const bounds = new window.google.maps.LatLngBounds();
 
-      // Add user location to bounds
       if (userLocation) {
         bounds.extend(
           new window.google.maps.LatLng(userLocation.lat, userLocation.lng)
         );
       }
 
-      // Add peddler locations to bounds
       peddlers.forEach((peddler) => {
-        // Only add peddler to bounds if it has valid location data
         if (
           peddler.location &&
           typeof peddler.location.lat === "number" &&
@@ -228,7 +385,6 @@ export function GoogleMapComponent({
         }
       });
 
-      // Only fit bounds if we have points to show
       if (
         (userLocation ||
           peddlers.some(
@@ -238,7 +394,6 @@ export function GoogleMapComponent({
       ) {
         map.fitBounds(bounds);
 
-        // Limit zoom level to prevent excessive zoom on single point
         const listener = google.maps.event.addListener(
           map,
           "idle",
@@ -254,12 +409,10 @@ export function GoogleMapComponent({
           }
         );
       } else {
-        // Default to Jakarta if no valid locations
         map.setCenter({ lat: -6.2088, lng: 106.8456 });
         map.setZoom(14);
       }
 
-      // Apply custom styling
       map.setOptions({
         styles: mapStyles,
         disableDefaultUI: true,
@@ -267,10 +420,11 @@ export function GoogleMapComponent({
         streetViewControl: false,
         mapTypeControl: false,
         zoomControl: false,
+        mapId: "YOUR_MAP_ID_HERE",
       });
 
       setMap(map);
-      setTimeout(() => setIsMapReady(true), 500); // Delay to allow map to render fully
+      setTimeout(() => setIsMapReady(true), 500);
     },
     [userLocation, peddlers]
   );
@@ -280,7 +434,6 @@ export function GoogleMapComponent({
     setIsMapReady(false);
   }, []);
 
-  // Update bounds when peddlers or user location changes
   useEffect(() => {
     if (map && (userLocation || peddlers.length > 0)) {
       const bounds = new window.google.maps.LatLngBounds();
@@ -291,7 +444,6 @@ export function GoogleMapComponent({
         );
       }
 
-      // Add valid peddler locations to bounds
       let hasValidLocations = false;
       peddlers.forEach((peddler) => {
         if (
@@ -310,11 +462,9 @@ export function GoogleMapComponent({
         }
       });
 
-      // Only fit bounds if we have valid locations and more than one point
       if ((userLocation || hasValidLocations) && !bounds.isEmpty()) {
         map.fitBounds(bounds);
 
-        // Set a more reasonable zoom level if only one or two points
         if ((userLocation && peddlers.length <= 1) || peddlers.length <= 2) {
           const listener = google.maps.event.addListener(
             map,
@@ -335,20 +485,18 @@ export function GoogleMapComponent({
     }
   }, [map, userLocation, peddlers]);
 
-  // Close info window when clicking elsewhere on map
   const onMapClick = useCallback(() => {
     setSelectedVendor(null);
   }, []);
 
-  // Handle marker click
   const handleMarkerClick = (peddler: Peddler) => {
     setSelectedVendor(peddler);
+    setSelectedMarkerInstance(peddlerMarkerRefs.current[peddler.id] || null);
     if (onVendorClick) {
       onVendorClick(peddler);
     }
   };
 
-  // Create user location marker icon
   const createUserLocationMarker = () => ({
     path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
     fillColor: "#4285F4",
@@ -356,10 +504,8 @@ export function GoogleMapComponent({
     strokeColor: "#FFFFFF",
     strokeWeight: 2,
     scale: 1.5,
-    anchor: new google.maps.Point(12, 22),
   });
 
-  // Create peddler marker icon
   const createVendorMarker = (type: string, isSelected: boolean) => ({
     path: "M12 2C8.14 2 5 5.14 5 9c0 3.09 1.97 5.42 3 6.25V18h8v-2.75c1.03-0.83 3-3.16 3-6.25 0-3.86-3.14-7-7-7zm2.44 11.33c-.35.2-.75.33-1.19.4v1.67h-2.5v-1.67c-.44-.07-.84-.2-1.19-.4-.43-.25-.78-.59-1.06-1.23.82-.65 1.41-1.27 1.82-2.43.41 1.16 1 1.77 1.82 2.43-.28.64-.63.98-1.06 1.23z",
     fillColor: vendorTypeColors[type] || vendorTypeColors.default,
@@ -367,7 +513,6 @@ export function GoogleMapComponent({
     strokeColor: "#FFFFFF",
     strokeWeight: 2,
     scale: isSelected ? 1.8 : 1.3,
-    anchor: new google.maps.Point(12, 22),
   });
 
   if (loadError) {
@@ -382,7 +527,6 @@ export function GoogleMapComponent({
 
   return (
     <div ref={mapContainerRef} className="w-full h-full relative">
-      {/* CSS to hide Google branding elements */}
       <style dangerouslySetInnerHTML={{ __html: hideGoogleElements }} />
 
       {isLoaded ? (
@@ -403,20 +547,28 @@ export function GoogleMapComponent({
               mapTypeControl: false,
               zoomControl: false,
               styles: mapStyles,
+              mapId: "YOUR_MAP_ID_HERE",
             }}
           >
-            {/* User location marker */}
-            {userLocation && isMapReady && (
-              <Marker
-                position={userLocation}
-                icon={createUserLocationMarker()}
-                animation={google.maps.Animation.DROP}
-                zIndex={1000}
-              />
-            )}
+            {userLocation &&
+              isMapReady &&
+              map &&
+              window.google &&
+              window.google.maps && (
+                <AdvancedMarkerWrapper
+                  map={map}
+                  position={userLocation}
+                  zIndex={1000}
+                  gMapApi={window.google.maps}
+                >
+                  <UserLocationMarkerIcon />
+                </AdvancedMarkerWrapper>
+              )}
 
-            {/* Peddler markers */}
             {isMapReady &&
+              map &&
+              window.google &&
+              window.google.maps &&
               peddlers
                 .filter(
                   (peddler) =>
@@ -425,25 +577,34 @@ export function GoogleMapComponent({
                     typeof peddler.location.lat === "number" &&
                     typeof peddler.location.lng === "number"
                 )
-                .map((peddler, index) => {
+                .map((peddler) => {
                   const isSelected = peddler.id === selectedVendorId;
                   return (
-                    <Marker
+                    <AdvancedMarkerWrapper
                       key={peddler.id}
+                      map={map}
                       position={peddler.location}
                       onClick={() => handleMarkerClick(peddler)}
-                      icon={createVendorMarker(peddler.type, isSelected)}
-                      animation={
-                        isSelected
-                          ? google.maps.Animation.BOUNCE
-                          : google.maps.Animation.DROP
-                      }
                       zIndex={isSelected ? 100 : 10}
-                    />
+                      gMapApi={window.google.maps}
+                      onMarkerInstance={(instance) => {
+                        peddlerMarkerRefs.current[peddler.id] = instance;
+                        if (
+                          selectedVendor &&
+                          selectedVendor.id === peddler.id
+                        ) {
+                          setSelectedMarkerInstance(instance);
+                        }
+                      }}
+                    >
+                      <VendorMarkerIcon
+                        type={peddler.type}
+                        isSelected={isSelected}
+                      />
+                    </AdvancedMarkerWrapper>
                   );
                 })}
 
-            {/* Route polyline */}
             {showRoute && routeDetails && routeDetails.path.length > 0 && (
               <Polyline
                 path={routeDetails.path}
@@ -456,11 +617,15 @@ export function GoogleMapComponent({
               />
             )}
 
-            {/* Info window for selected peddler */}
-            {selectedVendor && (
+            {selectedVendor && selectedMarkerInstance && map && (
               <InfoWindow
-                position={selectedVendor.location}
-                onCloseClick={() => setSelectedVendor(null)}
+                anchor={
+                  selectedMarkerInstance as unknown as google.maps.MVCObject
+                }
+                onCloseClick={() => {
+                  setSelectedVendor(null);
+                  setSelectedMarkerInstance(null);
+                }}
                 options={{
                   pixelOffset: new google.maps.Size(0, -40),
                 }}
@@ -506,10 +671,8 @@ export function GoogleMapComponent({
             )}
           </GoogleMap>
 
-          {/* Decorative overlay for map */}
           <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_60px_rgba(0,0,0,0.05)]"></div>
 
-          {/* Loading overlay */}
           {!isMapReady && (
             <div className="absolute inset-0 bg-gray-50 flex items-center justify-center">
               <div className="flex flex-col items-center">
@@ -519,7 +682,6 @@ export function GoogleMapComponent({
             </div>
           )}
 
-          {/* Route loading overlay */}
           {isLoadingRoute && (
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white/90 px-4 py-2 rounded-full shadow-md z-50 flex items-center space-x-2">
               <div className="h-3 w-3 bg-primary rounded-full animate-pulse"></div>
