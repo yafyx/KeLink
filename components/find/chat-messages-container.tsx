@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { Message, Vendor } from "./floating-chat";
 import { ChatMessage } from "./chat-message";
 
@@ -44,7 +44,11 @@ export function ChatMessagesContainer({
   return (
     <div
       ref={containerRef}
-      className="flex flex-col h-full overflow-y-auto px-4 py-3"
+      className="flex flex-col overflow-y-auto px-4 py-3 scrollbar-thin"
+      style={{
+        height: "100%",
+        maxHeight: "350px",
+      }}
     >
       <div className="flex-grow"></div>{" "}
       {/* Spacer that pushes content to bottom */}

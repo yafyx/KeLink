@@ -20,7 +20,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatInput } from "./chat-input";
-import { ChatHeader } from "./chat-header";
 import { MessageList } from "./message-list";
 
 export type Message = {
@@ -257,24 +256,29 @@ export function FloatingChat({
             animate={{ opacity: 1, height: "auto", y: 0 }}
             exit={{ opacity: 0, height: 0, y: 20 }}
             transition={animationSettings.transition}
-            className="bg-white/95 backdrop-blur-md rounded-t-2xl overflow-hidden shadow-lg border border-gray-100"
+            className="bg-white/95 backdrop-blur-md rounded-t-2xl overflow-hidden shadow-lg border border-gray-100 flex flex-col"
           >
-            <ChatHeader toggleExpanded={toggleExpanded} />
-
-            <MessageList
-              messages={messages}
-              isLoading={isLoading}
-              validVendors={validVendors}
-              activeDropdowns={activeDropdowns}
-              toggleDropdown={toggleDropdown}
-              selectedVendorId={selectedVendorId}
-              onVendorClick={onVendorClick}
-              getVendorTypeColor={getVendorTypeColor}
-              animationSettings={animationSettings}
-              preferReducedMotion={preferReducedMotion}
-              bubbleClassName={bubbleClassName}
-              messagesEndRef={messagesEndRef}
-            />
+            <motion.div
+              layout
+              className="overflow-hidden"
+              style={{ height: "auto", minHeight: 0 }}
+            >
+              <MessageList
+                messages={messages}
+                isLoading={isLoading}
+                validVendors={validVendors}
+                activeDropdowns={activeDropdowns}
+                toggleDropdown={toggleDropdown}
+                selectedVendorId={selectedVendorId}
+                onVendorClick={onVendorClick}
+                getVendorTypeColor={getVendorTypeColor}
+                animationSettings={animationSettings}
+                preferReducedMotion={preferReducedMotion}
+                bubbleClassName={bubbleClassName}
+                messagesEndRef={messagesEndRef}
+                toggleExpanded={toggleExpanded}
+              />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -344,6 +348,24 @@ export function FloatingChat({
         /* Force hardware acceleration for smoother animations */
         .will-change-transform {
           will-change: transform;
+        }
+
+        /* Custom scrollbar styles */
+        .scrollbar-thin::-webkit-scrollbar {
+          width: 4px;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+          background-color: rgba(0, 0, 0, 0.2);
+          border-radius: 20px;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+          background-color: rgba(0, 0, 0, 0.3);
         }
       `}</style>
     </div>

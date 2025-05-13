@@ -1,6 +1,8 @@
 "use client";
 
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
 import { Avatar } from "@/components/ui/avatar";
 import { ChatMessagesContainer } from "./chat-messages-container";
 import { TypingIndicator } from "./typing-indicator";
@@ -19,6 +21,7 @@ interface MessageListProps {
   preferReducedMotion: boolean | null | undefined;
   bubbleClassName?: string;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
+  toggleExpanded: () => void;
 }
 
 export function MessageList({
@@ -34,23 +37,56 @@ export function MessageList({
   preferReducedMotion,
   bubbleClassName,
   messagesEndRef,
+  toggleExpanded,
 }: MessageListProps) {
   if (messages.length === 0) {
     return (
-      <div className="h-[350px]">
+      <div className="h-[350px] relative">
         <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400">
           <MessageSquare className="h-12 w-12 mb-2 opacity-20" />
           <p className="text-sm mb-1">Belum ada percakapan</p>
           <p className="text-xs">Cari penjual keliling untuk memulai</p>
         </div>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-2 right-2 h-7 w-7 rounded-full"
+          onClick={toggleExpanded}
+          aria-label="Close panel"
+        >
+          <X className="h-4 w-4" />
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="h-[350px]">
-      {/* Main chat container with standard flex direction but messages pushed to bottom */}
-      <div className="h-full relative">
+    <div
+      className={`relative overflow-hidden ${
+        messages.length > 3 ? "h-[350px]" : "h-auto max-h-[350px]"
+      }`}
+    >
+      {/* Close button in top right corner */}
+      <motion.div
+        className="absolute top-2 right-2 z-10"
+        initial={{ opacity: 0.8 }}
+        animate={{ opacity: 1 }}
+        layout
+      >
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 rounded-full bg-white/80 hover:bg-white/95 backdrop-blur-sm"
+          onClick={toggleExpanded}
+          aria-label="Close panel"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </motion.div>
+
+      {/* Main chat container that adapts to content height */}
+      <div className="h-full relative overflow-hidden">
         <ChatMessagesContainer
           messages={messages}
           validVendors={validVendors}
@@ -67,7 +103,7 @@ export function MessageList({
 
         {/* Typing indicator at the bottom */}
         {isLoading && (
-          <div className="absolute bottom-0 left-0 right-0 flex items-center gap-2 p-4 pb-2 bg-white bg-opacity-90">
+          <div className="absolute bottom-0 left-0 right-0 flex items-center gap-2 p-4 pb-2 bg-white bg-opacity-90 z-10">
             <Avatar className="h-6 w-6">
               <div className="bg-primary text-xs text-white flex items-center justify-center h-full rounded-full">
                 K
