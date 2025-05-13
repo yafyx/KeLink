@@ -17,6 +17,7 @@ interface ChatMessagesContainerProps {
   preferReducedMotion: boolean | null | undefined;
   bubbleClassName?: string;
   isLoading: boolean;
+  onViewAllVendors?: () => void;
 }
 
 export function ChatMessagesContainer({
@@ -31,6 +32,7 @@ export function ChatMessagesContainer({
   preferReducedMotion,
   bubbleClassName,
   isLoading,
+  onViewAllVendors,
 }: ChatMessagesContainerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -76,6 +78,7 @@ export function ChatMessagesContainer({
               animationSettings={animationSettings}
               preferReducedMotion={preferReducedMotion}
               bubbleClassName={bubbleClassName}
+              onViewAllVendors={onViewAllVendors}
             />
           </motion.div>
         ))}

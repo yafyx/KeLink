@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
 import { VendorSection } from "./vendor-section";
+import { ViewAllVendorsButton } from "./view-all-vendors-button";
 import type { Message, Vendor } from "./floating-chat";
 
 // Assuming Message type is defined in a shared location or passed as a generic
@@ -27,6 +28,7 @@ interface ChatMessageProps {
   animationSettings: any;
   preferReducedMotion: boolean | null | undefined;
   bubbleClassName?: string;
+  onViewAllVendors?: () => void;
 }
 
 export function ChatMessage({
@@ -40,6 +42,7 @@ export function ChatMessage({
   animationSettings,
   preferReducedMotion,
   bubbleClassName,
+  onViewAllVendors,
 }: ChatMessageProps) {
   // Extract mentioned vendor types from the message
   const vendorTypes = [
@@ -56,6 +59,11 @@ export function ChatMessage({
       messageContent.includes(normalizedType) || messageContent.includes(type)
     );
   });
+
+  // Get vendors that match the mentioned types
+  const relevantVendors = validVendors.filter((vendor) =>
+    mentionedTypes.includes(vendor.type.toLowerCase())
+  );
 
   return (
     <div
@@ -95,30 +103,52 @@ export function ChatMessage({
       </div>
 
       {/* Show relevant vendors underneath the message if types are mentioned */}
-      {message.role === "assistant" && mentionedTypes.length > 0 && (
-        <div className="mt-2 ml-8 w-[90%] space-y-2">
-          {mentionedTypes.map((type) => {
-            const typeVendors = validVendors.filter(
-              (v) => v.type.toLowerCase() === type.toLowerCase()
-            );
+      {message.role === "assistant" &&
+        mentionedTypes.length > 0 &&
+        validVendors.length > 0 && (
+          <motion.div
+            className="mt-2 ml-8 w-[90%] space-y-2"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              delay: 0.2,
+              duration: preferReducedMotion ? 0.1 : 0.2,
+            }}
+          >
+            {/* Display vendors for mentioned types */}
+            {mentionedTypes.map((type) => {
+              const typeVendors = validVendors.filter(
+                (v) => v.type.toLowerCase() === type.toLowerCase()
+              );
 
-            return (
-              <VendorSection
-                key={type}
-                type={type}
-                vendorsForType={typeVendors}
-                activeDropdowns={activeDropdowns}
-                toggleDropdown={toggleDropdown}
-                selectedVendorId={selectedVendorId}
-                onVendorClick={onVendorClick}
-                getVendorTypeColor={getVendorTypeColor}
-                animationSettings={animationSettings}
-                preferReducedMotion={preferReducedMotion}
+              if (typeVendors.length === 0) return null;
+
+              return (
+                <VendorSection
+                  key={type}
+                  type={type}
+                  vendorsForType={typeVendors}
+                  activeDropdowns={activeDropdowns}
+                  toggleDropdown={toggleDropdown}
+                  selectedVendorId={selectedVendorId}
+                  onVendorClick={onVendorClick}
+                  getVendorTypeColor={getVendorTypeColor}
+                  animationSettings={animationSettings}
+                  preferReducedMotion={preferReducedMotion}
+                  onViewAllVendors={onViewAllVendors}
+                />
+              );
+            })}
+
+            {/* View all vendors button */}
+            {validVendors.length > 0 && onViewAllVendors && (
+              <ViewAllVendorsButton
+                onClick={onViewAllVendors}
+                vendorCount={validVendors.length}
               />
-            );
-          })}
-        </div>
-      )}
+            )}
+          </motion.div>
+        )}
     </div>
   );
 }

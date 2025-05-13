@@ -22,6 +22,7 @@ interface MessageListProps {
   bubbleClassName?: string;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   toggleExpanded: () => void;
+  onViewAllVendors?: () => void;
 }
 
 export function MessageList({
@@ -38,6 +39,7 @@ export function MessageList({
   bubbleClassName,
   messagesEndRef,
   toggleExpanded,
+  onViewAllVendors,
 }: MessageListProps) {
   if (messages.length === 0) {
     return (
@@ -99,6 +101,7 @@ export function MessageList({
           preferReducedMotion={preferReducedMotion}
           bubbleClassName={bubbleClassName}
           isLoading={isLoading}
+          onViewAllVendors={onViewAllVendors}
         />
 
         {/* Typing indicator at the bottom */}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { Send, ChevronUp, ChevronDown } from "lucide-react";
+import { Send, ChevronUp, ChevronDown, MinusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ interface ChatInputProps {
   isExpanded: boolean;
   toggleExpanded: () => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
+  onMinimize?: () => void;
 }
 
 export function ChatInput({
@@ -24,15 +25,18 @@ export function ChatInput({
   isExpanded,
   toggleExpanded,
   inputRef,
+  onMinimize,
 }: ChatInputProps) {
-  // const inputRef = useRef<HTMLInputElement>(null);
-
-  // Return focus to input after sending (moved logic to parent if needed elsewhere)
-  // useEffect(() => {
-  //   if (!isLoading && isExpanded) { // Assuming we only focus when expanded
-  //     inputRef.current?.focus();
-  //   }
-  // }, [isLoading, isExpanded]); // Need isExpanded state here
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !e.shiftKey && !(isLoading || !input.trim())) {
+      onFormSubmit(e as unknown as React.FormEvent);
+    } else if (e.key === "Escape") {
+      if (isExpanded) {
+        e.preventDefault();
+        toggleExpanded();
+      }
+    }
+  };
 
   return (
     <form
@@ -61,30 +65,26 @@ export function ChatInput({
           placeholder={
             isLoading
               ? "Menunggu..."
-              : "Ask for vendors nearby... (e.g., 'Cari siomay dekat sini?')"
+              : "Tanya saya atau cari pedagang keliling..."
           }
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (
-              e.key === "Enter" &&
-              !e.shiftKey &&
-              !(isLoading || !input.trim())
-            ) {
-              onFormSubmit(e as unknown as React.FormEvent);
-            } else if (e.key === "Escape") {
-              if (isExpanded) {
-                e.preventDefault();
-                toggleExpanded();
-              }
-            }
-          }}
+          onKeyDown={handleKeyDown}
           disabled={isLoading}
           className={cn(
             "flex-1 h-10 border border-input bg-transparent transition-all duration-200 w-full",
             isLoading ? "opacity-70 cursor-not-allowed" : "hover:bg-gray-50/50"
           )}
         />
+        {isLoading && (
+          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center justify-center">
+            <div className="typing-indicator">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        )}
       </div>
       <Button
         type="submit"
@@ -104,6 +104,20 @@ export function ChatInput({
           )}
         />
       </Button>
+
+      {onMinimize && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 rounded-full absolute -top-9 right-0 bg-white/90 shadow-sm flex items-center justify-center hover:bg-gray-100"
+          onClick={onMinimize}
+          aria-label="Hide chat"
+          title="Hide chat"
+        >
+          <MinusCircle className="h-4 w-4" />
+        </Button>
+      )}
     </form>
   );
 }

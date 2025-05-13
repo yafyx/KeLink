@@ -6,9 +6,11 @@ import {
   useJsApiLoader,
   Marker,
   InfoWindow,
+  Polyline,
 } from "@react-google-maps/api";
 import { MockMap } from "./mock-map";
 import { motion } from "framer-motion";
+import { RouteDetails, RoutePoint, calculateRoute } from "@/lib/route-mapper";
 
 const hideGoogleElements = `
   .gm-style-cc { display: none !important; }
@@ -106,6 +108,7 @@ interface GoogleMapComponentProps {
   onVendorClick?: (vendor: Vendor) => void;
   selectedVendorId?: string;
   className?: string;
+  showRoute?: boolean;
 }
 
 // Define vendor type colors (can be customized)
@@ -124,6 +127,7 @@ export function GoogleMapComponent({
   onVendorClick,
   selectedVendorId,
   className,
+  showRoute = false,
 }: GoogleMapComponentProps) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
   const hasApiKey =
@@ -138,6 +142,8 @@ export function GoogleMapComponent({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
+  const [routeDetails, setRouteDetails] = useState<RouteDetails | null>(null);
+  const [isLoadingRoute, setIsLoadingRoute] = useState(false);
 
   // Use mock map if no API key is provided
   if (!hasApiKey) {
@@ -165,10 +171,34 @@ export function GoogleMapComponent({
     if (selectedVendorId) {
       const vendor = vendors.find((v) => v.id === selectedVendorId);
       setSelectedVendor(vendor || null);
+
+      // If showRoute is true and we have both user location and vendor, calculate the route
+      if (showRoute && userLocation && vendor) {
+        calculateBestRoute(userLocation, vendor.location);
+      } else {
+        setRouteDetails(null);
+      }
     } else {
       setSelectedVendor(null);
+      setRouteDetails(null);
     }
-  }, [selectedVendorId, vendors]);
+  }, [selectedVendorId, vendors, userLocation, showRoute]);
+
+  const calculateBestRoute = async (
+    origin: RoutePoint,
+    destination: RoutePoint
+  ) => {
+    setIsLoadingRoute(true);
+    try {
+      const route = await calculateRoute(origin, destination, "WALKING");
+      setRouteDetails(route);
+    } catch (error) {
+      console.error("Error calculating route:", error);
+      setRouteDetails(null);
+    } finally {
+      setIsLoadingRoute(false);
+    }
+  };
 
   const onLoad = useCallback(
     function callback(map: google.maps.Map) {
@@ -413,6 +443,19 @@ export function GoogleMapComponent({
                   );
                 })}
 
+            {/* Route polyline */}
+            {showRoute && routeDetails && routeDetails.path.length > 0 && (
+              <Polyline
+                path={routeDetails.path}
+                options={{
+                  strokeColor: "#4285F4",
+                  strokeOpacity: 0.8,
+                  strokeWeight: 5,
+                  geodesic: true,
+                }}
+              />
+            )}
+
             {/* Info window for selected vendor */}
             {selectedVendor && (
               <InfoWindow
@@ -429,7 +472,23 @@ export function GoogleMapComponent({
                   <div className="text-xs text-gray-600">
                     {selectedVendor.type}
                   </div>
-                  {selectedVendor.distance && (
+                  {routeDetails && (
+                    <div className="text-xs mt-1 flex flex-col">
+                      <span className="flex items-center">
+                        <span
+                          className="inline-block h-2 w-2 rounded-full mr-1"
+                          style={{
+                            backgroundColor:
+                              vendorTypeColors[selectedVendor.type] ||
+                              vendorTypeColors.default,
+                          }}
+                        ></span>
+                        <span>{routeDetails.distance.text}</span>
+                      </span>
+                      <span className="mt-1">{routeDetails.duration.text}</span>
+                    </div>
+                  )}
+                  {selectedVendor.distance && !routeDetails && (
                     <div className="text-xs mt-1 flex items-center">
                       <span
                         className="inline-block h-2 w-2 rounded-full mr-1"
@@ -457,6 +516,14 @@ export function GoogleMapComponent({
                 <div className="h-10 w-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
                 <p className="mt-4 text-sm text-gray-600">Loading map...</p>
               </div>
+            </div>
+          )}
+
+          {/* Route loading overlay */}
+          {isLoadingRoute && (
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white/90 px-4 py-2 rounded-full shadow-md z-50 flex items-center space-x-2">
+              <div className="h-3 w-3 bg-primary rounded-full animate-pulse"></div>
+              <span className="text-sm">Calculating best route...</span>
             </div>
           )}
         </>

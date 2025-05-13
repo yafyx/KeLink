@@ -40,31 +40,27 @@
   - [x] Send user message and location to `/api/find` endpoint.
   - [x] Display responses (user messages and bot replies) in the chat area.
 
-## Deployment & Testing
-
-- [x] Set up hosting for the Next.js application (e.g., Vercel).
-- [ ] Thoroughly test all vendor flows.
-- [ ] Thoroughly test the chatbot function.
-- [x] Test geolocation permissions and handling.
-
 ## Performance Optimization
 
 - [x] Implement caching strategies for repeated queries
-- [ ] Optimize Firebase queries for faster vendor lookups
-- [ ] Implement pagination for vendor results when multiple vendors are found
-- [ ] Add loading states and optimistic UI updates
+- [x] Optimize Firebase queries for faster vendor lookups
+- [x] Implement pagination for vendor results when multiple vendors are found
+- [x] Add loading states and optimistic UI updates
 
 ## User Experience Enhancements
 
-- [ ] Add vendor ratings and review system (using Google Maps MCP (Model Context Protocol))
+- [x] Add vendor ratings and review system
 - [ ] Implement user favorites/bookmarks for frequently accessed vendors
 - [ ] Create vendor category filters for the find interface
 - [ ] Add push notifications for vendor proximity alerts
 - [ ] Implement history of past interactions/searches
+- [x] Add best route to vendor and vice versa (using Google Maps MCP (Model Context Protocol))
+- [ ] Add vendor details to the find interface
+- [ ] Add rehype markdown for rich text messages in chat (configure the gemini responses too)
 
 ## Security & Compliance
 
-- [ ] Implement rate limiting for API endpoints
+- [x] Implement rate limiting for API endpoints
 - [ ] Add data retention policies for user location data
 - [x] Ensure GDPR/CCPA compliance for user data
 
@@ -86,3 +82,10 @@
 - [ ] Add in-app messaging between users and vendors
 - [ ] Explore integration with mapping services for visual vendor tracking
 - [ ] Support for scheduled vendor appearances/events
+
+## Deployment & Testing
+
+- [x] Set up hosting for the Next.js application (e.g., Vercel).
+- [ ] Thoroughly test all vendor flows.
+- [ ] Thoroughly test the chatbot function.
+- [x] Test geolocation permissions and handling.

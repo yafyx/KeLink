@@ -1,4 +1,4 @@
-import { GeoPoint } from 'firebase-admin/firestore';
+import { DocumentData, GeoPoint, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { db } from './firebase-admin';
 
 export type Vendor = {
@@ -45,32 +45,81 @@ export function formatDistance(distance: number): string {
     }
 }
 
+// Function to create geohash-like grid cell for location-based filtering
+function getGeoCells(lat: number, lon: number, radiusInKm: number): string[] {
+    // A simple implementation - in production, use a proper geohashing library
+    // This approximation creates a coarse grid with 0.1 degree cells (~11km at equator)
+    const latPrecision = 0.1;
+    const lonPrecision = 0.1;
+
+    const latCells = Math.ceil(radiusInKm / 11);
+    const lonCells = Math.ceil(radiusInKm / 11);
+
+    const cells: string[] = [];
+
+    for (let latOffset = -latCells; latOffset <= latCells; latOffset++) {
+        for (let lonOffset = -lonCells; lonOffset <= lonCells; lonOffset++) {
+            const cellLat = Math.floor((lat + latOffset * latPrecision) / latPrecision) * latPrecision;
+            const cellLon = Math.floor((lon + lonOffset * lonPrecision) / lonPrecision) * lonPrecision;
+            cells.push(`${cellLat.toFixed(1)}_${cellLon.toFixed(1)}`);
+        }
+    }
+
+    return cells;
+}
+
 // Main function to find nearby vendors
 export async function findNearbyVendors({
     userLocation,
     keywords = [],
     vendorType = '',
     maxDistance = 5000, // Default max distance in meters
+    limit = 20, // Default limit of results
+    lastVendorId = null, // For pagination
 }: {
     userLocation: { lat: number; lon: number };
     keywords?: string[];
     vendorType?: string;
     maxDistance?: number;
-}): Promise<Vendor[]> {
+    limit?: number;
+    lastVendorId?: string | null;
+}): Promise<{ vendors: Vendor[], hasMore: boolean }> {
     try {
-        // Get all active vendors from firestore
-        const vendorsRef = db.collection('vendors');
-        const snapshot = await vendorsRef
-            .where('status', '==', 'active')
-            .get();
+        // Convert maxDistance from meters to kilometers for geohashing
+        const maxDistanceKm = maxDistance / 1000;
+
+        // Get geo cells covering the search area
+        const cells = getGeoCells(userLocation.lat, userLocation.lon, maxDistanceKm);
+
+        // Build the initial query
+        let vendorQuery = db.collection('vendors') as any;
+
+        // Add status filter (active vendors only)
+        vendorQuery = vendorQuery.where('status', '==', 'active');
+
+        // Add type filter if provided
+        if (vendorType && vendorType.trim() !== '') {
+            vendorQuery = vendorQuery.where('type', '==', vendorType.trim());
+        }
+
+        // Add pagination if lastVendorId provided
+        if (lastVendorId) {
+            const lastDoc = await db.collection('vendors').doc(lastVendorId).get();
+            if (lastDoc.exists) {
+                vendorQuery = vendorQuery.startAfter(lastDoc);
+            }
+        }
+
+        // Execute query with limit to get a subset of potential matches
+        const snapshot = await vendorQuery.limit(limit * 3).get();
 
         if (snapshot.empty) {
-            return [];
+            return { vendors: [], hasMore: false };
         }
 
         // Extract vendor data and convert Firestore documents to Vendor type
         let vendors: Vendor[] = [];
-        snapshot.forEach(doc => {
+        snapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
             const data = doc.data();
             // Handle GeoPoint from Firestore
             let locationData;
@@ -101,15 +150,7 @@ export async function findNearbyVendors({
             });
         });
 
-        // Filter by vendor type if specified
-        if (vendorType && vendorType.trim() !== '') {
-            const lowerCaseType = vendorType.toLowerCase();
-            vendors = vendors.filter(vendor =>
-                vendor.type.toLowerCase().includes(lowerCaseType)
-            );
-        }
-
-        // Filter by keywords if provided
+        // Filter by keywords if provided - done in-memory for flexibility
         if (keywords && keywords.length > 0) {
             vendors = vendors.filter(vendor => {
                 const vendorText = `${vendor.name} ${vendor.type} ${vendor.description}`.toLowerCase();
@@ -137,8 +178,15 @@ export async function findNearbyVendors({
             .filter(vendor => (vendor.raw_distance as number) <= maxDistance)
             .sort((a, b) => (a.raw_distance as number) - (b.raw_distance as number));
 
+        // Apply limit and determine if there are more results
+        const limitedVendors = vendorsWithDistance.slice(0, limit);
+        const hasMore = vendorsWithDistance.length > limit;
+
         // Return vendors without the raw_distance property
-        return vendorsWithDistance.map(({ raw_distance, ...vendor }) => vendor);
+        return {
+            vendors: limitedVendors.map(({ raw_distance, ...vendor }) => vendor),
+            hasMore
+        };
     } catch (error) {
         console.error('Error finding nearby vendors:', error);
         throw error;

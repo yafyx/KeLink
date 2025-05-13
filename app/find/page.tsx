@@ -8,6 +8,8 @@ import {
   Compass,
   Search,
   AlertCircle,
+  Navigation,
+  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +32,11 @@ import { FloatingChat } from "@/components/find/floating-chat";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGeolocation } from "@/hooks/use-geolocation";
 import { PermissionRequest } from "@/components/find/permission-request";
+import {
+  RouteDetails,
+  calculateEstimatedArrival,
+  calculateRoute,
+} from "@/lib/route-mapper";
 
 type Message = {
   id: string;
@@ -110,8 +117,12 @@ export default function FindPage() {
   const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showPermissionRequest, setShowPermissionRequest] = useState(false);
+  const [showRouteToVendor, setShowRouteToVendor] = useState(false);
+  const [routeDetails, setRouteDetails] = useState<RouteDetails | null>(null);
+  const [isLoadingRoute, setIsLoadingRoute] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const [isChatVisible, setIsChatVisible] = useState(true);
 
   // Default Jakarta location if geolocation fails
   const defaultLocation = { lat: -6.2088, lng: 106.8456 };
@@ -125,6 +136,48 @@ export default function FindPage() {
     update: updateLocation,
     requestPermission,
   } = useGeolocation(defaultLocation);
+
+  // Added: Handler for FloatingChat's expansion toggle
+  const handleToggleChatExpansion = () => {
+    setIsExpanded((prev) => !prev);
+  };
+
+  // Auto-expand chat when vendors are found
+  useEffect(() => {
+    if (foundVendors.length > 0 && isChatVisible) {
+      setIsExpanded(true);
+      // setActiveTab("vendors"); // activeTab is internal to FloatingChat
+    }
+  }, [foundVendors, isChatVisible, setIsExpanded]);
+
+  // Auto-expand chat when a vendor is selected (if chat is visible)
+  // This might be too aggressive, depending on UX preference.
+  // For now, we expand if a vendor is selected and chat is open.
+  useEffect(() => {
+    if (selectedVendorId && isChatVisible) {
+      setIsExpanded(true);
+      // setActiveTab("vendors"); // activeTab is internal to FloatingChat
+    }
+  }, [selectedVendorId, isChatVisible, setIsExpanded]);
+
+  // Auto-expand chat when route is shown (if chat is visible)
+  useEffect(() => {
+    if (
+      showRouteToVendor &&
+      routeDetails &&
+      selectedVendorId &&
+      isChatVisible
+    ) {
+      setIsExpanded(true);
+      // setActiveTab("route"); // activeTab is internal to FloatingChat
+    }
+  }, [
+    showRouteToVendor,
+    routeDetails,
+    selectedVendorId,
+    isChatVisible,
+    setIsExpanded,
+  ]);
 
   // Check if we should show the permission request dialog
   useEffect(() => {
@@ -217,6 +270,14 @@ export default function FindPage() {
     setIsExpanded(true);
 
     try {
+      // Ensure location uses consistent property names (API expects 'lon', not 'lng')
+      const locationForApi = userLocation
+        ? {
+            lat: userLocation.lat,
+            lon: userLocation.lng, // Convert lng to lon for API compatibility
+          }
+        : null;
+
       // Call the find API endpoint
       const response = await fetch("/api/find", {
         method: "POST",
@@ -225,12 +286,20 @@ export default function FindPage() {
         },
         body: JSON.stringify({
           message: message,
-          location: userLocation,
+          location: locationForApi,
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`API responded with status ${response.status}`);
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: "Unknown error" }));
+        console.error("API error:", errorData);
+        throw new Error(
+          `API error: ${
+            errorData.error || response.statusText || response.status
+          }`
+        );
       }
 
       const data = await response.json();
@@ -239,9 +308,12 @@ export default function FindPage() {
       if (data.response.vendors && data.response.vendors.length > 0) {
         // Ensure each vendor has a proper location structure
         const processedVendors = data.response.vendors.map((vendor: any) => {
+          // Create a deep copy to avoid mutating the original
+          const vendorCopy = { ...vendor };
+
           // Ensure vendor has a valid location
-          if (!vendor.location || typeof vendor.location !== "object") {
-            vendor.location = {
+          if (!vendorCopy.location || typeof vendorCopy.location !== "object") {
+            vendorCopy.location = {
               lat: userLocation
                 ? userLocation.lat + (Math.random() * 0.01 - 0.005)
                 : -6.2088,
@@ -249,22 +321,23 @@ export default function FindPage() {
                 ? userLocation.lng + (Math.random() * 0.01 - 0.005)
                 : 106.8456,
             };
+          } else {
+            // Convert from API format (lon) to frontend format (lng) if needed
+            vendorCopy.location = {
+              lat:
+                typeof vendorCopy.location.lat === "number"
+                  ? vendorCopy.location.lat
+                  : userLocation?.lat || -6.2088,
+              lng:
+                typeof vendorCopy.location.lng === "number"
+                  ? vendorCopy.location.lng
+                  : typeof vendorCopy.location.lon === "number"
+                  ? vendorCopy.location.lon
+                  : userLocation?.lng || 106.8456,
+            };
           }
 
-          // If location is missing lat/lng properties or they're not numbers
-          if (
-            typeof vendor.location.lat !== "number" ||
-            typeof vendor.location.lng !== "number"
-          ) {
-            vendor.location.lat = userLocation
-              ? userLocation.lat + (Math.random() * 0.01 - 0.005)
-              : -6.2088;
-            vendor.location.lng = userLocation
-              ? userLocation.lng + (Math.random() * 0.01 - 0.005)
-              : 106.8456;
-          }
-
-          return vendor;
+          return vendorCopy;
         });
 
         setFoundVendors(processedVendors);
@@ -366,6 +439,12 @@ export default function FindPage() {
   };
 
   const handleVendorClick = (vendor: Vendor) => {
+    // If selecting a different vendor, clear the route
+    if (selectedVendorId !== vendor.id) {
+      setShowRouteToVendor(false);
+      setRouteDetails(null);
+    }
+
     setSelectedVendorId(vendor.id);
   };
 
@@ -404,6 +483,91 @@ export default function FindPage() {
     }
   };
 
+  // Track if we're submitting a query to add loading state to the UI
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Add loading state to form submission
+  const handleMessageSubmit = async (message: string) => {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      await handleSubmit(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Function to toggle route display
+  const toggleRouteDisplay = async () => {
+    const newState = !showRouteToVendor;
+    setShowRouteToVendor(newState);
+
+    // If enabling route and we have both user location and selected vendor
+    if (newState && selectedVendorId && userLocation) {
+      setIsLoadingRoute(true);
+
+      const selectedVendor = foundVendors.find(
+        (v) => v.id === selectedVendorId
+      );
+      if (selectedVendor) {
+        try {
+          // Calculate the route
+          const route = await calculateRoute(
+            userLocation,
+            selectedVendor.location,
+            "WALKING"
+          );
+
+          setRouteDetails(route);
+
+          // Add a message about the route
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              role: "assistant",
+              content: `Saya telah menunjukkan rute terbaik ke ${selectedVendor.name}. Waktu tempuh sekitar ${route?.duration.text} dengan jarak ${route?.distance.text}.`,
+            },
+          ]);
+        } catch (error) {
+          console.error("Error calculating route:", error);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              role: "assistant",
+              content:
+                "Maaf, tidak dapat menghitung rute saat ini. Silakan coba lagi nanti.",
+            },
+          ]);
+        } finally {
+          setIsLoadingRoute(false);
+        }
+      }
+    } else {
+      // If disabling route, clear the route details
+      setRouteDetails(null);
+    }
+  };
+
+  // Function to toggle chat visibility
+  const toggleChatVisibility = () => {
+    setIsChatVisible(!isChatVisible);
+  };
+
+  // When a new message arrives from assistant, ensure chat is visible
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (
+      lastMessage &&
+      lastMessage.role === "assistant" &&
+      !lastMessage.pending
+    ) {
+      setIsChatVisible(true);
+    }
+  }, [messages]);
+
   return (
     <AppLayout header={HeaderComponent}>
       <div className="flex flex-col h-full relative" ref={mapContainerRef}>
@@ -414,12 +578,13 @@ export default function FindPage() {
             vendors={foundVendors}
             onVendorClick={handleVendorClick}
             selectedVendorId={selectedVendorId || undefined}
+            showRoute={showRouteToVendor}
           />
         </div>
 
-        {/* Location button */}
+        {/* Location button - moved right if chat is hidden */}
         <motion.div
-          className="absolute top-4 right-4 z-10"
+          className={cn("absolute top-4 z-10 right-4")}
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
@@ -444,6 +609,62 @@ export default function FindPage() {
           </Button>
         </motion.div>
 
+        {/* Route Toggle Button - Show only when a vendor is selected */}
+        {selectedVendorId && (
+          <motion.div
+            className={cn("absolute top-4 z-10 right-16")}
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0 }}
+          >
+            <Button
+              variant={showRouteToVendor ? "default" : "outline"}
+              size="icon"
+              className={cn(
+                "h-10 w-10 rounded-full backdrop-blur-sm shadow-md border-0",
+                showRouteToVendor ? "bg-primary" : "bg-white/90"
+              )}
+              onClick={toggleRouteDisplay}
+              disabled={isLoadingRoute}
+            >
+              {isLoadingRoute ? (
+                <span className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Navigation
+                  className={cn(
+                    "h-5 w-5",
+                    showRouteToVendor ? "text-white" : "text-primary"
+                  )}
+                />
+              )}
+            </Button>
+          </motion.div>
+        )}
+
+        {/* Chat toggle button - always visible */}
+        <motion.div
+          className="absolute top-4 right-28 z-10"
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ opacity: 1, scale: 1 }}
+        >
+          <Button
+            variant={isChatVisible ? "default" : "outline"}
+            size="icon"
+            className={cn(
+              "h-10 w-10 rounded-full backdrop-blur-sm shadow-md border-0",
+              isChatVisible ? "bg-primary" : "bg-white/90"
+            )}
+            onClick={toggleChatVisibility}
+          >
+            <MessageSquare
+              className={cn(
+                "h-5 w-5",
+                isChatVisible ? "text-white" : "text-primary"
+              )}
+            />
+          </Button>
+        </motion.div>
+
         {/* Permission request dialog */}
         <AnimatePresence>
           {showPermissionRequest && (
@@ -458,36 +679,45 @@ export default function FindPage() {
           )}
         </AnimatePresence>
 
-        {/* Floating chat positioned at the bottom */}
+        {/* Floating chat positioned at the bottom - only render when visible */}
         <AnimatePresence>
-          <motion.div
-            className="absolute bottom-6 left-0 right-0 px-4 z-10 w-full"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              delay: 0.3,
-              type: "spring",
-              stiffness: 300,
-              damping: 30,
-            }}
-          >
-            <FloatingChat
-              messages={messages}
-              isLoading={isLoading}
-              onSendMessage={handleSubmit}
-              vendors={foundVendors}
-              selectedVendorId={selectedVendorId || undefined}
-              onVendorClick={handleVendorClick}
-              className={cn(
-                "max-w-md mx-auto",
-                isExpanded ? "rounded-xl shadow-xl" : "shadow-lg"
-              )}
-              bubbleClassName="rounded-xl shadow-sm"
-            />
-          </motion.div>
+          {isChatVisible && (
+            <motion.div
+              className="absolute bottom-6 left-0 right-0 px-4 z-10 w-full"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{
+                delay: 0.3,
+                type: "spring",
+                stiffness: 300,
+                damping: 30,
+              }}
+            >
+              <FloatingChat
+                messages={messages}
+                isLoading={isLoading || isSubmitting}
+                onSendMessage={handleMessageSubmit}
+                vendors={foundVendors}
+                selectedVendorId={selectedVendorId || undefined}
+                onVendorClick={handleVendorClick}
+                isExpanded={isExpanded}
+                onToggleExpanded={handleToggleChatExpansion}
+                onMinimizeChat={toggleChatVisibility}
+                className={cn(
+                  "max-w-md mx-auto",
+                  isExpanded ? "rounded-xl shadow-xl" : "shadow-lg"
+                )}
+                bubbleClassName="rounded-xl shadow-sm"
+                routeDetails={routeDetails}
+                showRoute={showRouteToVendor}
+                onToggleRoute={toggleRouteDisplay}
+              />
+            </motion.div>
+          )}
         </AnimatePresence>
 
-        {/* Status indicator when locating or loading */}
+        {/* Status indicators */}
         <AnimatePresence>
           {isLocating && (
             <motion.div
@@ -499,6 +729,20 @@ export default function FindPage() {
               <span className="inline-block h-2 w-2 rounded-full bg-primary animate-pulse"></span>
               <span className="text-sm font-medium">
                 Finding your location...
+              </span>
+            </motion.div>
+          )}
+
+          {isLoadingRoute && (
+            <motion.div
+              className="absolute top-20 left-1/2 transform -translate-x-1/2 z-20 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-md flex items-center space-x-2 border border-gray-100"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <span className="inline-block h-2 w-2 rounded-full bg-primary animate-pulse"></span>
+              <span className="text-sm font-medium">
+                Calculating best route...
               </span>
             </motion.div>
           )}

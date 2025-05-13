@@ -1,8 +1,9 @@
 import { DataProtection } from '@/lib/data-protection';
+import { RateLimiter } from '@/lib/rate-limiter';
 import { findNearbyVendors } from '@/lib/vendors';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import NodeCache from 'node-cache';
 
 // Initialize Google Generative AI with API key
@@ -17,6 +18,13 @@ interface QueryAnalysisResult {
     vendorType: string;
     keywords: string[];
     directResponse: string;
+}
+
+// Type definition for pagination and response
+interface VendorResponse {
+    vendors: any[];
+    hasMore: boolean;
+    lastVendorId?: string;
 }
 
 // Mock database of vendors for fallback when Firestore is not accessible
@@ -86,8 +94,10 @@ async function findNearbyVendorsFallback(
     location: { lat: number; lon: number },
     vendorType: string = '',
     keywords: string[] = [],
-    maxDistance: number = 5000
-) {
+    maxDistance: number = 5000,
+    limit: number = 10,
+    lastVendorId?: string
+): Promise<VendorResponse> {
     // Filter active vendors
     let filteredVendors = mockVendors.filter(vendor => vendor.status === 'active');
 
@@ -134,7 +144,7 @@ async function findNearbyVendorsFallback(
     }
 
     // Calculate distance and filter by max_distance
-    const vendorsWithDistance = filteredVendors
+    let vendorsWithDistance = filteredVendors
         .map(vendor => {
             const distance = calculateDistance(
                 location.lat,
@@ -151,20 +161,75 @@ async function findNearbyVendorsFallback(
         .filter(vendor => (vendor.raw_distance as number) <= maxDistance)
         .sort((a, b) => (a.raw_distance as number) - (b.raw_distance as number));
 
+    // Handle pagination
+    if (lastVendorId) {
+        const lastVendorIndex = vendorsWithDistance.findIndex(v => v.id === lastVendorId);
+        if (lastVendorIndex !== -1) {
+            vendorsWithDistance = vendorsWithDistance.slice(lastVendorIndex + 1);
+        }
+    }
+
+    const hasMore = vendorsWithDistance.length > limit;
+    const paginatedVendors = vendorsWithDistance.slice(0, limit);
+    const lastId = paginatedVendors.length > 0 ? paginatedVendors[paginatedVendors.length - 1].id : undefined;
+
     // Return vendors without the raw_distance property
-    return vendorsWithDistance.map(({ raw_distance, ...vendor }) => vendor);
+    return {
+        vendors: paginatedVendors.map(({ raw_distance, ...vendor }) => vendor),
+        hasMore,
+        lastVendorId: lastId
+    };
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+    // Apply rate limiting
+    const rateLimiter = RateLimiter.getInstance();
+    const { isLimited, remainingRequests, headers: rateLimitHeaders } =
+        rateLimiter.checkRateLimit(request, 'find');
+
+    // If rate limit exceeded, return 429 Too Many Requests
+    if (isLimited) {
+        return NextResponse.json(
+            { error: 'Rate limit exceeded. Please try again later.' },
+            {
+                status: 429,
+                headers: {
+                    ...rateLimitHeaders,
+                    'Retry-After': '60', // Suggest client waits 1 minute
+                }
+            }
+        );
+    }
+
     try {
-        const { message, location } = await request.json();
+        const { message, location, lastVendorId, limit = 10 } = await request.json();
 
         if (!message || !message.trim()) {
             return NextResponse.json(
                 { error: 'Message is required' },
-                { status: 400 }
+                {
+                    status: 400,
+                    headers: rateLimitHeaders
+                }
             );
         }
+
+        // Validate location data and normalize lng/lon naming
+        if (!location || typeof location !== 'object') {
+            return NextResponse.json(
+                { error: 'Location data is required' },
+                {
+                    status: 400,
+                    headers: rateLimitHeaders
+                }
+            );
+        }
+
+        // Handle the case where the frontend sends `lng` instead of `lon`
+        const normalizedLocation = {
+            lat: location.lat,
+            lon: location.lon || location.lng // Use lon if present, otherwise fall back to lng
+        };
 
         // Get data protection instance
         const dataProtection = DataProtection.getInstance();
@@ -185,9 +250,9 @@ export async function POST(request: Request) {
         const result = await analyzeUserQuery(message);
 
         // Store the user query for analytics, respecting consent
-        if (location) {
+        if (normalizedLocation) {
             // Anonymize location *before* storing if no consent
-            const locationToStore = hasConsent ? location : dataProtection.anonymizeLocation(location);
+            const locationToStore = hasConsent ? normalizedLocation : dataProtection.anonymizeLocation(normalizedLocation);
             await dataProtection.storeUserQuery(message, locationToStore, hasConsent);
         }
 
@@ -196,98 +261,92 @@ export async function POST(request: Request) {
             return NextResponse.json({
                 response: {
                     text: result.directResponse,
-                    vendors: [] // No vendors to return
+                    vendors: [], // No vendors to return
+                    hasMore: false
                 }
-            }, { status: 200 });
+            }, { headers: rateLimitHeaders });
         }
 
-        // If the query is looking for vendors but no location provided
-        if (!location || !location.lat || !location.lon) {
+        // If we get here, the user is looking for vendors
+        // Generate a cache key based on the search parameters
+        const cacheKey = `vendors_${normalizedLocation.lat.toFixed(4)}_${normalizedLocation.lon.toFixed(4)}_${result.vendorType}_${result.keywords.join('-')}_${lastVendorId || 'first'}`;
+
+        // Check if we have cached results
+        const cachedResults = vendorCache.get<VendorResponse>(cacheKey);
+        if (cachedResults) {
             return NextResponse.json({
                 response: {
-                    text: "Saya perlu mengetahui lokasi Anda untuk membantu mencari penjual terdekat. Mohon izinkan akses lokasi.",
-                    vendors: []
+                    text: `Here are some ${result.vendorType || 'food'} vendors near you:`,
+                    vendors: cachedResults.vendors,
+                    hasMore: cachedResults.hasMore,
+                    lastVendorId: cachedResults.lastVendorId
                 }
-            }, { status: 200 });
+            }, { headers: rateLimitHeaders });
         }
 
-        // Process the location based on consent status
-        const processedLocation = hasConsent
-            ? location
-            : dataProtection.anonymizeLocation(location);
-
-        // Create a cache key
-        const cacheKey = `vendors_${processedLocation.lat}_${processedLocation.lon}_${result.vendorType}_${result.keywords.sort().join('-')}`;
-
-        // Check cache first
-        const cachedVendors = vendorCache.get<any[]>(cacheKey);
-        let vendors: any[]; // Define vendors variable
-
-        if (cachedVendors) {
-            console.log(`Cache hit for key: ${cacheKey}`);
-            vendors = cachedVendors;
-        } else {
-            console.log(`Cache miss for key: ${cacheKey}. Fetching vendors...`);
-            // Search for vendors using the extracted information
-            try {
-                // Try to use the main findNearbyVendors function
-                vendors = await findNearbyVendors({
-                    userLocation: processedLocation,
-                    keywords: result.keywords,
-                    vendorType: result.vendorType,
-                    maxDistance: 5000 // Default max distance in meters
-                });
-                // Store in cache on successful fetch from primary source
-                vendorCache.set(cacheKey, vendors);
-            } catch (firestoreError) {
-                console.error('Error with Firestore, falling back to mock data:', firestoreError);
-                // Fallback to mock data if Firestore fails - *don't cache fallback results*
-                vendors = await findNearbyVendorsFallback(
-                    processedLocation,
-                    result.vendorType,
-                    result.keywords,
-                    5000
-                );
-                // Optionally, you might want to cache fallback results with a shorter TTL or not at all.
-                // For now, we are not caching fallback results.
-            }
-        }
-
-        // Format response based on search results
-        let responseText: string;
-        if (vendors.length > 0) {
-            responseText = `Saya menemukan ${vendors.length} penjual ${result.vendorType || result.keywords.join(", ")} yang aktif di sekitar Anda:\n`;
-            vendors.forEach((vendor, index) => {
-                responseText += `${index + 1}. ${vendor.name} (${vendor.type})${vendor.distance ? ` (sekitar ${vendor.distance})` : ''}\n`;
+        // No cached results, search for vendors
+        try {
+            // Search for nearby vendors
+            const { vendors, hasMore } = await findNearbyVendors({
+                userLocation: normalizedLocation,
+                vendorType: result.vendorType,
+                keywords: result.keywords,
+                maxDistance: 5000, // 5km
+                limit: parseInt(limit.toString(), 10),
+                lastVendorId: lastVendorId
             });
-            responseText += "\nIngin info lebih lanjut tentang salah satu penjual?";
-        } else {
-            responseText = `Maaf, saat ini saya tidak menemukan penjual "${result.vendorType || result.keywords.join(", ")}" yang aktif di sekitar Anda. Coba cari jenis makanan lain.`;
-        }
 
-        // Add privacy notice if consent is not given
-        if (!hasConsent) {
-            responseText += "\n\nCatatan: Untuk pengalaman yang lebih baik dan hasil pencarian yang lebih akurat, mohon berikan izin penggunaan data di banner privasi.";
-        }
+            const lastId = vendors.length > 0 ? vendors[vendors.length - 1].id : undefined;
 
-        return NextResponse.json({
-            response: {
-                text: responseText,
-                vendors: vendors.map(v => ({
-                    id: v.id,
-                    name: v.name,
-                    type: v.type,
-                    distance: v.distance ?? 'N/A',
-                    status: v.status,
-                    last_active: v.last_active,
-                }))
+            // Cache the results
+            vendorCache.set(cacheKey, { vendors, hasMore, lastVendorId: lastId });
+
+            // Determine the response text based on the search results
+            let responseText;
+            if (vendors.length === 0) {
+                responseText = `I couldn't find any ${result.vendorType || 'food'} vendors near your location. Please try a different search or check back later.`;
+            } else {
+                responseText = `Here are some ${result.vendorType || 'food'} vendors near you:`;
             }
-        }, { status: 200 });
+
+            return NextResponse.json({
+                response: {
+                    text: responseText,
+                    vendors: vendors,
+                    hasMore: hasMore,
+                    lastVendorId: lastId
+                }
+            }, { headers: rateLimitHeaders });
+        } catch (error) {
+            console.error("Error finding vendors:", error);
+
+            // Fallback to mock data if Firestore search fails
+            const fallbackResults = await findNearbyVendorsFallback(
+                normalizedLocation,
+                result.vendorType,
+                result.keywords,
+                5000,
+                parseInt(limit.toString(), 10),
+                lastVendorId
+            );
+
+            return NextResponse.json({
+                response: {
+                    text: `Here are some ${result.vendorType || 'food'} vendors near you (fallback data):`,
+                    vendors: fallbackResults.vendors,
+                    hasMore: fallbackResults.hasMore,
+                    lastVendorId: fallbackResults.lastVendorId
+                }
+            }, { headers: rateLimitHeaders });
+        }
     } catch (error) {
-        console.error('Error processing find request:', error);
+        console.error("API error:", error);
         return NextResponse.json(
-            { error: 'Failed to process your request' },
-            { status: 500 }
+            { error: 'Internal server error' },
+            {
+                status: 500,
+                headers: rateLimitHeaders
+            }
         );
     }
 }
