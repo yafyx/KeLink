@@ -29,15 +29,33 @@ export default function VendorLoginPage() {
     setIsLoading(true);
 
     try {
-      // In a real app, this would call your backend API to authenticate the peddler
-      // For now, let's just simulate a delay and redirect to the dashboard
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await fetch("/api/peddlers/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Login failed");
+      }
+
+      // Store the token (e.g., in localStorage) and redirect
+      // For now, just log the token and redirect
+      console.log("Login successful, token:", data.token);
+      localStorage.setItem("peddlerToken", data.token); // Example: store token
 
       // Redirect to the dashboard upon successful login
       router.push("/peddler/dashboard");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
-      alert("Failed to log in. Please check your credentials and try again.");
+      alert(
+        error.message ||
+          "Failed to log in. Please check your credentials and try again."
+      );
     } finally {
       setIsLoading(false);
     }

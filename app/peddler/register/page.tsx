@@ -87,18 +87,28 @@ export default function VendorRegisterPage() {
     setIsSubmitting(true);
 
     try {
-      // In a real implementation, this would call your backend API
-      // to register the peddler
-      console.log("Registering peddler:", formData);
+      const { confirmPassword, ...payload } = formData; // Exclude confirmPassword
+      const response = await fetch("/api/peddlers/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const data = await response.json();
 
+      if (!response.ok) {
+        throw new Error(data.error || "Registration failed");
+      }
+
+      console.log("Peddler registered:", data.peddler);
+      alert("Registration successful! Please log in.");
       // Redirect to login page after successful registration
-      router.push("/peddler/dashboard");
-    } catch (error) {
+      router.push("/peddler/login");
+    } catch (error: any) {
       console.error("Error registering peddler:", error);
-      alert("Registration failed. Please try again.");
+      alert(error.message || "Registration failed. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

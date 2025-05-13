@@ -1,5 +1,5 @@
 import { auth, db } from '@/lib/firebase-admin';
-import { hash } from 'bcrypt';
+// import { hash } from 'bcrypt'; // This line should be removed
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -25,8 +25,8 @@ export async function POST(request: Request) {
         }
 
         // Hash password
-        const saltRounds = 10;
-        const hashedPassword = await hash(password, saltRounds);
+        // const saltRounds = 10;
+        // const hashedPassword = await hash(password, saltRounds);
 
         // Create user in Firebase Auth
         const userRecord = await auth.createUser({

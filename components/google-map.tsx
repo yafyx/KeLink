@@ -23,65 +23,6 @@ const hideGoogleElements = `
   a[href^="https://maps.google.com/maps"] { display: none !important; }
 `;
 
-// Add custom map styles
-const mapStyles = [
-  {
-    featureType: "water",
-    elementType: "geometry",
-    stylers: [{ color: "#e9e9e9" }, { lightness: 17 }],
-  },
-  {
-    featureType: "landscape",
-    elementType: "geometry",
-    stylers: [{ color: "#f5f5f5" }, { lightness: 20 }],
-  },
-  {
-    featureType: "road.highway",
-    elementType: "geometry.fill",
-    stylers: [{ color: "#ffffff" }, { lightness: 17 }],
-  },
-  {
-    featureType: "road.highway",
-    elementType: "geometry.stroke",
-    stylers: [{ color: "#ffffff" }, { lightness: 29 }, { weight: 0.2 }],
-  },
-  {
-    featureType: "road.arterial",
-    elementType: "geometry",
-    stylers: [{ color: "#ffffff" }, { lightness: 18 }],
-  },
-  {
-    featureType: "road.local",
-    elementType: "geometry",
-    stylers: [{ color: "#ffffff" }, { lightness: 16 }],
-  },
-  {
-    featureType: "poi",
-    elementType: "geometry",
-    stylers: [{ color: "#f5f5f5" }, { lightness: 21 }],
-  },
-  {
-    featureType: "poi.park",
-    elementType: "geometry",
-    stylers: [{ color: "#dedede" }, { lightness: 21 }],
-  },
-  {
-    featureType: "transit",
-    elementType: "geometry",
-    stylers: [{ color: "#f2f2f2" }, { lightness: 19 }],
-  },
-  {
-    featureType: "administrative",
-    elementType: "geometry.fill",
-    stylers: [{ color: "#fefefe" }, { lightness: 20 }],
-  },
-  {
-    featureType: "administrative",
-    elementType: "geometry.stroke",
-    stylers: [{ color: "#fefefe" }, { lightness: 17 }, { weight: 1.2 }],
-  },
-];
-
 const containerStyle = {
   width: "100%",
   height: "100%",
@@ -221,7 +162,7 @@ const AdvancedMarkerWrapper: React.FC<AdvancedMarkerWrapperProps> = ({
   const [marker, setMarker] =
     useState<google.maps.marker.AdvancedMarkerElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
-  const [root, setRoot] = useState<ReactDOM.Root | null>(null);
+  const rootRef = useRef<ReactDOM.Root | null>(null);
 
   useEffect(() => {
     if (!map || !gMapApi || !gMapApi.marker) {
@@ -247,24 +188,82 @@ const AdvancedMarkerWrapper: React.FC<AdvancedMarkerWrapperProps> = ({
     setMarker(newAdvancedMarker);
     if (onMarkerInstance) onMarkerInstance(newAdvancedMarker);
 
-    if (!root && contentRef.current) {
-      setRoot(ReactDOM.createRoot(contentRef.current));
+    // Only create the root once for each content element
+    if (!rootRef.current && contentRef.current) {
+      rootRef.current = ReactDOM.createRoot(contentRef.current);
     }
 
     return () => {
-      newAdvancedMarker.map = null;
-      setMarker(null);
-      if (onMarkerInstance) onMarkerInstance(null);
+      // Defer marker cleanup to avoid race conditions during render
+      setTimeout(() => {
+        try {
+          newAdvancedMarker.map = null;
+          setMarker(null);
+          if (onMarkerInstance) onMarkerInstance(null);
+        } catch (e) {
+          console.log("Error during marker cleanup", e);
+        }
+      }, 0);
     };
   }, [map, position, zIndex, gMapApi, onMarkerInstance]);
 
   useEffect(() => {
-    if (root && children) {
-      root.render(<div>{children}</div>);
-    } else if (root && !children) {
-      root.render(null);
-    }
-  }, [root, children]);
+    // Add a flag to track component mount state
+    let isMounted = true;
+
+    // Use requestAnimationFrame to ensure DOM is ready
+    const renderFrame = requestAnimationFrame(() => {
+      if (isMounted && rootRef.current) {
+        try {
+          if (children) {
+            rootRef.current.render(<div>{children}</div>);
+          } else {
+            rootRef.current.render(null);
+          }
+        } catch (e) {
+          console.log("Error rendering to root", e);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      cancelAnimationFrame(renderFrame);
+    };
+  }, [children]);
+
+  // Clean up the root on unmount with a different dependency array
+  // This prevents the unmount from happening during render
+  useEffect(() => {
+    // Capture the current root instance. This is the instance that this effect's cleanup will manage.
+    const rootInstanceToUnmount = rootRef.current;
+
+    return () => {
+      // This cleanup function runs when the AdvancedMarkerWrapper component unmounts.
+      if (rootInstanceToUnmount) {
+        // Defer the unmount operation and subsequent nullification of the ref
+        // to ensure it happens after the current rendering cycle and other cleanups.
+        setTimeout(() => {
+          try {
+            rootInstanceToUnmount.unmount();
+          } catch (e) {
+            // Log if an error occurs during unmount, e.g., if already unmounted.
+            console.warn(
+              "Error during React root unmount, or root was already unmounted:",
+              e
+            );
+          }
+          // After attempting to unmount, if rootRef.current still points to the
+          // *same root instance* that we just tried to unmount, then it's safe to nullify it.
+          // This check helps in scenarios where the ref might have been unexpectedly changed,
+          // though for an unmounting component, rootRef.current should ideally be stable.
+          if (rootRef.current === rootInstanceToUnmount) {
+            rootRef.current = null;
+          }
+        }, 0);
+      }
+    };
+  }, []); // Empty dependency array ensures this effect runs once on mount and its cleanup on unmount.
 
   useEffect(() => {
     if (marker && onClick && gMapApi) {
@@ -277,6 +276,9 @@ const AdvancedMarkerWrapper: React.FC<AdvancedMarkerWrapperProps> = ({
 
   return null;
 };
+
+// Define libraries array as a constant outside the component to prevent re-creation on each render
+const libraries: ["marker"] = ["marker"];
 
 export function GoogleMapComponent({
   userLocation,
@@ -293,7 +295,7 @@ export function GoogleMapComponent({
   const { isLoaded, loadError } = useJsApiLoader({
     id: "google-map-script",
     googleMapsApiKey: apiKey,
-    libraries: ["marker"],
+    libraries,
   });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -414,13 +416,13 @@ export function GoogleMapComponent({
       }
 
       map.setOptions({
-        styles: mapStyles,
+        // styles: mapStyles, // Cannot use both styles and mapId
         disableDefaultUI: true,
         fullscreenControl: false,
         streetViewControl: false,
         mapTypeControl: false,
         zoomControl: false,
-        mapId: "YOUR_MAP_ID_HERE",
+        mapId: "8f511d609454f294", // Required for Advanced Markers
       });
 
       setMap(map);
@@ -546,8 +548,8 @@ export function GoogleMapComponent({
               streetViewControl: false,
               mapTypeControl: false,
               zoomControl: false,
-              styles: mapStyles,
-              mapId: "YOUR_MAP_ID_HERE",
+              // styles: mapStyles, // Cannot use both styles and mapId
+              mapId: "8f511d609454f294", // Required for Advanced Markers
             }}
           >
             {userLocation &&
@@ -619,9 +621,7 @@ export function GoogleMapComponent({
 
             {selectedVendor && selectedMarkerInstance && map && (
               <InfoWindow
-                anchor={
-                  selectedMarkerInstance as unknown as google.maps.MVCObject
-                }
+                position={selectedVendor.location}
                 onCloseClick={() => {
                   setSelectedVendor(null);
                   setSelectedMarkerInstance(null);
