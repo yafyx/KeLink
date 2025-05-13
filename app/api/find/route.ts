@@ -1,5 +1,7 @@
+import { DataProtection } from '@/lib/data-protection';
 import { findNearbyVendors } from '@/lib/vendors';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 // Initialize Google Generative AI with API key
@@ -160,8 +162,28 @@ export async function POST(request: Request) {
             );
         }
 
+        // Get data protection instance
+        const dataProtection = DataProtection.getInstance();
+
+        // Check for user consent
+        const hasConsent = await (async () => {
+            try {
+                const cookieStore = await cookies();
+                const consentCookie = cookieStore.get("privacy-consent");
+                return consentCookie?.value === "true";
+            } catch (error) {
+                console.error("Error checking consent:", error);
+                return false;
+            }
+        })();
+
         // Use Gemini AI to determine if the query is looking for vendors
         const result = await analyzeUserQuery(message);
+
+        // Store the user query for analytics, respecting consent
+        if (location) {
+            await dataProtection.storeUserQuery(message, location, hasConsent);
+        }
 
         // If the query is not looking for vendors, respond with a direct message
         if (!result.isLookingForVendors) {
@@ -183,12 +205,17 @@ export async function POST(request: Request) {
             }, { status: 200 });
         }
 
+        // Process the location based on consent status
+        const processedLocation = hasConsent
+            ? location
+            : dataProtection.anonymizeLocation(location);
+
         // Search for vendors using the extracted information
         let vendors;
         try {
             // Try to use the main findNearbyVendors function
             vendors = await findNearbyVendors({
-                userLocation: location,
+                userLocation: processedLocation,
                 keywords: result.keywords,
                 vendorType: result.vendorType,
                 maxDistance: 5000 // Default max distance in meters
@@ -197,7 +224,7 @@ export async function POST(request: Request) {
             console.error('Error with Firestore, falling back to mock data:', firestoreError);
             // Fallback to mock data if Firestore fails
             vendors = await findNearbyVendorsFallback(
-                location,
+                processedLocation,
                 result.vendorType,
                 result.keywords,
                 5000
@@ -214,6 +241,11 @@ export async function POST(request: Request) {
             responseText += "\nIngin info lebih lanjut tentang salah satu penjual?";
         } else {
             responseText = `Maaf, saat ini saya tidak menemukan penjual "${result.vendorType || result.keywords.join(", ")}" yang aktif di sekitar Anda. Coba cari jenis makanan lain.`;
+        }
+
+        // Add privacy notice if consent is not given
+        if (!hasConsent) {
+            responseText += "\n\nCatatan: Untuk pengalaman yang lebih baik dan hasil pencarian yang lebih akurat, mohon berikan izin penggunaan data di banner privasi.";
         }
 
         return NextResponse.json({

@@ -83,24 +83,30 @@ KeLink is a platform that connects street food vendors in Indonesia with custome
 
 1. Create a Vercel account if you don't have one.
 2. Install the Vercel CLI:
+
    ```bash
    npm install -g vercel
    ```
+
 3. Log in to Vercel:
+
    ```bash
    vercel login
    ```
+
 4. Deploy the project:
+
    ```bash
    vercel
    ```
+
 5. Add your environment variables in the Vercel dashboard.
 
 ### Environment Variables
 
 Make sure to set the following environment variables in your deployment environment:
 
-```
+```env
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=
 FIREBASE_PROJECT_ID=
 FIREBASE_CLIENT_EMAIL=

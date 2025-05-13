@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Inter_Tight } from "next/font/google";
 import "./globals.css";
 import { ClientThemeProvider } from "@/components/client-theme-provider";
+import { ConsentBanner } from "@/components/consent-banner";
 
 const jakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -43,6 +44,7 @@ export default function RootLayout({
           <div className="mx-auto max-w-md min-h-screen overflow-x-hidden">
             {children}
           </div>
+          <ConsentBanner />
         </ClientThemeProvider>
       </body>
     </html>
