@@ -32,6 +32,7 @@ interface BaseProps {
 interface RootCredenzaProps extends BaseProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  forceSheet?: boolean;
 }
 
 interface CredenzaProps extends BaseProps {
@@ -53,15 +54,19 @@ const useCredenzaContext = () => {
   return context;
 };
 
-const Credenza = ({ children, ...props }: RootCredenzaProps) => {
-  const isDesktop = useMediaQuery("(min-width: 768px)");
-  const Credenza = isDesktop ? Dialog : Drawer;
+const Credenza = ({
+  children,
+  forceSheet = true,
+  ...props
+}: RootCredenzaProps) => {
+  const isDesktop = useMediaQuery("(min-width: 768px)") && !forceSheet;
+  const CredenzaComponent = isDesktop ? Dialog : Drawer;
 
   return (
     <CredenzaContext.Provider value={{ isDesktop }}>
-      <Credenza {...props} {...(!isDesktop && { autoFocus: true })}>
+      <CredenzaComponent {...props} {...(!isDesktop && { autoFocus: true })}>
         {children}
-      </Credenza>
+      </CredenzaComponent>
     </CredenzaContext.Provider>
   );
 };

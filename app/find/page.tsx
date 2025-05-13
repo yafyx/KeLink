@@ -58,47 +58,47 @@ type Vendor = {
 };
 
 // Sample data for testing when API is unavailable
-const SAMPLE_VENDORS: Vendor[] = [
-  {
-    id: "1",
-    name: "Bakso Pak Joko",
-    type: "bakso",
-    description: "Bakso sapi asli dengan kuah gurih",
-    distance: "200m",
-    status: "active",
-    last_active: "5 menit yang lalu",
-    location: {
-      lat: -6.2088,
-      lng: 106.8456,
-    },
-  },
-  {
-    id: "2",
-    name: "Siomay Bu Tini",
-    type: "siomay",
-    description: "Siomay ikan dengan bumbu kacang",
-    distance: "350m",
-    status: "active",
-    last_active: "15 menit yang lalu",
-    location: {
-      lat: -6.2072,
-      lng: 106.8464,
-    },
-  },
-  {
-    id: "3",
-    name: "Batagor Mang Ujang",
-    type: "batagor",
-    description: "Batagor renyah dengan sambel pedas",
-    distance: "500m",
-    status: "inactive",
-    last_active: "2 jam yang lalu",
-    location: {
-      lat: -6.209,
-      lng: 106.842,
-    },
-  },
-];
+// const SAMPLE_VENDORS: Vendor[] = [
+//   {
+//     id: "1",
+//     name: "Bakso Pak Joko",
+//     type: "bakso",
+//     description: "Bakso sapi asli dengan kuah gurih",
+//     distance: "200m",
+//     status: "active",
+//     last_active: "5 menit yang lalu",
+//     location: {
+//       lat: -6.2088,
+//       lng: 106.8456,
+//     },
+//   },
+//   {
+//     id: "2",
+//     name: "Siomay Bu Tini",
+//     type: "siomay",
+//     description: "Siomay ikan dengan bumbu kacang",
+//     distance: "350m",
+//     status: "active",
+//     last_active: "15 menit yang lalu",
+//     location: {
+//       lat: -6.2072,
+//       lng: 106.8464,
+//     },
+//   },
+//   {
+//     id: "3",
+//     name: "Batagor Mang Ujang",
+//     type: "batagor",
+//     description: "Batagor renyah dengan sambel pedas",
+//     distance: "500m",
+//     status: "inactive",
+//     last_active: "2 jam yang lalu",
+//     location: {
+//       lat: -6.209,
+//       lng: 106.842,
+//     },
+//   },
+// ];
 
 export default function FindPage() {
   // Initialize with a welcome message
@@ -139,40 +139,36 @@ export default function FindPage() {
   // Handler for vendors found via function call
   const handleVendorsFound = (vendors: Vendor[]) => {
     // Process vendors if they have proper location data
-    const processedVendors = vendors.map((vendor) => {
-      // Create a deep copy to avoid mutating the original
-      const vendorCopy = { ...vendor };
+    const processedVendors = vendors
+      .map((vendor) => {
+        // Create a deep copy to avoid mutating the original
+        const vendorCopy = { ...vendor };
 
-      // Ensure vendor has a valid location
-      if (!vendorCopy.location || typeof vendorCopy.location !== "object") {
-        vendorCopy.location = {
-          lat: userLocation
-            ? userLocation.lat + (Math.random() * 0.01 - 0.005)
-            : -6.2088,
-          lng: userLocation
-            ? userLocation.lng + (Math.random() * 0.01 - 0.005)
-            : 106.8456,
-        };
-      } else {
-        // Convert from API format (lon) to frontend format (lng) if needed
-        vendorCopy.location = {
-          lat:
-            typeof vendorCopy.location.lat === "number"
-              ? vendorCopy.location.lat
-              : userLocation?.lat || -6.2088,
-          lng:
-            typeof vendorCopy.location.lng === "number"
-              ? vendorCopy.location.lng
-              : typeof (vendorCopy.location as any).lon === "number"
-              ? (vendorCopy.location as any).lon
-              : userLocation?.lng || 106.8456,
-        };
-      }
+        // Ensure vendor has a valid location object structure
+        if (!vendorCopy.location || typeof vendorCopy.location !== "object") {
+          // If no location object, mark it as invalid by setting location to null
+          vendorCopy.location = null as any; // Or some other indicator
+        } else {
+          // Convert from API format (lon) to frontend format (lng) if needed
+          // And ensure lat/lng are numbers
+          const lat = vendorCopy.location.lat;
+          const lng =
+            (vendorCopy.location as any).lon ?? vendorCopy.location.lng;
 
-      return vendorCopy;
-    });
+          if (typeof lat === "number" && typeof lng === "number") {
+            vendorCopy.location = { lat, lng };
+          } else {
+            // If lat/lng are not valid numbers, mark location as invalid
+            vendorCopy.location = null as any;
+          }
+        }
+        return vendorCopy;
+      })
+      .filter(
+        (vendor) => vendor.location !== null && vendor.location !== undefined
+      );
 
-    setFoundVendors(processedVendors);
+    setFoundVendors(processedVendors as Vendor[]);
   };
 
   // Handler for route details found via function call

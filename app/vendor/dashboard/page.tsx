@@ -22,18 +22,27 @@ import { Navigation, RefreshCw, Save } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 // Mock vendor data
-const mockVendor = {
-  id: "v1",
-  name: "Bakso Pak Budi",
-  type: "bakso",
-  description:
-    "Menyajikan bakso sapi asli dengan kuah kaldu yang kaya rasa. Tersedia bakso urat, bakso telur, dan bakso special dengan isian daging cincang. Dilengkapi dengan mie, bihun, dan pangsit goreng yang renyah.",
+// const mockVendor = {
+//   id: "v1",
+//   name: "Bakso Pak Budi",
+//   type: "bakso",
+//   description:
+//     "Menyajikan bakso sapi asli dengan kuah kaldu yang kaya rasa. Tersedia bakso urat, bakso telur, dan bakso special dengan isian daging cincang. Dilengkapi dengan mie, bihun, dan pangsit goreng yang renyah.",
+//   isActive: false,
+//   location: null as { lat: number; lng: number } | null,
+// };
+
+const initialVendorState = {
+  id: "",
+  name: "",
+  type: "",
+  description: "",
   isActive: false,
   location: null as { lat: number; lng: number } | null,
 };
 
 export default function VendorDashboardPage() {
-  const [vendor, setVendor] = useState(mockVendor);
+  const [vendor, setVendor] = useState(initialVendorState);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [routeInput, setRouteInput] = useState("");
   const [routeAdvice, setRouteAdvice] = useState("");

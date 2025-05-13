@@ -28,44 +28,7 @@ interface VendorResponse {
 }
 
 // Mock database of vendors for fallback when Firestore is not accessible
-const mockVendors = [
-    {
-        id: 'v1',
-        name: 'Bakso Pak Jono',
-        type: 'Bakso',
-        description: 'Bakso daging sapi asli dengan kuah gurih dan pangsit goreng renyah.',
-        location: { lat: -6.3823, lon: 106.8231 },
-        status: 'active',
-        last_active: new Date().toISOString()
-    },
-    {
-        id: 'v2',
-        name: 'Bakso Malang Bu Siti',
-        type: 'Bakso',
-        description: 'Bakso Malang dengan berbagai pilihan topping dan mie.',
-        location: { lat: -6.3895, lon: 106.8320 },
-        status: 'active',
-        last_active: new Date().toISOString()
-    },
-    {
-        id: 'v3',
-        name: 'Siomay & Batagor Mang Ujang',
-        type: 'Siomay/Batagor',
-        description: 'Siomay dan batagor dengan saus kacang khas Bandung.',
-        location: { lat: -6.3756, lon: 106.8245 },
-        status: 'active',
-        last_active: new Date().toISOString()
-    },
-    {
-        id: 'v4',
-        name: 'Es Cendol Pak Wawan',
-        type: 'Es Cendol',
-        description: 'Es cendol dengan santan kental dan gula merah asli.',
-        location: { lat: -6.3802, lon: 106.8210 },
-        status: 'active',
-        last_active: new Date().toISOString()
-    }
-];
+const mockVendors: any[] = []; // Initialize as empty array as mock data is removed
 
 // Helper functions for fallback mode
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {

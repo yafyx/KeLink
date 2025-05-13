@@ -14,26 +14,17 @@ import {
   CredenzaClose,
 } from "@/components/ui/credenza";
 import { cn } from "@/lib/utils";
-
-interface Vendor {
-  id: string;
-  name: string;
-  type: string;
-  description?: string;
-  distance?: string;
-  status: "active" | "inactive";
-  last_active: string;
-  location: {
-    lat: number;
-    lng: number;
-  };
-}
+import { RouteDetails } from "@/lib/route-mapper";
+import type { Vendor } from "./floating-chat";
 
 interface VendorSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   vendor?: Vendor;
   onViewRoute?: () => void;
+  routeDetails?: RouteDetails | null;
+  showRoute?: boolean;
+  onToggleRoute?: () => void;
 }
 
 export function VendorSheet({
@@ -41,6 +32,9 @@ export function VendorSheet({
   onOpenChange,
   vendor,
   onViewRoute,
+  routeDetails,
+  showRoute,
+  onToggleRoute,
 }: VendorSheetProps) {
   if (!vendor) return null;
 
@@ -85,17 +79,21 @@ export function VendorSheet({
             <Badge variant="outline" className="capitalize">
               {vendor.type.replace("_", " ")}
             </Badge>
+            {vendor.operationalStatus && (
             <Badge
-              variant={vendor.status === "active" ? "default" : "secondary"}
+                variant={
+                  vendor.operationalStatus === "open" ? "default" : "secondary"
+                }
               className={cn(
                 "text-xs",
-                vendor.status === "active"
+                  vendor.operationalStatus === "open"
                   ? "bg-green-500 hover:bg-green-600"
                   : ""
               )}
             >
-              {vendor.status === "active" ? "Active" : "Inactive"}
+                {vendor.operationalStatus === "open" ? "Active" : "Inactive"}
             </Badge>
+            )}
           </div>
         </CredenzaHeader>
 
@@ -113,13 +111,19 @@ export function VendorSheet({
                   <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
                   <span>
                     {vendor.distance
-                      ? `${vendor.distance} dari lokasi Anda`
+                      ? `${
+                          typeof vendor.distance === "number"
+                            ? vendor.distance < 1
+                              ? `${Math.round(vendor.distance * 1000)}m`
+                              : `${vendor.distance.toFixed(1)}km`
+                            : vendor.distance
+                        } dari lokasi Anda`
                       : "Lokasi tersedia di peta"}
                   </span>
                 </div>
                 <div className="flex items-center text-sm text-gray-600 gap-2">
                   <Clock className="h-4 w-4 text-primary flex-shrink-0" />
-                  <span>Terakhir aktif: {vendor.last_active}</span>
+                  <span>Terakhir aktif: {vendor.lastSeen || "Unknown"}</span>
                 </div>
               </div>
 

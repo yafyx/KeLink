@@ -110,7 +110,7 @@ export function ChatInput({
           type="button"
           variant="ghost"
           size="sm"
-          className="h-8 w-8 rounded-full absolute -top-9 right-0 bg-white/90 shadow-sm flex items-center justify-center hover:bg-gray-100"
+          className="h-8 w-8 rounded-full absolute -top-9 right-0 bg-white shadow-sm flex items-center justify-center hover:bg-gray-100"
           onClick={onMinimize}
           aria-label="Hide chat"
           title="Hide chat"
