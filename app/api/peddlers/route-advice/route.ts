@@ -7,11 +7,11 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
 
 export async function POST(request: Request) {
     try {
-        const { vendor_type, planned_areas, city, time_of_day } = await request.json()
+        const { peddler_type, planned_areas, city, time_of_day } = await request.json()
 
-        if (!vendor_type || !planned_areas || !city) {
+        if (!peddler_type || !planned_areas || !city) {
             return NextResponse.json(
-                { error: 'Vendor type, planned areas, and city are required' },
+                { error: 'Peddler type, planned areas, and city are required' },
                 { status: 400 }
             )
         }
@@ -21,18 +21,18 @@ export async function POST(request: Request) {
 
         // Construct prompt for Gemini API
         const prompt = `
-            As an assistant for street vendors in Indonesia, provide route advice for:
+            As an assistant for street peddlers in Indonesia, provide route advice for:
             
-            Vendor type: ${vendor_type}
+            Peddler type: ${peddler_type}
             Location: ${city}
             Planned areas: ${planned_areas.join(', ')}
             ${time_of_day ? `Time of day: ${time_of_day}` : ''}
             
             Provide route suggestions including:
-            1. Recommended best times to sell based on vendor type
+            1. Recommended best times to sell based on peddler type
             2. Route priorities in the planned areas
-            3. Special tips for ${vendor_type} vendors
-            4. Specific insights about ${city} relevant to vendors
+            3. Special tips for ${peddler_type} peddlers
+            4. Specific insights about ${city} relevant to peddlers
             
             Format your response in clear and structured English.
         `
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     } catch (error) {
         console.error('Error generating route advice:', error)
 
-        let vendorType = '';
+        let peddlerType = '';
         let plannedAreas: string[] = [];
         let city = '';
         let timeOfDay: string | undefined;
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
         try {
             // Try to extract request data if possible
             const requestData = await request.json();
-            vendorType = requestData.vendor_type || '';
+            peddlerType = requestData.peddler_type || '';
             plannedAreas = requestData.planned_areas || [];
             city = requestData.city || '';
             timeOfDay = requestData.time_of_day;
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
 
         // Fallback to the mock response if API call fails
         const fallbackResponse = generateRouteAdvice(
-            vendorType,
+            peddlerType,
             plannedAreas,
             city,
             timeOfDay
@@ -82,50 +82,50 @@ export async function POST(request: Request) {
 // Mock function to generate route advice
 // Will be used as fallback if the Gemini API call fails
 function generateRouteAdvice(
-    vendorType: string,
+    peddlerType: string,
     plannedAreas: string[],
     city: string,
     timeOfDay?: string
 ): string {
-    // Example logic for various vendor types
+    // Example logic for various peddler types
     const timeContext = timeOfDay ? getTimeContext(timeOfDay) : getTimeContext(getCurrentTimeOfDay())
-    const citySpecific = getCitySpecificAdvice(city, vendorType)
+    const citySpecific = getCitySpecificAdvice(city, peddlerType)
 
     let areaSpecificAdvice = ''
     if (plannedAreas.length > 0) {
-        const prioritizedAreas = prioritizeAreas(plannedAreas, vendorType, timeOfDay)
+        const prioritizedAreas = prioritizeAreas(plannedAreas, peddlerType, timeOfDay)
         areaSpecificAdvice = `\n\nBerdasarkan rencana Anda di ${plannedAreas.join(', ')}, saya sarankan untuk memprioritaskan rute berikut:\n${prioritizedAreas.map((area, i) => `${i + 1}. ${area}`).join('\n')}`
     }
 
-    let vendorSpecificTips = ''
-    switch (vendorType.toLowerCase()) {
+    let peddlerSpecificTips = ''
+    switch (peddlerType.toLowerCase()) {
         case 'bakso':
-            vendorSpecificTips = 'Sediakan cukup kuah dan pastikan tetap panas. Pilih lokasi yang teduh agar kuah tidak cepat dingin.'
+            peddlerSpecificTips = 'Sediakan cukup kuah dan pastikan tetap panas. Pilih lokasi yang teduh agar kuah tidak cepat dingin.'
             break
         case 'siomay':
         case 'batagor':
-            vendorSpecificTips = 'Siomay dan batagor paling laku di sore hari. Pastikan saus kacang selalu fresh dan tersedia cukup.'
+            peddlerSpecificTips = 'Siomay dan batagor paling laku di sore hari. Pastikan saus kacang selalu fresh dan tersedia cukup.'
             break
         case 'es':
         case 'es cendol':
         case 'es kelapa':
-            vendorSpecificTips = 'Pastikan es tetap beku dan bahan-bahan segar. Carilah area teduh untuk menjaga kualitas es.'
+            peddlerSpecificTips = 'Pastikan es tetap beku dan bahan-bahan segar. Carilah area teduh untuk menjaga kualitas es.'
             break
         case 'martabak':
-            vendorSpecificTips = 'Martabak biasanya paling laris di malam hari. Pastikan semua topping tersedia dan wajan tetap panas.'
+            peddlerSpecificTips = 'Martabak biasanya paling laris di malam hari. Pastikan semua topping tersedia dan wajan tetap panas.'
             break
         default:
-            vendorSpecificTips = 'Pastikan produk Anda tetap dalam kondisi terbaik dan tersedia cukup untuk melayani pelanggan sepanjang hari.'
+            peddlerSpecificTips = 'Pastikan produk Anda tetap dalam kondisi terbaik dan tersedia cukup untuk melayani pelanggan sepanjang hari.'
     }
 
-    return `Saran rute untuk penjual ${vendorType} di ${city}:
+    return `Saran rute untuk penjual ${peddlerType} di ${city}:
 
 ${timeContext}
 
 ${citySpecific}${areaSpecificAdvice}
 
-Tips khusus untuk penjual ${vendorType}:
-${vendorSpecificTips}
+Tips khusus untuk penjual ${peddlerType}:
+${peddlerSpecificTips}
 
 Ingat untuk selalu update lokasi Anda di aplikasi KeLink agar pelanggan dapat dengan mudah menemukan Anda!`
 }
@@ -160,7 +160,7 @@ function getCurrentTimeOfDay(): string {
 }
 
 // Helper function for city-specific advice
-function getCitySpecificAdvice(city: string, vendorType: string): string {
+function getCitySpecificAdvice(city: string, peddlerType: string): string {
     // Just a few examples
     if (city.toLowerCase().includes('jakarta')) {
         return 'Jakarta memiliki banyak area perkantoran yang ramai di jam makan siang dan jam pulang kerja. Di pagi hari, stasiun MRT dan halte TransJakarta bisa menjadi lokasi strategis.';
@@ -176,7 +176,7 @@ function getCitySpecificAdvice(city: string, vendorType: string): string {
 }
 
 // Helper function to prioritize areas
-function prioritizeAreas(areas: string[], vendorType: string, timeOfDay?: string): string[] {
+function prioritizeAreas(areas: string[], peddlerType: string, timeOfDay?: string): string[] {
     // This is a simplified mock implementation
     // In a real implementation, this would use more complex logic or AI
 

@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, Loader2, Wand2 } from "lucide-react";
-import { generateVendorDescription } from "@/lib/gemini";
+import { generatePeddlerDescription } from "@/lib/gemini";
 import { useRouter } from "next/navigation";
 import { MobileLayout } from "@/components/MobileLayout";
 import { MobileHeader } from "@/components/ui/mobile-header";
@@ -57,13 +57,13 @@ export default function VendorRegisterPage() {
 
   const handleGenerateDescription = async () => {
     if (!formData.vendorType) {
-      alert("Please select a vendor type first");
+      alert("Please select a peddler type first");
       return;
     }
 
     setIsGeneratingDescription(true);
     try {
-      const description = await generateVendorDescription(
+      const description = await generatePeddlerDescription(
         formData.vendorType,
         formData.name
       );
@@ -88,16 +88,16 @@ export default function VendorRegisterPage() {
 
     try {
       // In a real implementation, this would call your backend API
-      // to register the vendor
-      console.log("Registering vendor:", formData);
+      // to register the peddler
+      console.log("Registering peddler:", formData);
 
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
       // Redirect to login page after successful registration
-      router.push("/vendor/dashboard");
+      router.push("/peddler/dashboard");
     } catch (error) {
-      console.error("Error registering vendor:", error);
+      console.error("Error registering peddler:", error);
       alert("Registration failed. Please try again.");
     } finally {
       setIsSubmitting(false);
@@ -106,7 +106,7 @@ export default function VendorRegisterPage() {
 
   const HeaderComponent = (
     <MobileHeader
-      title="Register as Vendor"
+      title="Register as Peddler"
       centerContent={true}
       leftAction={
         <Link href="/">
@@ -166,7 +166,7 @@ export default function VendorRegisterPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="vendorType">Vendor Type</Label>
+                <Label htmlFor="vendorType">Peddler Type</Label>
                 <Select
                   value={formData.vendorType}
                   onValueChange={(value) =>
@@ -174,7 +174,7 @@ export default function VendorRegisterPage() {
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select vendor type" />
+                    <SelectValue placeholder="Select peddler type" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="bakso">Bakso</SelectItem>
@@ -255,7 +255,7 @@ export default function VendorRegisterPage() {
         </Card>
         <p className="text-center text-sm text-muted-foreground mt-4">
           Already have an account?{" "}
-          <Link href="/vendor/login" className="text-primary hover:underline">
+          <Link href="/peddler/login" className="text-primary hover:underline">
             Log in
           </Link>
         </p>

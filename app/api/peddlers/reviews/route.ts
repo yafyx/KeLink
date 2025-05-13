@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        // Parse URL to get vendor ID and pagination parameters
+        // Parse URL to get peddler ID and pagination parameters
         const { searchParams } = new URL(request.url);
         const vendorId = searchParams.get('vendorId');
         const limitParam = searchParams.get('limit');
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
         if (!vendorId) {
             return NextResponse.json(
-                { error: 'Vendor ID is required' },
+                { error: 'Peddler ID is required' },
                 { status: 400, headers: rateLimitHeaders }
             );
         }
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         // Convert limit to number or use default
         const limit = limitParam ? parseInt(limitParam, 10) : 10;
 
-        // Get reviews for this vendor
+        // Get reviews for this peddler
         const { reviews, hasMore } = await getVendorReviews(vendorId, limit, lastReviewId || undefined);
 
         return NextResponse.json(
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
         // Validate required fields
         if (!vendorId) {
             return NextResponse.json(
-                { error: 'Vendor ID is required' },
+                { error: 'Peddler ID is required' },
                 { status: 400, headers: rateLimitHeaders }
             );
         }
@@ -110,11 +110,11 @@ export async function POST(request: NextRequest) {
         const userId = getUserId(request);
         const hasExistingCookie = !!request.cookies.get('user_id');
 
-        // Check if user has already reviewed this vendor
+        // Check if user has already reviewed this peddler
         const hasReviewed = await hasUserReviewed(userId, vendorId);
         if (hasReviewed) {
             return NextResponse.json(
-                { error: 'You have already reviewed this vendor' },
+                { error: 'You have already reviewed this peddler' },
                 { status: 400, headers: rateLimitHeaders }
             );
         }

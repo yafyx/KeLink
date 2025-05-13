@@ -24,7 +24,7 @@ export class RateLimiter {
             limit: 30,
             windowMs: 60 * 5, // 5 minutes
         },
-        // Vendor registration (to prevent spam)
+        // Peddler registration (to prevent spam)
         register: {
             limit: 10,
             windowMs: 60 * 60, // 1 hour

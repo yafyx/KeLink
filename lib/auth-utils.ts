@@ -8,7 +8,7 @@ export interface DecodedToken {
     uid: string;
     email: string;
     name?: string;
-    vendorType?: string;
+    peddlerType?: string;
     [key: string]: any;
 }
 

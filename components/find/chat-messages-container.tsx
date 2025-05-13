@@ -2,16 +2,16 @@
 
 import { useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Message, Vendor } from "./floating-chat";
+import { Message, Peddler } from "./floating-chat";
 import { ChatMessage } from "./chat-message";
 
 interface ChatMessagesContainerProps {
   messages: Message[];
-  validVendors: Vendor[];
+  validVendors: Peddler[];
   activeDropdowns: string[];
   toggleDropdown: (type: string) => void;
   selectedVendorId?: string;
-  onVendorClick?: (vendor: Vendor) => void;
+  onVendorClick?: (peddler: Peddler) => void;
   getVendorTypeColor: (type: string) => string;
   animationSettings: any;
   preferReducedMotion: boolean | null | undefined;

@@ -39,7 +39,7 @@ export const isGoogleMapsLoaded = (): boolean => {
 /**
  * Calculate a route between two points
  * @param origin Starting location (user location)
- * @param destination Ending location (vendor location)
+ * @param destination Ending location (peddler location)
  * @param travelMode Travel mode ("DRIVING", "WALKING", "BICYCLING", "TRANSIT")
  * @returns Promise resolving to route details
  */

@@ -5,16 +5,16 @@ import { motion } from "framer-motion";
 import { Avatar } from "@/components/ui/avatar";
 import { ChatMessagesContainer } from "./chat-messages-container";
 import { TypingIndicator } from "./typing-indicator";
-import type { Message, Vendor } from "./floating-chat";
+import type { Message, Peddler } from "./floating-chat";
 
 interface MessageListProps {
   messages: Message[];
   isLoading: boolean;
-  validVendors: Vendor[];
+  validVendors: Peddler[];
   activeDropdowns: string[];
   toggleDropdown: (type: string) => void;
   selectedVendorId?: string;
-  onVendorClick?: (vendor: Vendor) => void;
+  onVendorClick?: (peddler: Peddler) => void;
   getVendorTypeColor: (type: string) => string;
   animationSettings: any;
   preferReducedMotion: boolean | null | undefined;
@@ -46,7 +46,7 @@ export function MessageList({
         <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400">
           <MessageSquare className="h-12 w-12 mb-2 opacity-20" />
           <p className="text-sm mb-1">No conversation yet</p>
-          <p className="text-xs">Search for street vendors to start</p>
+          <p className="text-xs">Search for street peddlers to start</p>
         </div>
       </div>
     );

@@ -173,7 +173,7 @@ export class DataProtection {
             const writeBatch = db.batch();
 
             // Delete user document
-            const userRef = db.collection("vendors").doc(user.uid);
+            const userRef = db.collection("peddlers").doc(user.uid);
             writeBatch.delete(userRef);
 
             // Delete user location history
@@ -201,7 +201,7 @@ export class DataProtection {
             const userData: Record<string, any> = {};
 
             // Get user profile
-            const userDoc = await db.collection("vendors").doc(user.uid).get();
+            const userDoc = await db.collection("peddlers").doc(user.uid).get();
             if (userDoc.exists) {
                 userData.profile = userDoc.data();
             }

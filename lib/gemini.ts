@@ -68,18 +68,18 @@ function getGemini2Flash(): GenerativeModel {
 }
 
 /**
- * Generates a description for a vendor based on their name and type
+ * Generates a description for a peddler based on their name and type
  */
-export async function generateVendorDescription(
-  vendorName: string,
-  vendorType: string
+export async function generatePeddlerDescription(
+  peddlerName: string,
+  peddlerType: string
 ): Promise<string> {
   try {
     // Use Gemini API to generate a description
     const model = getGemini2Flash();
 
     const prompt = `
-      Generate a short, engaging description for a street food vendor in Indonesia named "${vendorName}" who sells "${vendorType}".
+      Generate a short, engaging description for a street food peddler in Indonesia named "${peddlerName}" who sells "${peddlerType}".
       The description should highlight the quality, taste, and specialties of their food.
       Write the description in Indonesian language.
       Keep it under 100 words.
@@ -89,31 +89,31 @@ export async function generateVendorDescription(
     const response = result.response;
     return response.text();
   } catch (error) {
-    console.error('Error generating vendor description with Gemini:', error);
+    console.error('Error generating peddler description with Gemini:', error);
 
     // Fallback to mock responses if the API call fails
-    switch (vendorType.toLowerCase()) {
+    switch (peddlerType.toLowerCase()) {
       case 'bakso':
-        return `${vendorName} menyajikan bakso dengan daging sapi pilihan yang diproses secara higienis. Kuah kaldu yang kaya rasa dengan tambahan bawang goreng dan seledri segar. Tersedia berbagai pilihan seperti bakso urat, bakso telur, dan bakso special dengan isian daging cincang. Dilengkapi dengan mie, bihun, dan pangsit goreng yang renyah.`
+        return `${peddlerName} menyajikan bakso dengan daging sapi pilihan yang diproses secara higienis. Kuah kaldu yang kaya rasa dengan tambahan bawang goreng dan seledri segar. Tersedia berbagai pilihan seperti bakso urat, bakso telur, dan bakso special dengan isian daging cincang. Dilengkapi dengan mie, bihun, dan pangsit goreng yang renyah.`
       case 'siomay':
       case 'batagor':
-        return `${vendorName} menawarkan siomay ikan tenggiri dengan tekstur yang lembut dan rasa yang gurih. Disajikan dengan bumbu kacang yang kaya akan rasa, perpaduan antara kacang tanah, bawang putih, dan cabai. Tersedia juga tahu, kentang, pare, dan telur sebagai pelengkap.`
+        return `${peddlerName} menawarkan siomay ikan tenggiri dengan tekstur yang lembut dan rasa yang gurih. Disajikan dengan bumbu kacang yang kaya akan rasa, perpaduan antara kacang tanah, bawang putih, dan cabai. Tersedia juga tahu, kentang, pare, dan telur sebagai pelengkap.`
       case 'es cendol':
       case 'es':
-        return `${vendorName} menghadirkan es cendol dengan cendol yang kenyal dan segar, dibuat dari tepung beras pilihan. Disajikan dengan santan kental, gula merah asli, dan es serut yang menyegarkan. Nikmati sensasi manis dan gurih yang menyatu dalam setiap sendoknya.`
+        return `${peddlerName} menghadirkan es cendol dengan cendol yang kenyal dan segar, dibuat dari tepung beras pilihan. Disajikan dengan santan kental, gula merah asli, dan es serut yang menyegarkan. Nikmati sensasi manis dan gurih yang menyatu dalam setiap sendoknya.`
       case 'martabak':
-        return `${vendorName} spesialis martabak dengan berbagai varian rasa. Martabak manis kami memiliki tekstur yang lembut di dalam dan renyah di luar, dengan topping melimpah seperti cokelat, keju, kacang, dan susu. Martabak telur kami dibuat dengan isian daging cincang, telur, dan rempah-rempah pilihan.`
+        return `${peddlerName} spesialis martabak dengan berbagai varian rasa. Martabak manis kami memiliki tekstur yang lembut di dalam dan renyah di luar, dengan topping melimpah seperti cokelat, keju, kacang, dan susu. Martabak telur kami dibuat dengan isian daging cincang, telur, dan rempah-rempah pilihan.`
       default:
-        return `${vendorName} menyajikan makanan/minuman berkualitas tinggi dengan bahan-bahan segar dan pilihan. Diproses secara higienis dan dengan resep tradisional yang telah diwariskan selama bertahun-tahun. Rasakan kenikmatan otentik dalam setiap sajian kami.`
+        return `${peddlerName} menyajikan makanan/minuman berkualitas tinggi dengan bahan-bahan segar dan pilihan. Diproses secara higienis dan dengan resep tradisional yang telah diwariskan selama bertahun-tahun. Rasakan kenikmatan otentik dalam setiap sajian kami.`
     }
   }
 }
 
 /**
- * Generates route advice for a vendor based on their type, planned areas, and time
+ * Generates route advice for a peddler based on their type, planned areas, and time
  */
 export async function getRouteAdvice(
-  vendorType: string,
+  peddlerType: string,
   plannedAreasText: string,
   city: string = 'Depok',
   timeOfDay?: string
@@ -131,7 +131,7 @@ export async function getRouteAdvice(
     const prompt = `
       Sebagai asisten untuk pedagang kaki lima di Indonesia, berikan saran rute untuk:
       
-      Jenis pedagang: ${vendorType}
+      Jenis pedagang: ${peddlerType}
       Lokasi: ${city}
       Area yang direncanakan: ${plannedAreas.join(', ')}
       ${timeOfDay ? `Waktu: ${timeOfDay}` : `Waktu: ${getCurrentTimeOfDay()}`}
@@ -139,7 +139,7 @@ export async function getRouteAdvice(
       Berikan saran rute termasuk:
       1. Rekomendasi waktu terbaik untuk berjualan berdasarkan jenis pedagang
       2. Prioritas rute di area yang direncanakan
-      3. Tips khusus untuk penjual jenis ${vendorType}
+      3. Tips khusus untuk penjual jenis ${peddlerType}
       4. Wawasan khusus tentang ${city} yang relevan untuk pedagang
       
       Format respons Anda dalam bahasa Indonesia yang jelas dan terstruktur.
@@ -153,13 +153,13 @@ export async function getRouteAdvice(
 
     // Try calling the backend API if direct Gemini call fails
     try {
-      const response = await fetch('/api/vendors/route-advice', {
+      const response = await fetch('/api/peddlers/route-advice', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          vendor_type: vendorType,
+          peddler_type: peddlerType,
           planned_areas: plannedAreas,
           city,
           time_of_day: timeOfDay || getCurrentTimeOfDay(),
@@ -176,17 +176,17 @@ export async function getRouteAdvice(
       console.error('Backend API call also failed:', backendError);
 
       // Fallback to a generic response if both methods fail
-      return `Saran rute untuk penjual ${vendorType} di ${city}:
+      return `Saran rute untuk penjual ${peddlerType} di ${city}:
 
-${getTimeContextForType(vendorType, getCurrentTimeOfDay())}
+${getTimeContextForType(peddlerType, getCurrentTimeOfDay())}
 
 Berdasarkan rencana Anda di ${plannedAreas.join(', ')}, saya sarankan untuk memprioritaskan rute berikut:
 1. ${plannedAreas[0] || 'Area perumahan'} (pagi/siang)
 2. ${plannedAreas[1] || 'Area perkantoran'} (siang/sore)
 3. ${plannedAreas[2] || 'Area kampus'} (sore/malam)
 
-Tips khusus untuk penjual ${vendorType}:
-${getVendorSpecificTips(vendorType)}
+Tips khusus untuk penjual ${peddlerType}:
+${getPeddlerSpecificTips(peddlerType)}
 
 Ingat untuk selalu update lokasi Anda di aplikasi KeLink agar pelanggan dapat dengan mudah menemukan Anda!`;
     }
@@ -398,65 +398,70 @@ function getCurrentTimeOfDay(): string {
   return 'night'
 }
 
-// Helper function to get time context for vendor type
-function getTimeContextForType(vendorType: string, timeOfDay: string): string {
-  const genericTimeAdvice = {
-    morning: 'Di pagi hari, fokus pada area perumahan dan kantoran saat orang memulai hari mereka. Area sekolah juga ramai di pagi hari.',
-    afternoon: 'Siang hari adalah waktu makan siang, jadi area perkantoran, kampus, dan pusat perbelanjaan akan ramai. Pertimbangkan untuk berada di lokasi ini sekitar jam 11:30-14:00.',
-    evening: 'Sore hari adalah waktu ketika orang pulang kerja/sekolah. Area perumahan, taman, dan jalan-jalan utama menuju perumahan akan ramai.',
-    night: 'Malam hari cocok untuk area hiburan, pusat kota, atau area dengan aktivitas malam seperti taman yang ramai di malam hari.',
+// Helper function to get time context for peddler type
+function getTimeContextForType(peddlerType: string, timeOfDay: string): string {
+  const defaultTime = "Sesuaikan waktu berjualan Anda dengan kebiasaan masyarakat setempat dan jenis makanan yang Anda jual."
+
+  // Common time advice for all types
+  const generalTimeContext: Record<string, string> = {
+    pagi: "Pagi hari (6:00-10:00) cocok untuk makanan sarapan dan jajanan.",
+    siang: "Siang hari (11:00-14:00) adalah waktu makan siang yang ramai.",
+    sore: "Sore hari (15:00-18:00) adalah waktu pulang kerja/sekolah yang ramai.",
+    malam: "Malam hari (19:00-22:00) cocok untuk makanan berat dan jajanan malam."
   }
 
-  // Specific advice for vendor types during this time of day
-  switch (vendorType.toLowerCase()) {
+  // Specific advice for peddler types during this time of day
+  switch (peddlerType.toLowerCase()) {
     case 'bakso':
-      if (timeOfDay === 'morning') {
-        return 'Pagi hari kurang optimal untuk penjual bakso. Pertimbangkan untuk mulai berjualan menjelang siang di sekitar area kantor atau sekolah.'
-      }
-      if (timeOfDay === 'afternoon') {
-        return 'Siang hari adalah waktu yang sangat baik untuk penjual bakso di area perkantoran atau kampus saat jam makan siang (11:30-14:00).'
-      }
-      return genericTimeAdvice[timeOfDay as keyof typeof genericTimeAdvice]
+      if (timeOfDay === 'pagi') return "Bakso di pagi hari kurang populer. Pertimbangkan untuk mulai berjualan menjelang siang.";
+      if (timeOfDay === 'siang') return "Siang hari adalah waktu ideal untuk bakso, terutama di area perkantoran dan kampus.";
+      if (timeOfDay === 'sore') return "Sore hari adalah waktu yang baik untuk bakso, terutama di area perumahan saat orang pulang kerja.";
+      if (timeOfDay === 'malam') return "Bakso di malam hari populer di area keramaian atau tempat nongkrong.";
+      return defaultTime;
 
     case 'siomay':
     case 'batagor':
-      if (timeOfDay === 'evening') {
-        return 'Sore hari sangat baik untuk penjual siomay/batagor saat orang pulang kerja/sekolah. Posisikan di area perumahan atau jalur pulang kerja.'
-      }
-      return genericTimeAdvice[timeOfDay as keyof typeof genericTimeAdvice]
+      if (timeOfDay === 'pagi') return "Siomay/batagor kurang populer di pagi hari. Lebih baik mulai berjualan menjelang siang.";
+      if (timeOfDay === 'siang') return "Siang hari adalah waktu yang baik untuk siomay/batagor, terutama di area perkantoran untuk makan siang.";
+      if (timeOfDay === 'sore') return "Sore hari adalah waktu terbaik untuk siomay/batagor, terutama di area sekolah dan perumahan.";
+      if (timeOfDay === 'malam') return "Siomay/batagor bisa populer di malam hari di area keramaian, tapi permintaan biasanya lebih rendah dibanding sore hari.";
+      return defaultTime;
 
     case 'es cendol':
     case 'es':
-      if (timeOfDay === 'afternoon') {
-        return 'Siang hari saat panas adalah waktu terbaik untuk penjual minuman dingin. Posisikan di area yang ramai dan terkena sinar matahari.'
-      }
-      return genericTimeAdvice[timeOfDay as keyof typeof genericTimeAdvice]
+      if (timeOfDay === 'pagi') return "Es kurang populer di pagi hari. Mulailah berjualan saat matahari mulai terasa panas.";
+      if (timeOfDay === 'siang') return "Siang hari adalah waktu ideal untuk es, terutama saat cuaca panas.";
+      if (timeOfDay === 'sore') return "Sore hari masih merupakan waktu yang baik untuk es, meskipun permintaan mulai menurun menjelang senja.";
+      if (timeOfDay === 'malam') return "Es di malam hari kurang populer kecuali cuaca masih terasa panas atau di area keramaian.";
+      return defaultTime;
 
     case 'martabak':
-      if (timeOfDay === 'night') {
-        return 'Malam hari adalah waktu optimal untuk penjual martabak. Cari lokasi yang ramai di malam hari seperti pusat keramaian atau area perumahan.'
-      }
-      return genericTimeAdvice[timeOfDay as keyof typeof genericTimeAdvice]
+      if (timeOfDay === 'pagi') return "Martabak tidak populer di pagi hari. Mulailah berjualan di sore atau malam hari.";
+      if (timeOfDay === 'siang') return "Martabak kurang populer di siang hari. Waktu terbaik adalah sore hingga malam.";
+      if (timeOfDay === 'sore') return "Sore menjelang malam adalah waktu yang baik untuk mulai berjualan martabak.";
+      if (timeOfDay === 'malam') return "Malam hari adalah waktu paling ideal untuk martabak, terutama di area keramaian dan perumahan.";
+      return defaultTime;
 
     default:
-      return genericTimeAdvice[timeOfDay as keyof typeof genericTimeAdvice]
+      return generalTimeContext[timeOfDay] || defaultTime;
   }
 }
 
-// Helper function to get vendor-specific tips
-function getVendorSpecificTips(vendorType: string): string {
-  switch (vendorType.toLowerCase()) {
+// Helper function to get peddler-specific tips
+function getPeddlerSpecificTips(peddlerType: string): string {
+  switch (peddlerType.toLowerCase()) {
     case 'bakso':
-      return 'Sediakan cukup kuah dan pastikan tetap panas. Pilih lokasi yang teduh agar kuah tidak cepat dingin.'
+      return "Pastikan kuah bakso tetap panas. Sediakan berbagai jenis bakso (urat, telur, tahu). Jaga kebersihan mangkok dan sendok. Bawa cukup air untuk mencuci peralatan.";
     case 'siomay':
     case 'batagor':
-      return 'Siomay dan batagor paling laku di sore hari. Pastikan saus kacang selalu fresh dan tersedia cukup.'
+      return "Siapkan saus kacang yang cukup dan fresh. Potong siomay/batagor setelah dipesan untuk menjaga kualitas. Sediakan potongan jeruk nipis untuk menambah kesegaran.";
     case 'es cendol':
+    case 'es kelapa':
     case 'es':
-      return 'Pastikan es tetap beku dan bahan-bahan segar. Carilah area teduh untuk menjaga kualitas es.'
+      return "Bawa cukup es batu dan pastikan tetap beku. Gunakan bahan-bahan segar. Tempatkan es di wadah yang terisolasi agar tidak cepat mencair. Jual di lokasi teduh.";
     case 'martabak':
-      return 'Martabak biasanya paling laris di malam hari. Pastikan semua topping tersedia dan wajan tetap panas.'
+      return "Pastikan wajan tetap panas. Bawa berbagai topping populer (cokelat, keju, kacang). Untuk martabak telur, pastikan isian daging/telur cukup banyak. Potong martabak dengan rapi.";
     default:
-      return 'Pastikan produk Anda tetap dalam kondisi terbaik dan tersedia cukup untuk melayani pelanggan sepanjang hari.'
+      return "Prioritaskan kebersihan dan kualitas produk. Interaksi yang ramah dengan pelanggan penting untuk membangun loyalitas. Jaga konsistensi rasa dan porsi produk Anda.";
   }
 }

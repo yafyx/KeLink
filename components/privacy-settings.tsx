@@ -56,7 +56,7 @@ export function PrivacySettings({ isLoggedIn }: PrivacySettingsProps) {
     setLocationSharing(newValue);
     setStatusMessage({
       text: newValue
-        ? "Location sharing enabled. Your location will be used to find nearby vendors."
+        ? "Location sharing enabled. Your location will be used to find nearby peddlers."
         : "Location sharing disabled. Your location will not be used. This may limit app functionality.",
       type: "success",
     });
@@ -235,7 +235,7 @@ export function PrivacySettings({ isLoggedIn }: PrivacySettingsProps) {
           <div className="space-y-0.5">
             <Label htmlFor="location">Location Sharing</Label>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Share your location to find nearby vendors
+              Share your location to find nearby peddlers
             </p>
           </div>
           <Switch

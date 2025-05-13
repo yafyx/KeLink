@@ -26,32 +26,21 @@ import { ChatInput } from "./chat-input";
 import { MessageList } from "./message-list";
 import { RouteInfo } from "./route-info";
 import { RouteDetails } from "@/lib/route-mapper";
-import { VendorSheet } from "./vendor-sheet";
+import { PeddlerSheet } from "./peddler/peddler-sheet";
 import { Message as ChatMessage } from "@/hooks/use-function-chat";
+import { Peddler } from "@/lib/peddlers";
 
 export type Message = ChatMessage;
 
-export type Vendor = {
-  id: string;
-  name: string;
-  type: string;
-  description?: string;
-  distance?: string;
-  status: "active" | "inactive";
-  last_active: string;
-  location: {
-    lat: number;
-    lng: number;
-  };
-};
+export type Peddler = Peddler;
 
 interface FloatingChatProps {
   messages: Message[];
   isLoading: boolean;
   onSendMessage: (message: string) => void;
-  vendors?: Vendor[];
+  peddlers?: Peddler[];
   selectedVendorId?: string;
-  onVendorClick?: (vendor: Vendor) => void;
+  onVendorClick?: (peddler: Peddler) => void;
   className?: string;
   bubbleClassName?: string;
   routeDetails?: RouteDetails | null;
@@ -65,7 +54,7 @@ export function FloatingChat({
   messages,
   isLoading,
   onSendMessage,
-  vendors = [],
+  peddlers = [],
   selectedVendorId,
   onVendorClick,
   className,
@@ -79,12 +68,12 @@ export function FloatingChat({
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<
-    "chat" | "vendors" | "route" | string
+    "chat" | "peddlers" | "route" | string
   >("chat");
 
   // Initialize with empty array (no dropdowns open by default)
   const [activeDropdowns, setActiveDropdowns] = useState<string[]>([]);
-  const [vendorSheetOpen, setVendorSheetOpen] = useState(false);
+  const [peddlerSheetOpen, setPeddlerSheetOpen] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const vendorListRef = useRef<HTMLDivElement>(null);
@@ -97,12 +86,12 @@ export function FloatingChat({
       : { type: "spring", stiffness: 500, damping: 30 },
   };
 
-  const validVendors = vendors.filter(
-    (vendor) =>
-      vendor &&
-      vendor.location &&
-      typeof vendor.location.lat === "number" &&
-      typeof vendor.location.lng === "number"
+  const validVendors = peddlers.filter(
+    (peddler) =>
+      peddler &&
+      peddler.location &&
+      typeof peddler.location.lat === "number" &&
+      typeof peddler.location.lon === "number"
   );
 
   // Focus input on mount and after sending message
@@ -112,26 +101,26 @@ export function FloatingChat({
     }
   }, [isLoading, isExpanded, activeTab]);
 
-  // Effect for handling tab switch when new vendors are found
+  // Effect for handling tab switch when new peddlers are found
   useEffect(() => {
     if (isExpanded && validVendors.length > 0 && activeTab === "chat") {
       const timer = setTimeout(() => {
-        setActiveTab("vendors");
+        setActiveTab("peddlers");
       }, 300); // Delay for better UX after expansion
       return () => clearTimeout(timer);
     }
   }, [validVendors.length, isExpanded]); // Removed activeTab from deps
 
-  // Scroll selected vendor into view and ensure vendors tab is active
+  // Scroll selected peddler into view and ensure peddlers tab is active
   useEffect(() => {
     if (isExpanded && selectedVendorId && vendorListRef.current) {
-      if (activeTab !== "vendors") {
-        setActiveTab("vendors");
+      if (activeTab !== "peddlers") {
+        setActiveTab("peddlers");
       }
       // Small delay to ensure DOM is updated and tab switch has occurred
       setTimeout(() => {
         const selectedCard = vendorListRef.current?.querySelector(
-          `[data-vendor-id="${selectedVendorId}"]`
+          `[data-peddler-id="${selectedVendorId}"]`
         );
         selectedCard?.scrollIntoView({
           behavior: preferReducedMotion ? "auto" : "smooth",
@@ -150,18 +139,18 @@ export function FloatingChat({
     }
   }, [showRoute, routeDetails, selectedVendorId, isExpanded]); // Removed activeTab from deps
 
-  // Auto EXPAND VENDOR DROPDOWNS when vendors prop updates
+  // Auto EXPAND VENDOR DROPDOWNS when peddlers prop updates
   useEffect(() => {
-    // Filter vendors passed in props
-    const currentValidVendors = vendors.filter(
-      (vendor) =>
-        vendor &&
-        vendor.location &&
-        typeof vendor.location.lat === "number" &&
-        typeof vendor.location.lng === "number"
+    // Filter peddlers passed in props
+    const currentValidVendors = peddlers.filter(
+      (peddler) =>
+        peddler &&
+        peddler.location &&
+        typeof peddler.location.lat === "number" &&
+        typeof peddler.location.lon === "number"
     );
 
-    // Only proceed if there are valid vendors from the latest prop update
+    // Only proceed if there are valid peddlers from the latest prop update
     if (currentValidVendors.length > 0) {
       // Find the latest assistant message
       const latestAssistantMessage = messages
@@ -198,11 +187,11 @@ export function FloatingChat({
         setActiveDropdowns([]);
       }
     } else {
-      // No valid vendors in the latest prop update, clear dropdowns.
+      // No valid peddlers in the latest prop update, clear dropdowns.
       setActiveDropdowns([]);
     }
-    // Rerun when vendors prop changes OR messages change
-  }, [vendors, messages]);
+    // Rerun when peddlers prop changes OR messages change
+  }, [peddlers, messages]);
 
   // Function to toggle a specific dropdown
   const toggleDropdown = (type: string) => {
@@ -238,7 +227,7 @@ export function FloatingChat({
     if (onToggleExpanded) onToggleExpanded();
   };
 
-  // Get vendor type color for badges and indicators
+  // Get peddler type color for badges and indicators
   const getVendorTypeColor = (type: string): string => {
     const colors: Record<string, string> = {
       bakso: "bg-red-500",
@@ -258,24 +247,24 @@ export function FloatingChat({
     return colors[type.toLowerCase()] || "bg-gray-500";
   };
 
-  // Find the number of vendors for each type to show in the dropdown
+  // Find the number of peddlers for each type to show in the dropdown
   const vendorCounts: Record<string, number> = {};
-  validVendors.forEach((vendor) => {
-    const type = vendor.type.toLowerCase();
+  validVendors.forEach((peddler) => {
+    const type = peddler.type.toLowerCase();
     vendorCounts[type] = (vendorCounts[type] || 0) + 1;
   });
 
-  // Group vendors by type with proper case
-  const vendorsByType: Record<string, Vendor[]> = {};
-  validVendors.forEach((vendor) => {
-    const type = vendor.type.toLowerCase();
+  // Group peddlers by type with proper case
+  const vendorsByType: Record<string, Peddler[]> = {};
+  validVendors.forEach((peddler) => {
+    const type = peddler.type.toLowerCase();
     if (!vendorsByType[type]) {
       vendorsByType[type] = [];
     }
-    vendorsByType[type].push(vendor);
+    vendorsByType[type].push(peddler);
   });
 
-  // Filter for the selected vendor
+  // Filter for the selected peddler
   const selectedVendor = selectedVendorId
     ? validVendors.find((v) => v.id === selectedVendorId)
     : undefined;
@@ -311,13 +300,13 @@ export function FloatingChat({
                   )}
               </TabsTrigger>
               <TabsTrigger
-                value="vendors"
+                value="peddlers"
                 className="data-[state=active]:bg-gray-100/80 px-3 relative"
                 disabled={validVendors.length === 0}
               >
                 <MapPin className="h-4 w-4 mr-1" />
-                Vendors
-                {activeTab !== "vendors" && validVendors.length > 0 && (
+                Peddlers
+                {activeTab !== "peddlers" && validVendors.length > 0 && (
                   <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />
                 )}
               </TabsTrigger>
@@ -351,12 +340,12 @@ export function FloatingChat({
               bubbleClassName={bubbleClassName}
               messagesEndRef={messagesEndRef}
               toggleExpanded={localToggleExpanded}
-              onViewAllVendors={() => setActiveTab("vendors")}
+              onViewAllVendors={() => setActiveTab("peddlers")}
             />
           </TabsContent>
 
           <TabsContent
-            value="vendors"
+            value="peddlers"
             className="mt-0 focus-visible:outline-none focus-visible:ring-0 border-0 relative"
           >
             <div className="h-[350px] relative">
@@ -368,13 +357,13 @@ export function FloatingChat({
                   {Object.entries(vendorsByType).length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-60 text-gray-400">
                       <MapIcon className="h-12 w-12 mb-2 opacity-30" />
-                      <p className="text-sm">No vendors found</p>
+                      <p className="text-sm">No peddlers found</p>
                       <p className="text-xs mt-1">
-                        Search for street vendors or ask for directions...
+                        Search for street peddlers or ask for directions...
                       </p>
                     </div>
                   ) : (
-                    Object.entries(vendorsByType).map(([type, vendors]) => (
+                    Object.entries(vendorsByType).map(([type, peddlers]) => (
                       <div key={type} className="space-y-2">
                         <div
                           className="flex items-center justify-between cursor-pointer"
@@ -390,7 +379,7 @@ export function FloatingChat({
                               {type.replace("_", " ")}
                             </h3>
                             <Badge variant="outline" className="ml-2">
-                              {vendors.length}
+                              {peddlers.length}
                             </Badge>
                           </div>
                           <Button
@@ -428,53 +417,53 @@ export function FloatingChat({
                               className="overflow-hidden"
                             >
                               <div className="space-y-2 mt-2">
-                                {vendors.map((vendor) => (
+                                {peddlers.map((peddler) => (
                                   <div
-                                    key={vendor.id}
-                                    data-vendor-id={vendor.id}
+                                    key={peddler.id}
+                                    data-peddler-id={peddler.id}
                                     className={cn(
                                       "p-3 rounded-lg border cursor-pointer transition-all duration-200",
-                                      selectedVendorId === vendor.id
+                                      selectedVendorId === peddler.id
                                         ? "bg-primary/5 border-primary/30"
                                         : "bg-white hover:bg-gray-50 border-gray-200"
                                     )}
                                     onClick={() =>
-                                      onVendorClick && onVendorClick(vendor)
+                                      onVendorClick && onVendorClick(peddler)
                                     }
                                   >
                                     <div className="flex justify-between items-start">
                                       <div>
                                         <h4 className="font-medium">
-                                          {vendor.name}
+                                          {peddler.name}
                                         </h4>
                                         <p className="text-xs text-gray-500 mt-1">
-                                          {vendor.description ||
-                                            `${vendor.type} street vendor`}
+                                          {peddler.description ||
+                                            `${peddler.type} street peddler`}
                                         </p>
                                       </div>
-                                      {vendor.distance && (
+                                      {peddler.distance && (
                                         <Badge
                                           variant="outline"
                                           className="ml-2 text-xs"
                                         >
-                                          {vendor.distance}
+                                          {peddler.distance}
                                         </Badge>
                                       )}
                                     </div>
                                     <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
                                       <div className="flex items-center">
                                         <Clock className="h-3 w-3 mr-1" />
-                                        {vendor.last_active}
+                                        {peddler.last_active}
                                       </div>
                                       <div
                                         className={cn(
                                           "px-1.5 py-0.5 rounded-full text-white text-[10px] uppercase font-medium",
-                                          vendor.status === "active"
+                                          peddler.status === "active"
                                             ? "bg-green-500"
                                             : "bg-gray-400"
                                         )}
                                       >
-                                        {vendor.status}
+                                        {peddler.status}
                                       </div>
                                     </div>
                                   </div>
@@ -511,7 +500,7 @@ export function FloatingChat({
               <div className="h-[350px] flex items-center justify-center">
                 <div className="text-center">
                   <Navigation className="h-12 w-12 mx-auto text-gray-300 mb-2" />
-                  <p className="text-gray-500">Select a vendor to see route</p>
+                  <p className="text-gray-500">Select a peddler to see route</p>
                 </div>
               </div>
             )}
@@ -544,22 +533,22 @@ export function FloatingChat({
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">Chat with KeLink</p>
             <p className="text-xs text-gray-500 truncate">
-              Search for street vendors or ask for directions...
+              Search for street peddlers or ask for directions...
             </p>
           </div>
           <ChevronUp className="h-5 w-5 text-gray-400" />
         </div>
       )}
 
-      {/* Vendor detail sheet */}
-      <VendorSheet
-        open={vendorSheetOpen}
-        onOpenChange={setVendorSheetOpen}
-        vendor={selectedVendor}
+      {/* Peddler detail sheet */}
+      <PeddlerSheet
+        open={peddlerSheetOpen}
+        onOpenChange={setPeddlerSheetOpen}
+        peddler={selectedVendor}
         onViewRoute={
           selectedVendor && onToggleRoute
             ? () => {
-                setVendorSheetOpen(false);
+                setPeddlerSheetOpen(false);
                 onToggleRoute();
                 setActiveTab("route");
               }

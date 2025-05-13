@@ -14,38 +14,25 @@ import {
   CredenzaClose,
 } from "@/components/ui/credenza";
 import { cn } from "@/lib/utils";
+import type { Peddler } from "@/lib/peddlers";
 
-interface Vendor {
-  id: string;
-  name: string;
-  type: string;
-  description?: string;
-  distance?: string;
-  status: "active" | "inactive";
-  last_active: string;
-  location: {
-    lat: number;
-    lng: number;
-  };
-}
-
-interface VendorSheetProps {
+interface PeddlerSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  vendor?: Vendor;
+  peddler?: Peddler;
   onViewRoute?: () => void;
 }
 
-export function VendorSheet({
+export function PeddlerSheet({
   open,
   onOpenChange,
-  vendor,
+  peddler,
   onViewRoute,
-}: VendorSheetProps) {
-  if (!vendor) return null;
+}: PeddlerSheetProps) {
+  if (!peddler) return null;
 
-  // Get vendor type color
-  const getVendorTypeColor = (type: string): string => {
+  // Get peddler type color
+  const getPeddlerTypeColor = (type: string): string => {
     const colors: Record<string, string> = {
       bakso: "bg-red-500",
       siomay: "bg-blue-500",
@@ -72,10 +59,10 @@ export function VendorSheet({
               <div
                 className={cn(
                   "w-3 h-3 rounded-full",
-                  getVendorTypeColor(vendor.type)
+                  getPeddlerTypeColor(peddler.type)
                 )}
               />
-              <CredenzaTitle className="text-xl">{vendor.name}</CredenzaTitle>
+              <CredenzaTitle className="text-xl">{peddler.name}</CredenzaTitle>
             </div>
             <CredenzaClose className="rounded-full w-8 h-8 hover:bg-gray-100 flex items-center justify-center">
               <X className="h-4 w-4" />
@@ -83,18 +70,18 @@ export function VendorSheet({
           </div>
           <div className="flex justify-between items-center mt-1">
             <Badge variant="outline" className="capitalize">
-              {vendor.type.replace("_", " ")}
+              {peddler.type.replace("_", " ")}
             </Badge>
             <Badge
-              variant={vendor.status === "active" ? "default" : "secondary"}
+              variant={peddler.status === "active" ? "default" : "secondary"}
               className={cn(
                 "text-xs",
-                vendor.status === "active"
+                peddler.status === "active"
                   ? "bg-green-500 hover:bg-green-600"
                   : ""
               )}
             >
-              {vendor.status === "active" ? "Active" : "Inactive"}
+              {peddler.status === "active" ? "Active" : "Inactive"}
             </Badge>
           </div>
         </CredenzaHeader>
@@ -104,7 +91,7 @@ export function VendorSheet({
             <div className="space-y-4">
               {/* Description */}
               <p className="text-sm text-gray-600">
-                {vendor.description || `${vendor.type} street vendor`}
+                {peddler.description || `${peddler.type} street peddler`}
               </p>
 
               {/* Location and timing info */}
@@ -112,14 +99,14 @@ export function VendorSheet({
                 <div className="flex items-center text-sm text-gray-600 gap-2">
                   <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
                   <span>
-                    {vendor.distance
-                      ? `${vendor.distance} from your location`
+                    {peddler.distance
+                      ? `${peddler.distance} from your location`
                       : "Location available on map"}
                   </span>
                 </div>
                 <div className="flex items-center text-sm text-gray-600 gap-2">
                   <Clock className="h-4 w-4 text-primary flex-shrink-0" />
-                  <span>Last active: {vendor.last_active}</span>
+                  <span>Last active: {peddler.last_active}</span>
                 </div>
               </div>
 
@@ -127,7 +114,7 @@ export function VendorSheet({
               <div className="relative aspect-video bg-gray-100 rounded-md overflow-hidden flex flex-col items-center justify-center">
                 <MapIcon className="h-10 w-10 text-gray-300 mb-2" />
                 <p className="text-sm text-gray-500">
-                  View {vendor.name}'s location on the map
+                  View {peddler.name}'s location on the map
                 </p>
               </div>
 
@@ -135,8 +122,8 @@ export function VendorSheet({
               <div className="space-y-2">
                 <h4 className="text-sm font-medium">Notes</h4>
                 <p className="text-sm text-gray-600">
-                  Vendor availability may change. Please contact the vendor for
-                  more information.
+                  Peddler availability may change. Please contact the peddler
+                  for more information.
                 </p>
               </div>
             </div>

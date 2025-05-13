@@ -1,7 +1,7 @@
 import { DocumentData, GeoPoint, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { db } from './firebase-admin';
 
-export type Vendor = {
+export type Peddler = {
     id: string;
     name: string;
     type: string;
@@ -16,7 +16,7 @@ export type Vendor = {
     rating?: number;
 };
 
-type VendorWithDistance = Vendor & {
+type PeddlerWithDistance = Peddler & {
     raw_distance?: number;
 };
 
@@ -68,22 +68,22 @@ function getGeoCells(lat: number, lon: number, radiusInKm: number): string[] {
     return cells;
 }
 
-// Main function to find nearby vendors
-export async function findNearbyVendors({
+// Main function to find nearby peddlers
+export async function findNearbyPeddlers({
     userLocation,
     keywords = [],
-    vendorType = '',
+    peddlerType = '',
     maxDistance = 5000, // Default max distance in meters
     limit = 20, // Default limit of results
-    lastVendorId = null, // For pagination
+    lastPeddlerId = null, // For pagination
 }: {
     userLocation: { lat: number; lon: number };
     keywords?: string[];
-    vendorType?: string;
+    peddlerType?: string;
     maxDistance?: number;
     limit?: number;
-    lastVendorId?: string | null;
-}): Promise<{ vendors: Vendor[], hasMore: boolean }> {
+    lastPeddlerId?: string | null;
+}): Promise<{ peddlers: Peddler[], hasMore: boolean }> {
     try {
         // Convert maxDistance from meters to kilometers for geohashing
         const maxDistanceKm = maxDistance / 1000;
@@ -92,33 +92,33 @@ export async function findNearbyVendors({
         const cells = getGeoCells(userLocation.lat, userLocation.lon, maxDistanceKm);
 
         // Build the initial query
-        let vendorQuery = db.collection('vendors') as any;
+        let peddlerQuery = db.collection('peddlers') as any;
 
-        // Add status filter (active vendors only)
-        vendorQuery = vendorQuery.where('status', '==', 'active');
+        // Add status filter (active peddlers only)
+        peddlerQuery = peddlerQuery.where('status', '==', 'active');
 
         // Add type filter if provided
-        if (vendorType && vendorType.trim() !== '') {
-            vendorQuery = vendorQuery.where('type', '==', vendorType.trim());
+        if (peddlerType && peddlerType.trim() !== '') {
+            peddlerQuery = peddlerQuery.where('type', '==', peddlerType.trim());
         }
 
-        // Add pagination if lastVendorId provided
-        if (lastVendorId) {
-            const lastDoc = await db.collection('vendors').doc(lastVendorId).get();
+        // Add pagination if lastPeddlerId provided
+        if (lastPeddlerId) {
+            const lastDoc = await db.collection('peddlers').doc(lastPeddlerId).get();
             if (lastDoc.exists) {
-                vendorQuery = vendorQuery.startAfter(lastDoc);
+                peddlerQuery = peddlerQuery.startAfter(lastDoc);
             }
         }
 
         // Execute query with limit to get a subset of potential matches
-        const snapshot = await vendorQuery.limit(limit * 3).get();
+        const snapshot = await peddlerQuery.limit(limit * 3).get();
 
         if (snapshot.empty) {
-            return { vendors: [], hasMore: false };
+            return { peddlers: [], hasMore: false };
         }
 
-        // Extract vendor data and convert Firestore documents to Vendor type
-        let vendors: Vendor[] = [];
+        // Extract peddler data and convert Firestore documents to Peddler type
+        let peddlers: Peddler[] = [];
         snapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
             const data = doc.data();
             // Handle GeoPoint from Firestore
@@ -134,13 +134,13 @@ export async function findNearbyVendors({
                     lon: data.location.lon || data.location.longitude
                 };
             } else {
-                // Skip vendors without location data
+                // Skip peddlers without location data
                 return;
             }
 
-            vendors.push({
+            peddlers.push({
                 id: doc.id,
-                name: data.name || 'Unknown Vendor',
+                name: data.name || 'Unknown Peddler',
                 type: data.type || 'Unknown Type',
                 description: data.description || '',
                 location: locationData,
@@ -152,43 +152,43 @@ export async function findNearbyVendors({
 
         // Filter by keywords if provided - done in-memory for flexibility
         if (keywords && keywords.length > 0) {
-            vendors = vendors.filter(vendor => {
-                const vendorText = `${vendor.name} ${vendor.type} ${vendor.description}`.toLowerCase();
+            peddlers = peddlers.filter(peddler => {
+                const peddlerText = `${peddler.name} ${peddler.type} ${peddler.description}`.toLowerCase();
                 return keywords.some(keyword =>
-                    vendorText.includes(keyword.toLowerCase())
+                    peddlerText.includes(keyword.toLowerCase())
                 );
             });
         }
 
         // Calculate distances and filter by max distance
-        const vendorsWithDistance: VendorWithDistance[] = vendors
-            .map(vendor => {
+        const peddlersWithDistance: PeddlerWithDistance[] = peddlers
+            .map(peddler => {
                 const distance = calculateDistance(
                     userLocation.lat,
                     userLocation.lon,
-                    vendor.location.lat,
-                    vendor.location.lon
+                    peddler.location.lat,
+                    peddler.location.lon
                 );
                 return {
-                    ...vendor,
+                    ...peddler,
                     distance: formatDistance(distance),
                     raw_distance: distance
                 };
             })
-            .filter(vendor => (vendor.raw_distance as number) <= maxDistance)
+            .filter(peddler => (peddler.raw_distance as number) <= maxDistance)
             .sort((a, b) => (a.raw_distance as number) - (b.raw_distance as number));
 
         // Apply limit and determine if there are more results
-        const limitedVendors = vendorsWithDistance.slice(0, limit);
-        const hasMore = vendorsWithDistance.length > limit;
+        const limitedPeddlers = peddlersWithDistance.slice(0, limit);
+        const hasMore = peddlersWithDistance.length > limit;
 
-        // Return vendors without the raw_distance property
+        // Return peddlers without the raw_distance property
         return {
-            vendors: limitedVendors.map(({ raw_distance, ...vendor }) => vendor),
+            peddlers: limitedPeddlers.map(({ raw_distance, ...peddler }) => peddler),
             hasMore
         };
     } catch (error) {
-        console.error('Error finding nearby vendors:', error);
+        console.error('Error finding nearby peddlers:', error);
         throw error;
     }
 } 

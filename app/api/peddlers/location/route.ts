@@ -2,7 +2,7 @@ import { getAuthUserFromRequest } from '@/lib/auth-utils';
 import { db } from '@/lib/firebase-admin';
 import { NextResponse } from 'next/server';
 
-// Update vendor location
+// Update peddler location
 export async function POST(request: Request) {
     try {
         // Get authenticated user
@@ -34,17 +34,17 @@ export async function POST(request: Request) {
             updateData.status = is_active ? 'active' : 'inactive';
         }
 
-        // Update vendor location in Firestore
-        await db.collection('vendors').doc(decoded.uid).update(updateData);
+        // Update peddler location in Firestore
+        await db.collection('peddlers').doc(decoded.uid).update(updateData);
 
         // Return updated location data
         return NextResponse.json({
-            message: 'Vendor location updated successfully',
+            message: 'Peddler location updated successfully',
             location: updateData.location,
             status: updateData.status
         });
     } catch (error: any) {
-        console.error('Error updating vendor location:', error);
+        console.error('Error updating peddler location:', error);
 
         if (error.message && error.message.startsWith('Unauthorized')) {
             return NextResponse.json(
@@ -54,38 +54,38 @@ export async function POST(request: Request) {
         }
 
         return NextResponse.json(
-            { error: 'Failed to update vendor location' },
+            { error: 'Failed to update peddler location' },
             { status: 500 }
         );
     }
 }
 
-// Get vendor location
+// Get peddler location
 export async function GET(request: Request) {
     try {
         // Get authenticated user
         const decoded = getAuthUserFromRequest(request);
 
-        // Get vendor data from Firestore
-        const vendorDoc = await db.collection('vendors').doc(decoded.uid).get();
+        // Get peddler data from Firestore
+        const vendorDoc = await db.collection('peddlers').doc(decoded.uid).get();
 
         if (!vendorDoc.exists) {
             return NextResponse.json(
-                { error: 'Vendor not found' },
+                { error: 'Peddler not found' },
                 { status: 404 }
             );
         }
 
         const vendorData = vendorDoc.data();
 
-        // Return vendor location data
+        // Return peddler location data
         return NextResponse.json({
             location: vendorData?.location || null,
             status: vendorData?.status || 'inactive',
             last_active: vendorData?.last_active || null
         });
     } catch (error: any) {
-        console.error('Error getting vendor location:', error);
+        console.error('Error getting peddler location:', error);
 
         if (error.message && error.message.startsWith('Unauthorized')) {
             return NextResponse.json(
@@ -95,7 +95,7 @@ export async function GET(request: Request) {
         }
 
         return NextResponse.json(
-            { error: 'Failed to get vendor location' },
+            { error: 'Failed to get peddler location' },
             { status: 500 }
         );
     }

@@ -9,15 +9,15 @@ export interface FunctionCallResult {
 
 // Define function schemas
 
-export const findVendorsFunction = {
-    name: "find_vendors",
-    description: "Searches for nearby food vendors matching the user's query",
+export const findPeddlersFunction = {
+    name: "find_peddlers",
+    description: "Searches for nearby food peddlers matching the user's query",
     parameters: {
         type: "object",
         properties: {
-            vendorType: {
+            peddlerType: {
                 type: "string",
-                description: "Type of vendor/food to search for (e.g., 'bakso', 'siomay', 'batagor')",
+                description: "Type of peddler/food to search for (e.g., 'bakso', 'siomay', 'batagor')",
             },
             keywords: {
                 type: "array",
@@ -35,13 +35,13 @@ export const findVendorsFunction = {
 
 export const getRouteFunction = {
     name: "get_route",
-    description: "Calculate a route to the selected vendor",
+    description: "Calculate a route to the selected peddler",
     parameters: {
         type: "object",
         properties: {
-            vendorId: {
+            peddlerId: {
                 type: "string",
-                description: "ID of the vendor to navigate to",
+                description: "ID of the peddler to navigate to",
             },
             transportMode: {
                 type: "string",
@@ -49,7 +49,7 @@ export const getRouteFunction = {
                 description: "Mode of transportation (default: WALKING)",
             },
         },
-        required: ["vendorId"],
+        required: ["peddlerId"],
     },
 };
 
@@ -65,7 +65,7 @@ export const getLocationFunction = {
 
 // Combined list of all available functions
 export const legacyFunctions = [
-    findVendorsFunction,
+    findPeddlersFunction,
     getRouteFunction,
     getLocationFunction
 ];
@@ -75,27 +75,27 @@ export async function executeFunctionCall(
     functionCall: FunctionCallResult,
     userLocation: { lat: number; lng: number } | null,
     foundVendors: any[],
-    onVendorResults?: (vendors: any[]) => void,
+    onVendorResults?: (peddlers: any[]) => void,
     onRouteResult?: (routeDetails: any) => void,
     onLocationResult?: () => void
 ): Promise<string> {
     const { name, args } = functionCall;
 
     switch (name) {
-        case "find_vendors":
+        case "find_peddlers":
             try {
                 // Default values
-                const vendorType = args.vendorType || "";
+                const peddlerType = args.peddlerType || "";
                 const keywords = args.keywords || [];
                 const maxDistance = args.maxDistance || 5000;
 
                 if (!userLocation) {
-                    return "I need your location to find vendors nearby. Please enable location access.";
+                    return "I need your location to find peddlers nearby. Please enable location access.";
                 }
 
                 // Prepare the request body for the API
                 const requestBody = {
-                    message: `${vendorType} ${keywords.join(" ")}`.trim(),
+                    message: `${peddlerType} ${keywords.join(" ")}`.trim(),
                     location: {
                         lat: userLocation.lat,
                         lng: userLocation.lng,
@@ -118,37 +118,37 @@ export async function executeFunctionCall(
 
                 const data = await response.json();
 
-                // Update vendors in the parent component
-                if (onVendorResults && data.response.vendors) {
-                    onVendorResults(data.response.vendors);
+                // Update peddlers in the parent component
+                if (onVendorResults && data.response.peddlers) {
+                    onVendorResults(data.response.peddlers);
                 }
 
                 // Return a response based on the results
-                if (data.response.vendors && data.response.vendors.length > 0) {
-                    return `I found ${data.response.vendors.length} ${vendorType || "food"} vendors near you. You can see them on the map.`;
+                if (data.response.peddlers && data.response.peddlers.length > 0) {
+                    return `I found ${data.response.peddlers.length} ${peddlerType || "food"} peddlers near you. You can see them on the map.`;
                 } else {
-                    return `I couldn't find any ${vendorType || "food"} vendors near your location. Please try a different search or check back later.`;
+                    return `I couldn't find any ${peddlerType || "food"} peddlers near your location. Please try a different search or check back later.`;
                 }
             } catch (error) {
-                console.error("Error finding vendors:", error);
-                return "Sorry, I had trouble finding vendors. Please try again later.";
+                console.error("Error finding peddlers:", error);
+                return "Sorry, I had trouble finding peddlers. Please try again later.";
             }
 
         case "get_route":
             try {
-                const { vendorId, transportMode = "WALKING" } = args;
+                const { peddlerId, transportMode = "WALKING" } = args;
 
                 if (!userLocation) {
                     return "I need your location to calculate a route. Please enable location access.";
                 }
 
-                if (!vendorId) {
-                    return "Please select a vendor first to get directions.";
+                if (!peddlerId) {
+                    return "Please select a peddler first to get directions.";
                 }
 
-                const selectedVendor = foundVendors.find((v) => v.id === vendorId);
-                if (!selectedVendor) {
-                    return "I couldn't find that vendor. Please select a vendor from the list.";
+                const selectedPeddler = foundVendors.find((v) => v.id === peddlerId);
+                if (!selectedPeddler) {
+                    return "I couldn't find that peddler. Please select a peddler from the list.";
                 }
 
                 // Import and use the route-mapper functions
@@ -156,7 +156,7 @@ export async function executeFunctionCall(
 
                 const routeDetails = await calculateRoute(
                     userLocation,
-                    selectedVendor.location,
+                    selectedPeddler.location,
                     transportMode
                 );
 
@@ -166,10 +166,10 @@ export async function executeFunctionCall(
                 }
 
                 if (!routeDetails) {
-                    return "I couldn't calculate a route to the vendor. Please try again later.";
+                    return "I couldn't calculate a route to the peddler. Please try again later.";
                 }
 
-                return `Here's the route to ${selectedVendor.name}. It will take approximately ${routeDetails.duration.text} (${routeDetails.distance.text}).`;
+                return `Here's the route to ${selectedPeddler.name}. It will take approximately ${routeDetails.duration.text} (${routeDetails.distance.text}).`;
             } catch (error) {
                 console.error("Error calculating route:", error);
                 return "Sorry, I had trouble calculating the route. Please try again later.";
@@ -199,20 +199,20 @@ export async function executeFunctionCall(
 
 // Define function call schemas for the LLM
 
-// Schema for finding nearby vendors
-export const findVendorsSchema: FunctionSchema = {
-    name: "findNearbyVendors",
-    description: "Search for nearby food vendors based on user preferences",
+// Schema for finding nearby peddlers
+export const findPeddlersSchema: FunctionSchema = {
+    name: "findNearbyPeddlers",
+    description: "Search for nearby food peddlers based on user preferences",
     parameters: {
         type: "object",
         properties: {
             foodType: {
                 type: "string",
-                description: "Type of food vendor to search for (e.g., bakso, siomay, batagor, es cendol)",
+                description: "Type of food peddler to search for (e.g., bakso, siomay, batagor, es cendol)",
             },
             maxDistance: {
                 type: "number",
-                description: "Maximum distance in meters to search for vendors",
+                description: "Maximum distance in meters to search for peddlers",
             },
             sortBy: {
                 type: "string",
@@ -224,16 +224,16 @@ export const findVendorsSchema: FunctionSchema = {
     },
 };
 
-// Schema for getting routes to a vendor
+// Schema for getting routes to a peddler
 export const getRouteSchema: FunctionSchema = {
-    name: "getRouteToVendor",
-    description: "Calculate a route from user's location to a selected vendor",
+    name: "getRouteToPeddler",
+    description: "Calculate a route from user's location to a selected peddler",
     parameters: {
         type: "object",
         properties: {
-            vendorId: {
+            peddlerId: {
                 type: "string",
-                description: "ID of the vendor to route to",
+                description: "ID of the peddler to route to",
             },
             transportMode: {
                 type: "string",
@@ -241,14 +241,14 @@ export const getRouteSchema: FunctionSchema = {
                 description: "Mode of transportation",
             },
         },
-        required: ["vendorId"],
+        required: ["peddlerId"],
     },
 };
 
 // Schema for requesting user location access
 export const requestLocationSchema: FunctionSchema = {
     name: "requestLocationAccess",
-    description: "Request access to user's location to find nearby vendors",
+    description: "Request access to user's location to find nearby peddlers",
     parameters: {
         type: "object",
         properties: {
@@ -263,20 +263,20 @@ export const requestLocationSchema: FunctionSchema = {
 
 // All available functions for the LLM
 export const availableFunctions: FunctionSchema[] = [
-    findVendorsSchema,
+    findPeddlersSchema,
     getRouteSchema,
     requestLocationSchema,
 ];
 
 // Function type definitions for TypeScript
-export type FindVendorsParams = {
+export type FindPeddlersParams = {
     foodType: string;
     maxDistance?: number;
     sortBy?: "distance" | "rating" | "last_active";
 };
 
 export type GetRouteParams = {
-    vendorId: string;
+    peddlerId: string;
     transportMode?: "walking" | "driving" | "bicycling";
 };
 

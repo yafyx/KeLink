@@ -3,9 +3,10 @@
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
-import { VendorSection } from "./vendor-section";
-import { ViewAllVendorsButton } from "./view-all-vendors-button";
-import type { Message, Vendor } from "./floating-chat";
+import { PeddlerSection } from "./peddler/peddler-section";
+import { ViewAllPeddlersButton } from "./peddler/view-all-peddlers-button";
+import type { Message } from "./floating-chat";
+import type { Peddler } from "@/lib/peddlers";
 
 // Assuming Message type is defined in a shared location or passed as a generic
 /*
@@ -19,11 +20,11 @@ export type Message = {
 
 interface ChatMessageProps {
   message: Message;
-  validVendors: Vendor[];
+  validVendors: Peddler[];
   activeDropdowns: string[];
   toggleDropdown: (type: string) => void;
   selectedVendorId?: string;
-  onVendorClick?: (vendor: Vendor) => void;
+  onVendorClick?: (peddler: Peddler) => void;
   getVendorTypeColor: (type: string) => string;
   animationSettings: any;
   preferReducedMotion: boolean | null | undefined;
@@ -44,7 +45,7 @@ export function ChatMessage({
   bubbleClassName,
   onViewAllVendors,
 }: ChatMessageProps) {
-  // Extract mentioned vendor types from the message
+  // Extract mentioned peddler types from the message
   const vendorTypes = [
     "bakso",
     "siomay",
@@ -60,9 +61,9 @@ export function ChatMessage({
     );
   });
 
-  // Get vendors that match the mentioned types
-  const relevantVendors = validVendors.filter((vendor) =>
-    mentionedTypes.includes(vendor.type.toLowerCase())
+  // Get peddlers that match the mentioned types
+  const relevantVendors = validVendors.filter((peddler) =>
+    mentionedTypes.includes(peddler.type.toLowerCase())
   );
 
   return (
@@ -102,7 +103,7 @@ export function ChatMessage({
         </div>
       </div>
 
-      {/* Show relevant vendors underneath the message if types are mentioned */}
+      {/* Show relevant peddlers underneath the message if types are mentioned */}
       {message.role === "assistant" &&
         mentionedTypes.length > 0 &&
         validVendors.length > 0 && (
@@ -115,7 +116,7 @@ export function ChatMessage({
               duration: preferReducedMotion ? 0.1 : 0.2,
             }}
           >
-            {/* Display vendors for mentioned types */}
+            {/* Display peddlers for mentioned types */}
             {mentionedTypes.map((type) => {
               const typeVendors = validVendors.filter(
                 (v) => v.type.toLowerCase() === type.toLowerCase()
@@ -124,27 +125,27 @@ export function ChatMessage({
               if (typeVendors.length === 0) return null;
 
               return (
-                <VendorSection
+                <PeddlerSection
                   key={type}
                   type={type}
-                  vendorsForType={typeVendors}
+                  peddlersForType={typeVendors}
                   activeDropdowns={activeDropdowns}
                   toggleDropdown={toggleDropdown}
-                  selectedVendorId={selectedVendorId}
-                  onVendorClick={onVendorClick}
-                  getVendorTypeColor={getVendorTypeColor}
+                  selectedPeddlerId={selectedVendorId}
+                  onPeddlerClick={onVendorClick}
+                  getPeddlerTypeColor={getVendorTypeColor}
                   animationSettings={animationSettings}
                   preferReducedMotion={preferReducedMotion}
-                  onViewAllVendors={onViewAllVendors}
+                  onViewAllPeddlers={onViewAllVendors}
                 />
               );
             })}
 
-            {/* View all vendors button */}
+            {/* View all peddlers button */}
             {validVendors.length > 0 && onViewAllVendors && (
-              <ViewAllVendorsButton
+              <ViewAllPeddlersButton
                 onClick={onViewAllVendors}
-                vendorCount={validVendors.length}
+                peddlerCount={validVendors.length}
               />
             )}
           </motion.div>

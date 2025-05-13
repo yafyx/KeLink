@@ -36,8 +36,8 @@ export async function POST(request: Request) {
             phoneNumber: phone,
         });
 
-        // Store additional vendor data in Firestore
-        await db.collection('vendors').doc(userRecord.uid).set({
+        // Store additional peddler data in Firestore
+        await db.collection('peddlers').doc(userRecord.uid).set({
             name,
             email,
             vendorType,
@@ -51,8 +51,8 @@ export async function POST(request: Request) {
         // Return success response (without sensitive info)
         return NextResponse.json(
             {
-                message: 'Vendor registered successfully',
-                vendor: {
+                message: 'Peddler registered successfully',
+                peddler: {
                     id: userRecord.uid,
                     name,
                     email,
@@ -62,10 +62,10 @@ export async function POST(request: Request) {
             { status: 201 }
         );
     } catch (error: any) {
-        console.error('Error registering vendor:', error);
+        console.error('Error registering peddler:', error);
 
         // Return appropriate error message
-        const errorMessage = error.message || 'Failed to register vendor';
+        const errorMessage = error.message || 'Failed to register peddler';
         const errorCode = error.code || 'unknown_error';
 
         return NextResponse.json(

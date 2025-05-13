@@ -1,6 +1,6 @@
 import { DataProtection } from '@/lib/data-protection';
+import { findNearbyPeddlers } from '@/lib/peddlers';
 import { RateLimiter } from '@/lib/rate-limiter';
-import { findNearbyVendors } from '@/lib/vendors';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
@@ -10,25 +10,25 @@ import NodeCache from 'node-cache';
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 // Initialize cache with a default TTL (e.g., 5 minutes)
-const vendorCache = new NodeCache({ stdTTL: 300, checkperiod: 120 });
+const peddlerCache = new NodeCache({ stdTTL: 300, checkperiod: 120 });
 
 // Type definitions for the query analysis
 interface QueryAnalysisResult {
-    isLookingForVendors: boolean;
-    vendorType: string;
+    isLookingForPeddlers: boolean;
+    peddlerType: string;
     keywords: string[];
     directResponse: string;
 }
 
 // Type definition for pagination and response
-interface VendorResponse {
-    vendors: any[];
+interface PeddlerResponse {
+    peddlers: any[];
     hasMore: boolean;
-    lastVendorId?: string;
+    lastPeddlerId?: string;
 }
 
-// Mock database of vendors for fallback when Firestore is not accessible
-const mockVendors: any[] = []; // Initialize as empty array as mock data is removed
+// Mock database of peddlers for fallback when Firestore is not accessible
+const mockPeddlers: any[] = []; // Initialize as empty array as mock data is removed
 
 // Helper functions for fallback mode
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -52,95 +52,95 @@ function formatDistance(distance: number): string {
     }
 }
 
-// Fallback function to find nearby vendors when Firestore is not accessible
-async function findNearbyVendorsFallback(
+// Fallback function to find nearby peddlers when Firestore is not accessible
+async function findNearbyPeddlersFallback(
     location: { lat: number; lon: number },
-    vendorType: string = '',
+    peddlerType: string = '',
     keywords: string[] = [],
     maxDistance: number = 5000,
     limit: number = 10,
-    lastVendorId?: string
-): Promise<VendorResponse> {
-    // Filter active vendors
-    let filteredVendors = mockVendors.filter(vendor => vendor.status === 'active');
+    lastPeddlerId?: string
+): Promise<PeddlerResponse> {
+    // Filter active peddlers
+    let filteredPeddlers = mockPeddlers.filter(peddler => peddler.status === 'active');
 
     // Filter by type if provided
-    if (vendorType && vendorType.trim() !== '') {
-        const lowerCaseType = vendorType.toLowerCase();
-        filteredVendors = filteredVendors.filter(
-            vendor => vendor.type.toLowerCase().includes(lowerCaseType)
+    if (peddlerType && peddlerType.trim() !== '') {
+        const lowerCaseType = peddlerType.toLowerCase();
+        filteredPeddlers = filteredPeddlers.filter(
+            peddler => peddler.type.toLowerCase().includes(lowerCaseType)
         );
     } else if (keywords && keywords.length > 0) {
-        // If no specific vendor type but keywords are provided
-        filteredVendors = filteredVendors.filter(vendor => {
-            const vendorText = `${vendor.name} ${vendor.type} ${vendor.description}`.toLowerCase();
+        // If no specific peddler type but keywords are provided
+        filteredPeddlers = filteredPeddlers.filter(peddler => {
+            const peddlerText = `${peddler.name} ${peddler.type} ${peddler.description}`.toLowerCase();
             return keywords.some(keyword =>
-                vendorText.includes(keyword.toLowerCase())
+                peddlerText.includes(keyword.toLowerCase())
             );
         });
     }
 
     // If no results with strict filtering, make a more lenient search
-    if (filteredVendors.length === 0) {
-        // Include all vendors for these common food terms
+    if (filteredPeddlers.length === 0) {
+        // Include all peddlers for these common food terms
         const commonFoodTerms = ['makanan', 'food', 'jual', 'pedagang', 'penjual', 'cari'];
         if (keywords.some(keyword => commonFoodTerms.includes(keyword.toLowerCase()))) {
-            filteredVendors = mockVendors.filter(vendor => vendor.status === 'active');
+            filteredPeddlers = mockPeddlers.filter(peddler => peddler.status === 'active');
         }
 
-        // For "bakso" specifically, match the bakso vendors
+        // For "bakso" specifically, match the bakso peddlers
         if (keywords.some(keyword => keyword.toLowerCase().includes('bakso'))) {
-            filteredVendors = mockVendors.filter(
-                vendor => vendor.type.toLowerCase().includes('bakso') && vendor.status === 'active'
+            filteredPeddlers = mockPeddlers.filter(
+                peddler => peddler.type.toLowerCase().includes('bakso') && peddler.status === 'active'
             );
         }
     }
 
-    // If still no results and query contains any common food keyword, return all active vendors
-    if (filteredVendors.length === 0) {
+    // If still no results and query contains any common food keyword, return all active peddlers
+    if (filteredPeddlers.length === 0) {
         const foodKeywords = ['makan', 'food', 'jajan', 'kuliner', 'lapar', 'laper'];
         if (keywords.some(keyword =>
             foodKeywords.some(food => keyword.toLowerCase().includes(food))
         )) {
-            filteredVendors = mockVendors.filter(vendor => vendor.status === 'active');
+            filteredPeddlers = mockPeddlers.filter(peddler => peddler.status === 'active');
         }
     }
 
     // Calculate distance and filter by max_distance
-    let vendorsWithDistance = filteredVendors
-        .map(vendor => {
+    let peddlersWithDistance = filteredPeddlers
+        .map(peddler => {
             const distance = calculateDistance(
                 location.lat,
                 location.lon,
-                vendor.location.lat,
-                vendor.location.lon
+                peddler.location.lat,
+                peddler.location.lon
             );
             return {
-                ...vendor,
+                ...peddler,
                 distance: formatDistance(distance),
                 raw_distance: distance
             };
         })
-        .filter(vendor => (vendor.raw_distance as number) <= maxDistance)
+        .filter(peddler => (peddler.raw_distance as number) <= maxDistance)
         .sort((a, b) => (a.raw_distance as number) - (b.raw_distance as number));
 
     // Handle pagination
-    if (lastVendorId) {
-        const lastVendorIndex = vendorsWithDistance.findIndex(v => v.id === lastVendorId);
-        if (lastVendorIndex !== -1) {
-            vendorsWithDistance = vendorsWithDistance.slice(lastVendorIndex + 1);
+    if (lastPeddlerId) {
+        const lastPeddlerIndex = peddlersWithDistance.findIndex(v => v.id === lastPeddlerId);
+        if (lastPeddlerIndex !== -1) {
+            peddlersWithDistance = peddlersWithDistance.slice(lastPeddlerIndex + 1);
         }
     }
 
-    const hasMore = vendorsWithDistance.length > limit;
-    const paginatedVendors = vendorsWithDistance.slice(0, limit);
-    const lastId = paginatedVendors.length > 0 ? paginatedVendors[paginatedVendors.length - 1].id : undefined;
+    const hasMore = peddlersWithDistance.length > limit;
+    const paginatedPeddlers = peddlersWithDistance.slice(0, limit);
+    const lastId = paginatedPeddlers.length > 0 ? paginatedPeddlers[paginatedPeddlers.length - 1].id : undefined;
 
-    // Return vendors without the raw_distance property
+    // Return peddlers without the raw_distance property
     return {
-        vendors: paginatedVendors.map(({ raw_distance, ...vendor }) => vendor),
+        peddlers: paginatedPeddlers.map(({ raw_distance, ...peddler }) => peddler),
         hasMore,
-        lastVendorId: lastId
+        lastPeddlerId: lastId
     };
 }
 
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        const { message, location, lastVendorId, limit = 10 } = await request.json();
+        const { message, location, lastPeddlerId, limit = 10 } = await request.json();
 
         if (!message || !message.trim()) {
             return NextResponse.json(
@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
             }
         })();
 
-        // Use Gemini AI to determine if the query is looking for vendors
+        // Use Gemini AI to determine if the query is looking for peddlers
         const result = await analyzeUserQuery(message);
 
         // Store the user query for analytics, respecting consent
@@ -219,86 +219,86 @@ export async function POST(request: NextRequest) {
             await dataProtection.storeUserQuery(message, locationToStore, hasConsent);
         }
 
-        // If the query is not looking for vendors, respond with a direct message
-        if (!result.isLookingForVendors) {
+        // If the query is not looking for peddlers, respond with a direct message
+        if (!result.isLookingForPeddlers) {
             return NextResponse.json({
                 response: {
                     text: result.directResponse,
-                    vendors: [], // No vendors to return
+                    peddlers: [], // No peddlers to return
                     hasMore: false
                 }
             }, { headers: rateLimitHeaders });
         }
 
-        // If we get here, the user is looking for vendors
+        // If we get here, the user is looking for peddlers
         // Generate a cache key based on the search parameters
-        const cacheKey = `vendors_${normalizedLocation.lat.toFixed(4)}_${normalizedLocation.lon.toFixed(4)}_${result.vendorType}_${result.keywords.join('-')}_${lastVendorId || 'first'}`;
+        const cacheKey = `peddlers_${normalizedLocation.lat.toFixed(4)}_${normalizedLocation.lon.toFixed(4)}_${result.peddlerType}_${result.keywords.join('-')}_${lastPeddlerId || 'first'}`;
 
         // Check if we have cached results
-        const cachedResults = vendorCache.get<VendorResponse>(cacheKey);
+        const cachedResults = peddlerCache.get<PeddlerResponse>(cacheKey);
         if (cachedResults) {
             return NextResponse.json({
                 response: {
-                    text: `Here are some ${result.vendorType || 'food'} vendors near you:`,
-                    vendors: cachedResults.vendors,
+                    text: `Here are some ${result.peddlerType || 'food'} peddlers near you:`,
+                    peddlers: cachedResults.peddlers,
                     hasMore: cachedResults.hasMore,
-                    lastVendorId: cachedResults.lastVendorId
+                    lastPeddlerId: cachedResults.lastPeddlerId
                 }
             }, { headers: rateLimitHeaders });
         }
 
-        // No cached results, search for vendors
+        // No cached results, search for peddlers
         try {
-            // Search for nearby vendors
-            const { vendors, hasMore } = await findNearbyVendors({
+            // Search for nearby peddlers
+            const { peddlers, hasMore } = await findNearbyPeddlers({
                 userLocation: normalizedLocation,
-                vendorType: result.vendorType,
+                peddlerType: result.peddlerType,
                 keywords: result.keywords,
                 maxDistance: 5000, // 5km
                 limit: parseInt(limit.toString(), 10),
-                lastVendorId: lastVendorId
+                lastPeddlerId: lastPeddlerId
             });
 
-            const lastId = vendors.length > 0 ? vendors[vendors.length - 1].id : undefined;
+            const lastId = peddlers.length > 0 ? peddlers[peddlers.length - 1].id : undefined;
 
             // Cache the results
-            vendorCache.set(cacheKey, { vendors, hasMore, lastVendorId: lastId });
+            peddlerCache.set(cacheKey, { peddlers, hasMore, lastPeddlerId: lastId });
 
             // Determine the response text based on the search results
             let responseText;
-            if (vendors.length === 0) {
-                responseText = `I couldn't find any ${result.vendorType || 'food'} vendors near your location. Please try a different search or check back later.`;
+            if (peddlers.length === 0) {
+                responseText = `I couldn't find any ${result.peddlerType || 'food'} peddlers near your location. Please try a different search or check back later.`;
             } else {
-                responseText = `Here are some ${result.vendorType || 'food'} vendors near you:`;
+                responseText = `Here are some ${result.peddlerType || 'food'} peddlers near you:`;
             }
 
             return NextResponse.json({
                 response: {
                     text: responseText,
-                    vendors: vendors,
+                    peddlers: peddlers,
                     hasMore: hasMore,
-                    lastVendorId: lastId
+                    lastPeddlerId: lastId
                 }
             }, { headers: rateLimitHeaders });
         } catch (error) {
-            console.error("Error finding vendors:", error);
+            console.error("Error finding peddlers:", error);
 
             // Fallback to mock data if Firestore search fails
-            const fallbackResults = await findNearbyVendorsFallback(
+            const fallbackResults = await findNearbyPeddlersFallback(
                 normalizedLocation,
-                result.vendorType,
+                result.peddlerType,
                 result.keywords,
                 5000,
                 parseInt(limit.toString(), 10),
-                lastVendorId
+                lastPeddlerId
             );
 
             return NextResponse.json({
                 response: {
-                    text: `Here are some ${result.vendorType || 'food'} vendors near you (fallback data):`,
-                    vendors: fallbackResults.vendors,
+                    text: `Here are some ${result.peddlerType || 'food'} peddlers near you (fallback data):`,
+                    peddlers: fallbackResults.peddlers,
                     hasMore: fallbackResults.hasMore,
-                    lastVendorId: fallbackResults.lastVendorId
+                    lastPeddlerId: fallbackResults.lastPeddlerId
                 }
             }, { headers: rateLimitHeaders });
         }
@@ -319,19 +319,19 @@ async function analyzeUserQuery(query: string): Promise<QueryAnalysisResult> {
     try {
         // Define the prompt for Gemini
         const prompt = `
-        Analyze the following user query to find street vendors:
+        Analyze the following user query to find street peddlers:
         "${query}"
         
         Provide a response in JSON format with the following structure:
         {
-          "isLookingForVendors": boolean, // whether the user is looking for street vendors
-          "vendorType": string, // type of vendor being sought (e.g. "bakso", "siomay", etc.) or empty if not specific
+          "isLookingForPeddlers": boolean, // whether the user is looking for street peddlers
+          "peddlerType": string, // type of peddler being sought (e.g. "bakso", "siomay", etc.) or empty if not specific
           "keywords": string[], // important keywords from the query
-          "directResponse": string // direct response if not looking for vendors
+          "directResponse": string // direct response if not looking for peddlers
         }
         
         Examples of Indonesian street food types: bakso, siomay, batagor, es kelapa, es cincau, martabak, etc.
-        If the user is not looking for vendors, provide a natural response in English.
+        If the user is not looking for peddlers, provide a natural response in English.
         `;
 
         // Get the generative model
@@ -348,8 +348,8 @@ async function analyzeUserQuery(query: string): Promise<QueryAnalysisResult> {
             if (jsonMatch) {
                 const parsedResult = JSON.parse(jsonMatch[0]) as Partial<QueryAnalysisResult>;
                 return {
-                    isLookingForVendors: parsedResult.isLookingForVendors || false,
-                    vendorType: parsedResult.vendorType || '',
+                    isLookingForPeddlers: parsedResult.isLookingForPeddlers || false,
+                    peddlerType: parsedResult.peddlerType || '',
                     keywords: parsedResult.keywords || [],
                     directResponse: parsedResult.directResponse || 'Sorry, I don\'t understand what you mean. Could you please explain what you are looking for?'
                 };
@@ -360,17 +360,17 @@ async function analyzeUserQuery(query: string): Promise<QueryAnalysisResult> {
 
         // Fallback response if parsing fails
         return {
-            isLookingForVendors: false,
-            vendorType: '',
+            isLookingForPeddlers: false,
+            peddlerType: '',
             keywords: [],
             directResponse: 'Sorry, I can\'t process your request at this time. Could you try rephrasing it?'
         };
     } catch (error) {
         console.error('Error analyzing user query:', error);
-        // Fallback to assume they are looking for vendors with the query as keyword
+        // Fallback to assume they are looking for peddlers with the query as keyword
         return {
-            isLookingForVendors: true,
-            vendorType: '',
+            isLookingForPeddlers: true,
+            peddlerType: '',
             keywords: [query],
             directResponse: ''
         };

@@ -34,7 +34,7 @@ try {
 
 const db = admin.firestore();
 
-// --- Vendor Data and Seeding Function ---
+// --- Peddler Data and Seeding Function ---
 
 const sampleVendors = [
   {
@@ -87,7 +87,7 @@ const sampleVendors = [
 ];
 
 async function seedVendors() {
-  const vendorsCollection = db.collection("vendors");
+  const vendorsCollection = db.collection("peddlers");
   let count = 0;
   for (const vendorData of sampleVendors) {
     try {
@@ -114,10 +114,10 @@ async function seedVendors() {
       });
       count++;
     } catch (error) {
-      console.error(`Error seeding vendor ${vendorData.name}:`, error);
+      console.error(`Error seeding peddler ${vendorData.name}:`, error);
     }
   }
-  console.log(`Successfully seeded ${count} vendors.`);
+  console.log(`Successfully seeded ${count} peddlers.`);
 }
 
 // --- User (Customer) Data and Seeding Function ---

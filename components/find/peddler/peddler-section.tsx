@@ -1,50 +1,50 @@
 "use client";
 
-import { VendorCard } from "./vendor-card";
-import type { Vendor } from "./floating-chat";
+import { PeddlerCard } from "./peddler-card";
+import type { Peddler } from "@/lib/peddlers";
 import { ChevronUp, ChevronDown, MapIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-interface VendorSectionProps {
+interface PeddlerSectionProps {
   type: string;
-  vendorsForType: Vendor[];
+  peddlersForType: Peddler[];
   activeDropdowns: string[];
   toggleDropdown: (type: string) => void;
-  selectedVendorId?: string;
-  onVendorClick?: (vendor: Vendor) => void;
-  getVendorTypeColor: (type: string) => string;
+  selectedPeddlerId?: string;
+  onPeddlerClick?: (peddler: Peddler) => void;
+  getPeddlerTypeColor: (type: string) => string;
   animationSettings: any;
   preferReducedMotion: boolean | null | undefined;
-  onViewAllVendors?: () => void;
+  onViewAllPeddlers?: () => void;
 }
 
-export function VendorSection({
+export function PeddlerSection({
   type,
-  vendorsForType,
+  peddlersForType,
   activeDropdowns,
   toggleDropdown,
-  selectedVendorId,
-  onVendorClick,
-  getVendorTypeColor,
+  selectedPeddlerId,
+  onPeddlerClick,
+  getPeddlerTypeColor,
   animationSettings,
   preferReducedMotion,
-  onViewAllVendors,
-}: VendorSectionProps) {
+  onViewAllPeddlers,
+}: PeddlerSectionProps) {
   const displayType = type.replace("_", " ");
   const isDropdownOpen = activeDropdowns.includes(type);
-  const colorClass = getVendorTypeColor(type);
+  const colorClass = getPeddlerTypeColor(type);
 
-  // Calculate max vendors to show (show at most 3 vendors in the dropdown)
-  const maxVendorsToShow = 3;
-  const hasMoreVendors = vendorsForType.length > maxVendorsToShow;
-  const vendorsToDisplay = hasMoreVendors
-    ? vendorsForType.slice(0, maxVendorsToShow)
-    : vendorsForType;
+  // Calculate max peddlers to show (show at most 3 peddlers in the dropdown)
+  const maxPeddlersToShow = 3;
+  const hasMorePeddlers = peddlersForType.length > maxPeddlersToShow;
+  const peddlersToDisplay = hasMorePeddlers
+    ? peddlersForType.slice(0, maxPeddlersToShow)
+    : peddlersForType;
 
   return (
-    <div className="vendor-section border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+    <div className="peddler-section border border-gray-100 rounded-xl overflow-hidden shadow-sm">
       <div
         className={cn(
           "flex items-center justify-between p-3 cursor-pointer text-xs hover:bg-gray-50 transition-all",
@@ -75,13 +75,13 @@ export function VendorSection({
           </div>
           <div>
             <span className="font-medium capitalize">
-              {displayType} Vendors
+              {displayType} Peddlers
             </span>
             <Badge
               variant="secondary"
               className="ml-2 text-[10px] px-1.5 py-0 h-4"
             >
-              {vendorsForType.length}
+              {peddlersForType.length}
             </Badge>
           </div>
         </div>
@@ -103,39 +103,39 @@ export function VendorSection({
             }
             className="space-y-2 p-3 overflow-hidden bg-white"
           >
-            {vendorsForType.length > 0 ? (
+            {peddlersForType.length > 0 ? (
               <>
                 <div className="space-y-2">
-                  {vendorsToDisplay.map((vendor) => (
-                    <VendorCard
-                      key={vendor.id}
-                      vendor={vendor}
-                      selectedVendorId={selectedVendorId}
-                      onVendorClick={onVendorClick}
-                      getVendorTypeColor={getVendorTypeColor}
+                  {peddlersToDisplay.map((peddler) => (
+                    <PeddlerCard
+                      key={peddler.id}
+                      peddler={peddler}
+                      selectedPeddlerId={selectedPeddlerId}
+                      onPeddlerClick={onPeddlerClick}
+                      getPeddlerTypeColor={getPeddlerTypeColor}
                       animationSettings={animationSettings}
                       preferReducedMotion={preferReducedMotion}
                     />
                   ))}
                 </div>
 
-                {hasMoreVendors && (
+                {hasMorePeddlers && (
                   <div
                     className="text-center text-xs text-blue-600 mt-2 py-1.5 cursor-pointer hover:underline"
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (onViewAllVendors) {
-                        onViewAllVendors();
+                      if (onViewAllPeddlers) {
+                        onViewAllPeddlers();
                       }
                     }}
                   >
-                    View {vendorsForType.length - maxVendorsToShow} more...
+                    View {peddlersForType.length - maxPeddlersToShow} more...
                   </div>
                 )}
               </>
             ) : (
               <div className="text-center text-xs text-gray-500 py-2">
-                No nearby {displayType} vendors at this time
+                No nearby {displayType} peddlers at this time
               </div>
             )}
           </motion.div>

@@ -32,6 +32,9 @@ export default function Home() {
   const [selectedVendorId, setSelectedVendorId] = useState<
     string | undefined
   >();
+  const [selectedPeddlerId, setSelectedPeddlerId] = useState<
+    string | undefined
+  >();
 
   useEffect(() => {
     if (location) {
@@ -52,7 +55,7 @@ export default function Home() {
     if (permissionState !== "granted") {
       const granted = await requestPermission();
       if (!granted) {
-        alert("Please enable location services to get nearby vendors");
+        alert("Please enable location services to get nearby peddlers");
       }
     }
   };
@@ -112,7 +115,7 @@ export default function Home() {
             disabled={isLoading}
           >
             <MessageCircle className="h-4 w-4 mr-2" />
-            Ask for vendors nearby
+            Ask for peddlers nearby
             <ArrowRight className="h-3 w-3 ml-auto" />
           </Button>
         </motion.div>
@@ -154,7 +157,7 @@ export default function Home() {
                           Nearby
                         </h3>
                         <p className="text-xs text-blue-600/80">
-                          Vendors closest to you
+                          Peddlers closest to you
                         </p>
                       </div>
                     </div>
@@ -176,7 +179,7 @@ export default function Home() {
                           Trending
                         </h3>
                         <p className="text-xs text-amber-600/80">
-                          Most popular vendors
+                          Most popular peddlers
                         </p>
                       </div>
                     </div>
@@ -187,7 +190,7 @@ export default function Home() {
           </div>
         </motion.div>
 
-        {/* Nearby Vendors */}
+        {/* Nearby Peddlers */}
         <motion.div
           className="pt-1"
           initial={{ y: 10, opacity: 0 }}
@@ -196,7 +199,7 @@ export default function Home() {
         >
           <div className="flex items-center justify-between mb-3 px-1">
             <h2 className="text-base font-semibold font-jakarta">
-              Mobile Vendors Nearby
+              Mobile Peddlers Nearby
             </h2>
             <Link href="/find" className="text-primary text-sm font-medium">
               View All
@@ -207,12 +210,15 @@ export default function Home() {
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               <Card className="border border-gray-100 shadow-sm overflow-hidden rounded-xl">
                 <CardContent className="p-0">
-                  <Link href="/find?vendor=siomay-mang-ujang" className="block">
+                  <Link
+                    href="/find?peddler=siomay-mang-ujang"
+                    className="block"
+                  >
                     <div className="flex">
                       <div className="relative w-24 h-24">
                         <Image
                           src="/placeholder.jpg"
-                          alt="Siomay Mang Ujang Vendor"
+                          alt="Siomay Mang Ujang Peddler"
                           fill
                           className="object-cover"
                         />
@@ -256,12 +262,15 @@ export default function Home() {
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               <Card className="border border-gray-100 shadow-sm overflow-hidden rounded-xl">
                 <CardContent className="p-0">
-                  <Link href="/find?vendor=es-cendol-bu-tini" className="block">
+                  <Link
+                    href="/find?peddler=es-cendol-bu-tini"
+                    className="block"
+                  >
                     <div className="flex">
                       <div className="relative w-24 h-24">
                         <Image
                           src="/placeholder.jpg"
-                          alt="Es Cendol Bu Tini Vendor"
+                          alt="Es Cendol Bu Tini Peddler"
                           fill
                           className="object-cover"
                         />
@@ -330,7 +339,7 @@ export default function Home() {
                         AI Chatbot
                       </h3>
                       <p className="text-xs text-muted-foreground">
-                        Ask naturally to find vendors nearby
+                        Ask naturally to find peddlers nearby
                       </p>
                     </div>
                   </CardContent>
@@ -350,7 +359,7 @@ export default function Home() {
                         Live Tracking
                       </h3>
                       <p className="text-xs text-muted-foreground">
-                        Find mobile vendors in real-time
+                        Find mobile peddlers in real-time
                       </p>
                     </div>
                   </CardContent>
@@ -375,18 +384,18 @@ export default function Home() {
                   </div>
                   <div>
                     <h3 className="font-medium text-base mb-1 font-jakarta">
-                      Are you a mobile vendor?
+                      Are you a mobile peddler?
                     </h3>
                     <p className="text-xs text-muted-foreground mb-3">
                       Join our platform and get AI-powered route advice
                     </p>
                     <div className="flex gap-2">
-                      <Link href="/vendor/register">
+                      <Link href="/peddler/register">
                         <Button size="sm" className="rounded-full px-4">
                           Register
                         </Button>
                       </Link>
-                      <Link href="/vendor/login">
+                      <Link href="/peddler/login">
                         <Button
                           size="sm"
                           variant="outline"

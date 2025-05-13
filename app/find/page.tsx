@@ -2,31 +2,15 @@
 
 import { useState, useRef, useEffect } from "react";
 import {
-  Send,
-  MapPin,
   ArrowLeft,
   Compass,
-  Search,
   AlertCircle,
   Navigation,
-  MessageSquare,
-  Target,
   LocateFixed,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { MobileHeader } from "@/components/ui/mobile-header";
 import { AppLayout } from "@/components/AppLayout";
 import { GoogleMapComponent } from "@/components/google-map";
@@ -34,33 +18,16 @@ import { FloatingChat } from "@/components/find/floating-chat";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGeolocation } from "@/hooks/use-geolocation";
 import { PermissionRequest } from "@/components/find/permission-request";
-import {
-  RouteDetails,
-  calculateEstimatedArrival,
-  calculateRoute,
-} from "@/lib/route-mapper";
+import { RouteDetails, calculateRoute } from "@/lib/route-mapper";
 import {
   useFunctionChat,
   Message as ChatMessage,
 } from "@/hooks/use-function-chat";
 import { availableFunctions } from "@/lib/function-calling/functions";
-
-type Vendor = {
-  id: string;
-  name: string;
-  type: string;
-  description?: string;
-  distance?: string;
-  status: "active" | "inactive";
-  last_active: string;
-  location: {
-    lat: number;
-    lng: number;
-  };
-};
+import type { Peddler } from "@/lib/peddlers";
 
 // Sample data for testing when API is unavailable
-// const SAMPLE_VENDORS: Vendor[] = [
+// const SAMPLE_VENDORS: Peddler[] = [
 //   {
 //     id: "1",
 //     name: "Bakso Pak Joko",
@@ -102,6 +69,16 @@ type Vendor = {
 //   },
 // ];
 
+// Add helper type and function
+
+type MapVendor = Omit<Peddler, "location"> & {
+  location: { lat: number; lng: number; lon: number };
+};
+const toMapVendor = (p: Peddler): MapVendor => ({
+  ...p,
+  location: { lat: p.location.lat, lng: p.location.lon, lon: p.location.lon },
+});
+
 export default function FindPage() {
   // Initialize with a welcome message
   const initialMessages: ChatMessage[] = [
@@ -109,12 +86,12 @@ export default function FindPage() {
       id: "1",
       role: "assistant",
       content:
-        "Hello! I can help you find nearby street vendors. What are you looking for today?",
+        "Hello! I can help you find nearby street peddlers. What are you looking for today?",
     },
   ];
 
   // State for the component
-  const [foundVendors, setFoundVendors] = useState<Vendor[]>([]);
+  const [foundVendors, setFoundVendors] = useState<Peddler[]>([]);
   const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showPermissionRequest, setShowPermissionRequest] = useState(false);
@@ -137,39 +114,16 @@ export default function FindPage() {
     requestPermission,
   } = useGeolocation(defaultLocation);
 
-  // Handler for vendors found via function call
-  const handleVendorsFound = (vendors: Vendor[]) => {
-    // Process vendors if they have proper location data
-    const processedVendors = vendors
-      .map((vendor) => {
-        // Create a deep copy to avoid mutating the original
-        const vendorCopy = { ...vendor };
-
-        // Ensure vendor has a valid location object structure
-        if (!vendorCopy.location || typeof vendorCopy.location !== "object") {
-          // If no location object, mark it as invalid by setting location to null
-          vendorCopy.location = null as any; // Or some other indicator
-        } else {
-          // Convert from API format (lon) to frontend format (lng) if needed
-          // And ensure lat/lng are numbers
-          const lat = vendorCopy.location.lat;
-          const lng =
-            (vendorCopy.location as any).lon ?? vendorCopy.location.lng;
-
-          if (typeof lat === "number" && typeof lng === "number") {
-            vendorCopy.location = { lat, lng };
-          } else {
-            // If lat/lng are not valid numbers, mark location as invalid
-            vendorCopy.location = null as any;
-          }
-        }
-        return vendorCopy;
-      })
-      .filter(
-        (vendor) => vendor.location !== null && vendor.location !== undefined
-      );
-
-    setFoundVendors(processedVendors as Vendor[]);
+  // Handler for peddlers found via function call
+  const handleVendorsFound = (peddlers: Peddler[]) => {
+    setFoundVendors(
+      peddlers.filter(
+        (v) =>
+          v.location &&
+          typeof v.location.lat === "number" &&
+          typeof v.location.lon === "number"
+      )
+    );
   };
 
   // Handler for route details found via function call
@@ -212,14 +166,14 @@ export default function FindPage() {
     setIsExpanded((prev) => !prev);
   };
 
-  // Auto-expand chat when vendors are found
+  // Auto-expand chat when peddlers are found
   useEffect(() => {
     if (foundVendors.length > 0) {
       setIsExpanded(true);
     }
   }, [foundVendors, setIsExpanded]);
 
-  // Auto-expand chat when a vendor is selected
+  // Auto-expand chat when a peddler is selected
   useEffect(() => {
     if (selectedVendorId) {
       setIsExpanded(true);
@@ -288,14 +242,12 @@ export default function FindPage() {
     }
   };
 
-  const handleVendorClick = (vendor: Vendor) => {
-    // If selecting a different vendor, clear the route
-    if (selectedVendorId !== vendor.id) {
+  const handleVendorClick = (peddler: MapVendor) => {
+    if (selectedVendorId !== peddler.id) {
       setShowRouteToVendor(false);
       setRouteDetails(null);
     }
-
-    setSelectedVendorId(vendor.id);
+    setSelectedVendorId(peddler.id);
   };
 
   const HeaderComponent = (
@@ -338,7 +290,7 @@ export default function FindPage() {
     const newState = !showRouteToVendor;
     setShowRouteToVendor(newState);
 
-    // If enabling route and we have both user location and selected vendor
+    // If enabling route and we have both user location and selected peddler
     if (newState && selectedVendorId && userLocation) {
       setIsLoadingRoute(true);
 
@@ -350,7 +302,10 @@ export default function FindPage() {
           // Calculate the route
           const route = await calculateRoute(
             userLocation,
-            selectedVendor.location,
+            {
+              lat: selectedVendor.location!.lat,
+              lng: selectedVendor.location!.lon,
+            },
             "WALKING"
           );
 
@@ -365,7 +320,7 @@ export default function FindPage() {
           console.error("Error calculating route:", error);
           setIsLoadingRoute(false);
           sendMessage(
-            "Gagal menghitung rute ke vendor yang dipilih. Coba lagi nanti."
+            "Gagal menghitung rute ke peddler yang dipilih. Coba lagi nanti."
           );
         }
       }
@@ -387,6 +342,9 @@ export default function FindPage() {
     }
   }, [messages]);
 
+  // Add before render:
+  const foundVendorsForMap: MapVendor[] = foundVendors.map(toMapVendor);
+
   return (
     <AppLayout header={HeaderComponent}>
       <div className="flex flex-col h-full relative" ref={mapContainerRef}>
@@ -394,8 +352,8 @@ export default function FindPage() {
         <div className="absolute inset-0 w-full h-full z-0">
           <GoogleMapComponent
             userLocation={userLocation}
-            vendors={foundVendors}
-            onVendorClick={handleVendorClick}
+            peddlers={foundVendorsForMap}
+            onVendorClick={handleVendorClick as any}
             selectedVendorId={selectedVendorId || undefined}
             showRoute={showRouteToVendor}
           />
@@ -428,7 +386,7 @@ export default function FindPage() {
           </Button>
         </motion.div>
 
-        {/* Route Toggle Button - Show only when a vendor is selected */}
+        {/* Route Toggle Button - Show only when a peddler is selected */}
         {selectedVendorId && (
           <motion.div
             className={cn("absolute top-4 z-10 right-16")}
@@ -492,9 +450,9 @@ export default function FindPage() {
               messages={messages}
               isLoading={isProcessing}
               onSendMessage={sendMessage}
-              vendors={foundVendors}
+              peddlers={foundVendorsForMap}
               selectedVendorId={selectedVendorId || undefined}
-              onVendorClick={handleVendorClick}
+              onVendorClick={handleVendorClick as any}
               isExpanded={isExpanded}
               onToggleExpanded={handleToggleChatExpansion}
               className={cn(

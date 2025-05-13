@@ -31,8 +31,8 @@ export function FeatureBanner({
   const features = [
     {
       id: "discover",
-      title: "Find Nearby Vendors",
-      description: "Discover street food vendors in your neighborhood",
+      title: "Find Nearby Peddlers",
+      description: "Discover street food peddlers in your neighborhood",
       icon: MapPin,
       color: "#3B82F6", // blue
       bgGradient: "from-blue-400/80 to-blue-600/80",
@@ -48,7 +48,7 @@ export function FeatureBanner({
     {
       id: "track",
       title: "Live Tracking",
-      description: "See vendors' real-time location",
+      description: "See peddlers' real-time location",
       icon: Navigation,
       color: "#F43F5E", // rose
       bgGradient: "from-rose-400/80 to-rose-600/80",
@@ -56,7 +56,7 @@ export function FeatureBanner({
     {
       id: "popular",
       title: "Popular Choices",
-      description: "Discover trending vendors with high ratings",
+      description: "Discover trending peddlers with high ratings",
       icon: Star,
       color: "#F59E0B", // amber
       bgGradient: "from-amber-400/80 to-amber-600/80",
@@ -64,7 +64,7 @@ export function FeatureBanner({
     {
       id: "time",
       title: "Real-time Updates",
-      description: "See when vendors were last active",
+      description: "See when peddlers were last active",
       icon: Clock,
       color: "#8B5CF6", // violet
       bgGradient: "from-violet-400/80 to-violet-600/80",

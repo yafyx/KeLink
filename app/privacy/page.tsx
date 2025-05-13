@@ -53,7 +53,7 @@ export default function PrivacyPolicyPage() {
           </p>
           <ul className="list-disc pl-6 mb-4">
             <li>Precise geolocation data when using the Find feature</li>
-            <li>Vendor location data for registered vendors</li>
+            <li>Peddler location data for registered peddlers</li>
           </ul>
           <p>
             You can disable location services through your device settings, but
@@ -71,7 +71,7 @@ export default function PrivacyPolicyPage() {
             <li>Process transactions</li>
             <li>Send service-related communications</li>
             <li>Respond to inquiries and offer support</li>
-            <li>Connect users with nearby vendors</li>
+            <li>Connect users with nearby peddlers</li>
             <li>Monitor and analyze usage patterns</li>
             <li>Enforce our terms, conditions, and policies</li>
           </ul>
@@ -98,7 +98,7 @@ export default function PrivacyPolicyPage() {
           <ul className="list-disc pl-6 mb-4">
             <li>Service providers who perform services on our behalf</li>
             <li>
-              Vendors, when you use our Find feature (limited to necessary
+              Peddlers, when you use our Find feature (limited to necessary
               information)
             </li>
             <li>Legal authorities when required by law</li>

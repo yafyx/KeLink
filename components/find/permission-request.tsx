@@ -54,9 +54,9 @@ export function PermissionRequest({
             <CardContent className="space-y-4">
               <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4 text-sm text-red-700 dark:text-red-300">
                 <p>
-                  KeLink uses your location to find vendors near you. Without
-                  location access, we can only show sample results or vendors in
-                  default areas.
+                  KeLink uses your location to find peddlers near you. Without
+                  location access, we can only show sample results or peddlers
+                  in default areas.
                 </p>
               </div>
               <div className="space-y-2">
@@ -91,14 +91,14 @@ export function PermissionRequest({
                 Location Access Granted
               </CardTitle>
               <CardDescription>
-                Your location is being used to find nearby vendors
+                Your location is being used to find nearby peddlers
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="rounded-lg bg-green-50 dark:bg-green-900/20 p-4 text-sm text-green-700 dark:text-green-300">
                 <p>
                   Thank you for allowing location access. We can now provide
-                  accurate information about vendors in your area.
+                  accurate information about peddlers in your area.
                 </p>
               </div>
             </CardContent>
@@ -123,15 +123,15 @@ export function PermissionRequest({
                 Location Access Needed
               </CardTitle>
               <CardDescription>
-                KeLink uses your location to find vendors near you
+                KeLink uses your location to find peddlers near you
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-4 text-sm text-blue-700 dark:text-blue-300">
                 <p>
                   To show relevant results, we need to know where you are. Your
-                  location is only used to find vendors nearby and is not stored
-                  permanently.
+                  location is only used to find peddlers nearby and is not
+                  stored permanently.
                 </p>
               </div>
               <div className="space-y-2">

@@ -1,9 +1,9 @@
 import { DocumentData, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { db } from './firebase-admin';
 
-export interface VendorReview {
+export interface PeddlerReview {
     id: string;
-    vendorId: string;
+    peddlerId: string;
     userId: string; // Anonymous ID for non-logged in users
     rating: number; // 1-5 star rating
     comment: string;
@@ -12,9 +12,9 @@ export interface VendorReview {
 }
 
 /**
- * Add a review for a vendor
+ * Add a review for a peddler
  */
-export async function addReview(review: Omit<VendorReview, 'id' | 'createdAt'>): Promise<VendorReview> {
+export async function addReview(review: Omit<PeddlerReview, 'id' | 'createdAt'>): Promise<PeddlerReview> {
     try {
         // Create a new review object with timestamp
         const newReview = {
@@ -25,13 +25,13 @@ export async function addReview(review: Omit<VendorReview, 'id' | 'createdAt'>):
         // Add to the reviews collection
         const reviewRef = await db.collection('reviews').add(newReview);
 
-        // Get the vendor to update their average rating
-        const vendorRef = db.collection('vendors').doc(review.vendorId);
-        const vendorDoc = await vendorRef.get();
+        // Get the peddler to update their average rating
+        const peddlerRef = db.collection('peddlers').doc(review.peddlerId);
+        const peddlerDoc = await peddlerRef.get();
 
-        if (vendorDoc.exists) {
-            // Update the vendor's rating
-            await updateVendorRating(review.vendorId);
+        if (peddlerDoc.exists) {
+            // Update the peddler's rating
+            await updatePeddlerRating(review.peddlerId);
         }
 
         // Return the created review with the ID
@@ -46,16 +46,16 @@ export async function addReview(review: Omit<VendorReview, 'id' | 'createdAt'>):
 }
 
 /**
- * Get reviews for a vendor with pagination
+ * Get reviews for a peddler with pagination
  */
-export async function getVendorReviews(
-    vendorId: string,
+export async function getPeddlerReviews(
+    peddlerId: string,
     limit: number = 10,
     lastReviewId?: string
-): Promise<{ reviews: VendorReview[]; hasMore: boolean }> {
+): Promise<{ reviews: PeddlerReview[]; hasMore: boolean }> {
     try {
         // Start with base query
-        let query: any = db.collection('reviews').where('vendorId', '==', vendorId);
+        let query: any = db.collection('reviews').where('peddlerId', '==', peddlerId);
         query = query.orderBy('createdAt', 'desc');
 
         // Add pagination if lastReviewId provided
@@ -76,23 +76,23 @@ export async function getVendorReviews(
         const reviews = snapshot.docs.slice(0, limit).map((doc: QueryDocumentSnapshot<DocumentData>) => ({
             id: doc.id,
             ...doc.data(),
-        })) as VendorReview[];
+        })) as PeddlerReview[];
 
         return { reviews, hasMore };
     } catch (error) {
-        console.error('Error getting vendor reviews:', error);
+        console.error('Error getting peddler reviews:', error);
         throw error;
     }
 }
 
 /**
- * Update a vendor's average rating based on their reviews
+ * Update a peddler's average rating based on their reviews
  */
-export async function updateVendorRating(vendorId: string): Promise<number> {
+export async function updatePeddlerRating(peddlerId: string): Promise<number> {
     try {
-        // Get all reviews for this vendor
+        // Get all reviews for this peddler
         const reviewsSnapshot = await (db.collection('reviews') as any)
-            .where('vendorId', '==', vendorId)
+            .where('peddlerId', '==', peddlerId)
             .get();
 
         if (reviewsSnapshot.empty) {
@@ -113,27 +113,27 @@ export async function updateVendorRating(vendorId: string): Promise<number> {
 
         const averageRating = count > 0 ? parseFloat((totalRating / count).toFixed(1)) : 0;
 
-        // Update vendor document with new rating
-        await db.collection('vendors').doc(vendorId).update({
+        // Update peddler document with new rating
+        await db.collection('peddlers').doc(peddlerId).update({
             rating: averageRating,
             reviewCount: count
         });
 
         return averageRating;
     } catch (error) {
-        console.error('Error updating vendor rating:', error);
+        console.error('Error updating peddler rating:', error);
         throw error;
     }
 }
 
 /**
- * Check if a user has already reviewed a vendor
+ * Check if a user has already reviewed a peddler
  */
-export async function hasUserReviewed(userId: string, vendorId: string): Promise<boolean> {
+export async function hasUserReviewed(userId: string, peddlerId: string): Promise<boolean> {
     try {
         const snapshot = await (db.collection('reviews') as any)
             .where('userId', '==', userId)
-            .where('vendorId', '==', vendorId)
+            .where('peddlerId', '==', peddlerId)
             .limit(1)
             .get();
 
@@ -149,10 +149,10 @@ export async function hasUserReviewed(userId: string, vendorId: string): Promise
  */
 export async function updateReview(
     reviewId: string,
-    updates: Partial<Omit<VendorReview, 'id' | 'userId' | 'vendorId' | 'createdAt'>>
+    updates: Partial<Omit<PeddlerReview, 'id' | 'userId' | 'peddlerId' | 'createdAt'>>
 ): Promise<void> {
     try {
-        // Get the current review to ensure it exists and to get the vendorId
+        // Get the current review to ensure it exists and to get the peddlerId
         const reviewDoc = await db.collection('reviews').doc(reviewId).get();
 
         if (!reviewDoc.exists) {
@@ -168,11 +168,11 @@ export async function updateReview(
         // Update the review
         await db.collection('reviews').doc(reviewId).update(updatedReview);
 
-        // Update the vendor's average rating if the rating changed
+        // Update the peddler's average rating if the rating changed
         if (updates.rating) {
-            const vendorId = reviewDoc.data()?.vendorId;
-            if (vendorId) {
-                await updateVendorRating(vendorId);
+            const peddlerId = reviewDoc.data()?.peddlerId;
+            if (peddlerId) {
+                await updatePeddlerRating(peddlerId);
             }
         }
     } catch (error) {
@@ -186,21 +186,21 @@ export async function updateReview(
  */
 export async function deleteReview(reviewId: string): Promise<void> {
     try {
-        // Get the review to ensure it exists and to get the vendorId
+        // Get the review to ensure it exists and to get the peddlerId
         const reviewDoc = await db.collection('reviews').doc(reviewId).get();
 
         if (!reviewDoc.exists) {
             throw new Error('Review not found');
         }
 
-        const vendorId = reviewDoc.data()?.vendorId;
+        const peddlerId = reviewDoc.data()?.peddlerId;
 
         // Delete the review
         await db.collection('reviews').doc(reviewId).delete();
 
-        // Update the vendor's average rating
-        if (vendorId) {
-            await updateVendorRating(vendorId);
+        // Update the peddler's average rating
+        if (peddlerId) {
+            await updatePeddlerRating(peddlerId);
         }
     } catch (error) {
         console.error('Error deleting review:', error);

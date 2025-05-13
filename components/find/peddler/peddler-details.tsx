@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { StarIcon } from "lucide-react";
-import { Vendor } from "@/lib/vendors";
+import { Peddler } from "@/lib/peddlers";
 
-interface VendorDetailsProps {
-  vendor: Vendor;
+interface PeddlerDetailsProps {
+  peddler: Peddler;
   onClose: () => void;
 }
 
-export function VendorDetails({ vendor, onClose }: VendorDetailsProps) {
+export function PeddlerDetails({ peddler, onClose }: PeddlerDetailsProps) {
   const [reviews, setReviews] = useState<any[]>([]);
   const [hasMore, setHasMore] = useState<boolean>(false);
   const [lastReviewId, setLastReviewId] = useState<string | null>(null);
@@ -28,12 +28,14 @@ export function VendorDetails({ vendor, onClose }: VendorDetailsProps) {
     setLoadingReviews(true);
     try {
       const params = new URLSearchParams();
-      params.append("vendorId", vendor.id);
+      params.append("peddlerId", peddler.id);
       if (lastReviewId) {
         params.append("lastReviewId", lastReviewId);
       }
 
-      const response = await fetch(`/api/vendors/reviews?${params.toString()}`);
+      const response = await fetch(
+        `/api/peddlers/reviews?${params.toString()}`
+      );
       if (!response.ok) {
         throw new Error("Failed to load reviews");
       }
@@ -68,13 +70,13 @@ export function VendorDetails({ vendor, onClose }: VendorDetailsProps) {
     setError(null);
 
     try {
-      const response = await fetch("/api/vendors/reviews", {
+      const response = await fetch("/api/peddlers/reviews", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          vendorId: vendor.id,
+          peddlerId: peddler.id,
           rating: userRating,
           comment: userComment,
         }),
@@ -111,7 +113,7 @@ export function VendorDetails({ vendor, onClose }: VendorDetailsProps) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
-          <h2 className="text-xl font-bold">{vendor.name}</h2>
+          <h2 className="text-xl font-bold">{peddler.name}</h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
@@ -122,18 +124,20 @@ export function VendorDetails({ vendor, onClose }: VendorDetailsProps) {
 
         <div className="p-6">
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-2">Vendor Information</h3>
+            <h3 className="text-lg font-semibold mb-2">Peddler Information</h3>
             <p>
-              <strong>Type:</strong> {vendor.type}
+              <strong>Type:</strong> {peddler.type}
             </p>
             <p>
-              <strong>Distance:</strong> {vendor.distance}
+              <strong>Distance:</strong> {peddler.distance}
             </p>
             <p>
               <strong>Rating:</strong>{" "}
-              {vendor.rating ? `${vendor.rating}/5` : "No ratings yet"}
+              {peddler.rating ? `${peddler.rating}/5` : "No ratings yet"}
             </p>
-            {vendor.description && <p className="mt-2">{vendor.description}</p>}
+            {peddler.description && (
+              <p className="mt-2">{peddler.description}</p>
+            )}
           </div>
 
           <div className="mb-6">
@@ -248,7 +252,7 @@ export function VendorDetails({ vendor, onClose }: VendorDetailsProps) {
                   <div className="text-center pt-2">
                     <button
                       onClick={loadReviews}
-                      className="px-4 py-2 border rounded-md hover:bg-gray-50 disabled:opacity-50"
+                      className="px-4 py-2 text-blue-600 hover:text-blue-800 disabled:text-blue-300"
                       disabled={loadingReviews}
                     >
                       {loadingReviews ? "Loading..." : "Load More Reviews"}

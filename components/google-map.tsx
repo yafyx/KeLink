@@ -88,7 +88,7 @@ const containerStyle = {
   height: "100%",
 };
 
-type Vendor = {
+type Peddler = {
   id: string;
   name: string;
   type: string;
@@ -104,14 +104,14 @@ type Vendor = {
 
 interface GoogleMapComponentProps {
   userLocation: { lat: number; lng: number } | null;
-  vendors?: Vendor[];
-  onVendorClick?: (vendor: Vendor) => void;
+  peddlers?: Peddler[];
+  onVendorClick?: (peddler: Peddler) => void;
   selectedVendorId?: string;
   className?: string;
   showRoute?: boolean;
 }
 
-// Define vendor type colors (can be customized)
+// Define peddler type colors (can be customized)
 const vendorTypeColors: Record<string, string> = {
   bakso: "#E53935", // red
   siomay: "#43A047", // green
@@ -123,7 +123,7 @@ const vendorTypeColors: Record<string, string> = {
 
 export function GoogleMapComponent({
   userLocation,
-  vendors = [],
+  peddlers = [],
   onVendorClick,
   selectedVendorId,
   className,
@@ -140,7 +140,7 @@ export function GoogleMapComponent({
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+  const [selectedVendor, setSelectedVendor] = useState<Peddler | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
   const [routeDetails, setRouteDetails] = useState<RouteDetails | null>(null);
   const [isLoadingRoute, setIsLoadingRoute] = useState(false);
@@ -150,7 +150,7 @@ export function GoogleMapComponent({
     return (
       <MockMap
         userLocation={userLocation}
-        vendors={vendors}
+        peddlers={peddlers}
         onVendorClick={onVendorClick}
         selectedVendorId={selectedVendorId}
         className={className}
@@ -166,15 +166,15 @@ export function GoogleMapComponent({
     }
   }, []);
 
-  // Set selected vendor when selectedVendorId changes
+  // Set selected peddler when selectedVendorId changes
   useEffect(() => {
     if (selectedVendorId) {
-      const vendor = vendors.find((v) => v.id === selectedVendorId);
-      setSelectedVendor(vendor || null);
+      const peddler = peddlers.find((v) => v.id === selectedVendorId);
+      setSelectedVendor(peddler || null);
 
-      // If showRoute is true and we have both user location and vendor, calculate the route
-      if (showRoute && userLocation && vendor) {
-        calculateBestRoute(userLocation, vendor.location);
+      // If showRoute is true and we have both user location and peddler, calculate the route
+      if (showRoute && userLocation && peddler) {
+        calculateBestRoute(userLocation, peddler.location);
       } else {
         setRouteDetails(null);
       }
@@ -182,7 +182,7 @@ export function GoogleMapComponent({
       setSelectedVendor(null);
       setRouteDetails(null);
     }
-  }, [selectedVendorId, vendors, userLocation, showRoute]);
+  }, [selectedVendorId, peddlers, userLocation, showRoute]);
 
   const calculateBestRoute = async (
     origin: RoutePoint,
@@ -211,18 +211,18 @@ export function GoogleMapComponent({
         );
       }
 
-      // Add vendor locations to bounds
-      vendors.forEach((vendor) => {
-        // Only add vendor to bounds if it has valid location data
+      // Add peddler locations to bounds
+      peddlers.forEach((peddler) => {
+        // Only add peddler to bounds if it has valid location data
         if (
-          vendor.location &&
-          typeof vendor.location.lat === "number" &&
-          typeof vendor.location.lng === "number"
+          peddler.location &&
+          typeof peddler.location.lat === "number" &&
+          typeof peddler.location.lng === "number"
         ) {
           bounds.extend(
             new window.google.maps.LatLng(
-              vendor.location.lat,
-              vendor.location.lng
+              peddler.location.lat,
+              peddler.location.lng
             )
           );
         }
@@ -231,7 +231,7 @@ export function GoogleMapComponent({
       // Only fit bounds if we have points to show
       if (
         (userLocation ||
-          vendors.some(
+          peddlers.some(
             (v) => v.location && typeof v.location.lat === "number"
           )) &&
         !bounds.isEmpty()
@@ -272,7 +272,7 @@ export function GoogleMapComponent({
       setMap(map);
       setTimeout(() => setIsMapReady(true), 500); // Delay to allow map to render fully
     },
-    [userLocation, vendors]
+    [userLocation, peddlers]
   );
 
   const onUnmount = useCallback(function callback() {
@@ -280,9 +280,9 @@ export function GoogleMapComponent({
     setIsMapReady(false);
   }, []);
 
-  // Update bounds when vendors or user location changes
+  // Update bounds when peddlers or user location changes
   useEffect(() => {
-    if (map && (userLocation || vendors.length > 0)) {
+    if (map && (userLocation || peddlers.length > 0)) {
       const bounds = new window.google.maps.LatLngBounds();
 
       if (userLocation) {
@@ -291,19 +291,19 @@ export function GoogleMapComponent({
         );
       }
 
-      // Add valid vendor locations to bounds
+      // Add valid peddler locations to bounds
       let hasValidLocations = false;
-      vendors.forEach((vendor) => {
+      peddlers.forEach((peddler) => {
         if (
-          vendor &&
-          vendor.location &&
-          typeof vendor.location.lat === "number" &&
-          typeof vendor.location.lng === "number"
+          peddler &&
+          peddler.location &&
+          typeof peddler.location.lat === "number" &&
+          typeof peddler.location.lng === "number"
         ) {
           bounds.extend(
             new window.google.maps.LatLng(
-              vendor.location.lat,
-              vendor.location.lng
+              peddler.location.lat,
+              peddler.location.lng
             )
           );
           hasValidLocations = true;
@@ -315,7 +315,7 @@ export function GoogleMapComponent({
         map.fitBounds(bounds);
 
         // Set a more reasonable zoom level if only one or two points
-        if ((userLocation && vendors.length <= 1) || vendors.length <= 2) {
+        if ((userLocation && peddlers.length <= 1) || peddlers.length <= 2) {
           const listener = google.maps.event.addListener(
             map,
             "idle",
@@ -333,7 +333,7 @@ export function GoogleMapComponent({
         }
       }
     }
-  }, [map, userLocation, vendors]);
+  }, [map, userLocation, peddlers]);
 
   // Close info window when clicking elsewhere on map
   const onMapClick = useCallback(() => {
@@ -341,10 +341,10 @@ export function GoogleMapComponent({
   }, []);
 
   // Handle marker click
-  const handleMarkerClick = (vendor: Vendor) => {
-    setSelectedVendor(vendor);
+  const handleMarkerClick = (peddler: Peddler) => {
+    setSelectedVendor(peddler);
     if (onVendorClick) {
-      onVendorClick(vendor);
+      onVendorClick(peddler);
     }
   };
 
@@ -359,7 +359,7 @@ export function GoogleMapComponent({
     anchor: new google.maps.Point(12, 22),
   });
 
-  // Create vendor marker icon
+  // Create peddler marker icon
   const createVendorMarker = (type: string, isSelected: boolean) => ({
     path: "M12 2C8.14 2 5 5.14 5 9c0 3.09 1.97 5.42 3 6.25V18h8v-2.75c1.03-0.83 3-3.16 3-6.25 0-3.86-3.14-7-7-7zm2.44 11.33c-.35.2-.75.33-1.19.4v1.67h-2.5v-1.67c-.44-.07-.84-.2-1.19-.4-.43-.25-.78-.59-1.06-1.23.82-.65 1.41-1.27 1.82-2.43.41 1.16 1 1.77 1.82 2.43-.28.64-.63.98-1.06 1.23z",
     fillColor: vendorTypeColors[type] || vendorTypeColors.default,
@@ -415,24 +415,24 @@ export function GoogleMapComponent({
               />
             )}
 
-            {/* Vendor markers */}
+            {/* Peddler markers */}
             {isMapReady &&
-              vendors
+              peddlers
                 .filter(
-                  (vendor) =>
-                    vendor &&
-                    vendor.location &&
-                    typeof vendor.location.lat === "number" &&
-                    typeof vendor.location.lng === "number"
+                  (peddler) =>
+                    peddler &&
+                    peddler.location &&
+                    typeof peddler.location.lat === "number" &&
+                    typeof peddler.location.lng === "number"
                 )
-                .map((vendor, index) => {
-                  const isSelected = vendor.id === selectedVendorId;
+                .map((peddler, index) => {
+                  const isSelected = peddler.id === selectedVendorId;
                   return (
                     <Marker
-                      key={vendor.id}
-                      position={vendor.location}
-                      onClick={() => handleMarkerClick(vendor)}
-                      icon={createVendorMarker(vendor.type, isSelected)}
+                      key={peddler.id}
+                      position={peddler.location}
+                      onClick={() => handleMarkerClick(peddler)}
+                      icon={createVendorMarker(peddler.type, isSelected)}
                       animation={
                         isSelected
                           ? google.maps.Animation.BOUNCE
@@ -456,7 +456,7 @@ export function GoogleMapComponent({
               />
             )}
 
-            {/* Info window for selected vendor */}
+            {/* Info window for selected peddler */}
             {selectedVendor && (
               <InfoWindow
                 position={selectedVendor.location}

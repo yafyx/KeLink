@@ -61,7 +61,7 @@ export function ChatInput({
           ref={inputRef}
           type="text"
           placeholder={
-            isLoading ? "Waiting..." : "Ask me or search for street vendors..."
+            isLoading ? "Waiting..." : "Ask me or search for street peddlers..."
           }
           value={input}
           onChange={(e) => setInput(e.target.value)}

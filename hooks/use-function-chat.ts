@@ -21,7 +21,7 @@ export interface Message {
 interface UseFunctionChatProps {
     userLocation: { lat: number; lng: number } | null;
     foundVendors: any[];
-    onVendorResults?: (vendors: any[]) => void;
+    onVendorResults?: (peddlers: any[]) => void;
     onRouteResult?: (routeDetails: any) => void;
     onLocationRequest?: () => void;
     functionSchemas?: FunctionSchema[];

@@ -1,19 +1,19 @@
-# KeLink - Mobile Vendor Finder
+# KeLink - Mobile Peddler Finder
 
-KeLink is a platform that connects street food vendors in Indonesia with customers. This application helps customers find mobile food vendors around them, and helps vendors optimize their routes and connect with their customers.
+KeLink is a platform that connects street food peddlers in Indonesia with customers. This application helps customers find mobile food peddlers around them, and helps peddlers optimize their routes and connect with their customers.
 
 ## Features
 
 ### For Customers
 
-- **Find Vendors:** Search for food vendors near your location using natural language queries
-- **Interactive Map:** View vendor locations on an interactive map
+- **Find Peddlers:** Search for food peddlers near your location using natural language queries
+- **Interactive Map:** View peddler locations on an interactive map
 - **Chat Interface:** Interact with the app using a conversational interface
 - **Multilingual Support:** Available in Indonesian language
 
-### For Vendors
+### For Peddlers
 
-- **Profile Management:** Create and manage a vendor profile
+- **Profile Management:** Create and manage a peddler profile
 - **Location Sharing:** Share real-time location with potential customers
 - **Status Toggle:** Go "live" when actively selling and "offline" when not
 - **Route Optimization:** Get AI-powered advice for optimizing your selling route
@@ -122,8 +122,8 @@ NEXT_PUBLIC_GEMINI_API_KEY=
 
 - `/app` - Next.js app directory with pages and API routes
   - `/api` - Backend API endpoints
-  - `/find` - Customer-facing vendor search interface
-  - `/vendor` - Vendor portal for profile management, dashboard, and route advice
+  - `/find` - Customer-facing peddler search interface
+  - `/peddler` - Peddler portal for profile management, dashboard, and route advice
 - `/components` - Reusable React components
 - `/lib` - Utility functions and shared code
 - `/public` - Static assets
@@ -131,7 +131,7 @@ NEXT_PUBLIC_GEMINI_API_KEY=
 
 ## Testing
 
-1. **Vendor Flow Testing:**
+1. **Peddler Flow Testing:**
 
    - Test registration and login
    - Test profile updates
@@ -139,7 +139,7 @@ NEXT_PUBLIC_GEMINI_API_KEY=
    - Test route advice functionality
 
 2. **Customer Flow Testing:**
-   - Test searching for vendors
+   - Test searching for peddlers
    - Test geolocation permission handling
    - Test chatbot responses
    - Test map interactions
@@ -153,4 +153,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Shadcn/UI for the beautiful component library
 - Google Gemini for the AI capabilities
 - Firebase for database and authentication
-- The street vendors of Indonesia for inspiration
+- The street peddlers of Indonesia for inspiration

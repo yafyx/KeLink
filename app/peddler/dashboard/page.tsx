@@ -16,14 +16,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, MapPin, LogOut, Loader2 } from "lucide-react";
 import { getRouteAdvice } from "@/lib/gemini";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Navigation, RefreshCw, Save } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
-// Mock vendor data
-// const mockVendor = {
-//   id: "v1",
+// Mock peddler data
+// const mockPeddler = {
+//   id: "p1",
 //   name: "Bakso Pak Budi",
 //   type: "bakso",
 //   description:
@@ -32,7 +30,7 @@ import { Separator } from "@/components/ui/separator";
 //   location: null as { lat: number; lng: number } | null,
 // };
 
-const initialVendorState = {
+const initialPeddlerState = {
   id: "",
   name: "",
   type: "",
@@ -41,8 +39,8 @@ const initialVendorState = {
   location: null as { lat: number; lng: number } | null,
 };
 
-export default function VendorDashboardPage() {
-  const [vendor, setVendor] = useState(initialVendorState);
+export default function PeddlerDashboardPage() {
+  const [peddler, setPeddler] = useState(initialPeddlerState);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [routeInput, setRouteInput] = useState("");
   const [routeAdvice, setRouteAdvice] = useState("");
@@ -54,22 +52,22 @@ export default function VendorDashboardPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch vendor profile when component mounts
+  // Fetch peddler profile when component mounts
   useEffect(() => {
-    const fetchVendorProfile = async () => {
+    const fetchPeddlerProfile = async () => {
       try {
         setIsLoading(true);
         // Check for JWT token in localStorage
-        const token = localStorage.getItem("vendor_token");
+        const token = localStorage.getItem("peddler_token");
 
         if (!token) {
           // Redirect to login if no token found
-          window.location.href = "/vendor/login";
+          window.location.href = "/peddler/login";
           return;
         }
 
-        // Fetch vendor profile from the API
-        const response = await fetch("/api/vendors/profile", {
+        // Fetch peddler profile from the API
+        const response = await fetch("/api/peddlers/profile", {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -78,17 +76,17 @@ export default function VendorDashboardPage() {
         if (!response.ok) {
           // Handle unauthorized or other errors
           if (response.status === 401) {
-            localStorage.removeItem("vendor_token");
-            window.location.href = "/vendor/login";
+            localStorage.removeItem("peddler_token");
+            window.location.href = "/peddler/login";
             return;
           }
-          throw new Error("Failed to fetch vendor profile");
+          throw new Error("Failed to fetch peddler profile");
         }
 
         const data = await response.json();
 
-        // Update vendor state with the fetched data
-        setVendor({
+        // Update peddler state with the fetched data
+        setPeddler({
           id: data.id,
           name: data.name,
           type: data.type,
@@ -105,21 +103,21 @@ export default function VendorDashboardPage() {
         setIsActive(data.status === "active");
         setIsAuthenticated(true);
       } catch (error) {
-        console.error("Error fetching vendor profile:", error);
+        console.error("Error fetching peddler profile:", error);
         // You might want to show an error message to the user
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchVendorProfile();
+    fetchPeddlerProfile();
   }, []);
 
   const toggleActive = async () => {
     setIsUpdatingStatus(true);
     try {
       // If trying to go active but no location, get location first
-      if (!isActive && !vendor.location) {
+      if (!isActive && !peddler.location) {
         const locationSuccess = await updateLocation();
         if (!locationSuccess) {
           setIsUpdatingStatus(false);
@@ -128,7 +126,7 @@ export default function VendorDashboardPage() {
       }
 
       // Get current location if switching to active
-      const newLocation = !isActive ? vendor.location : vendor.location;
+      const newLocation = !isActive ? peddler.location : peddler.location;
 
       if (!newLocation) {
         alert(
@@ -139,14 +137,14 @@ export default function VendorDashboardPage() {
       }
 
       // Call the API to update status
-      const token = localStorage.getItem("vendor_token");
+      const token = localStorage.getItem("peddler_token");
       if (!token) {
         alert("You need to log in again.");
-        window.location.href = "/vendor/login";
+        window.location.href = "/peddler/login";
         return;
       }
 
-      const response = await fetch("/api/vendors/location", {
+      const response = await fetch("/api/peddlers/location", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -166,7 +164,7 @@ export default function VendorDashboardPage() {
       }
 
       // Update local state
-      setVendor((prev) => ({ ...prev, isActive: !prev.isActive }));
+      setPeddler((prev) => ({ ...prev, isActive: !prev.isActive }));
       setIsActive(!isActive);
     } catch (error) {
       console.error("Error updating active status:", error);
@@ -193,14 +191,14 @@ export default function VendorDashboardPage() {
         };
 
         // Update location in the backend
-        const token = localStorage.getItem("vendor_token");
+        const token = localStorage.getItem("peddler_token");
         if (!token) {
           alert("You need to log in again.");
-          window.location.href = "/vendor/login";
+          window.location.href = "/peddler/login";
           return false;
         }
 
-        const response = await fetch("/api/vendors/location", {
+        const response = await fetch("/api/peddlers/location", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -211,7 +209,7 @@ export default function VendorDashboardPage() {
               lat: newLocation.lat,
               lon: newLocation.lng,
             },
-            is_active: vendor.isActive,
+            is_active: peddler.isActive,
           }),
         });
 
@@ -220,7 +218,7 @@ export default function VendorDashboardPage() {
         }
 
         // Update local state
-        setVendor((prev) => ({ ...prev, location: newLocation }));
+        setPeddler((prev) => ({ ...prev, location: newLocation }));
         return true;
       } else {
         alert("Geolocation is not supported by this browser.");
@@ -246,7 +244,7 @@ export default function VendorDashboardPage() {
     setIsLoadingAdvice(true);
 
     try {
-      const advice = await getRouteAdvice(vendor.type, routeInput);
+      const advice = await getRouteAdvice(peddler.type, routeInput);
       setRouteAdvice(advice);
     } catch (error) {
       console.error("Error getting route advice:", error);
@@ -258,8 +256,8 @@ export default function VendorDashboardPage() {
 
   const handleLogout = () => {
     // Clear the token from localStorage
-    localStorage.removeItem("vendor_token");
-    window.location.href = "/vendor/login";
+    localStorage.removeItem("peddler_token");
+    window.location.href = "/peddler/login";
   };
 
   // Toggle location sharing
@@ -282,18 +280,18 @@ export default function VendorDashboardPage() {
             };
 
             // Update local state
-            setVendor((prev) => ({ ...prev, location: newLocation }));
+            setPeddler((prev) => ({ ...prev, location: newLocation }));
 
             // Send updated location to the server
             try {
-              const token = localStorage.getItem("vendor_token");
+              const token = localStorage.getItem("peddler_token");
               if (!token) {
                 alert("You need to log in again.");
-                window.location.href = "/vendor/login";
+                window.location.href = "/peddler/login";
                 return;
               }
 
-              await fetch("/api/vendors/location", {
+              await fetch("/api/peddlers/location", {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
@@ -304,7 +302,7 @@ export default function VendorDashboardPage() {
                     lat: newLocation.lat,
                     lon: newLocation.lng,
                   },
-                  is_active: vendor.isActive,
+                  is_active: peddler.isActive,
                 }),
               });
 
@@ -347,7 +345,7 @@ export default function VendorDashboardPage() {
         <div className="text-center">
           <Loader2 className="h-12 w-12 mx-auto animate-spin text-primary" />
           <h3 className="mt-4 text-lg font-medium">
-            Loading vendor dashboard...
+            Loading peddler dashboard...
           </h3>
         </div>
       </div>
@@ -356,7 +354,7 @@ export default function VendorDashboardPage() {
 
   // If not authenticated, redirect to login
   if (!isAuthenticated && !isLoading) {
-    window.location.href = "/vendor/login";
+    window.location.href = "/peddler/login";
     return null;
   }
 
@@ -368,7 +366,7 @@ export default function VendorDashboardPage() {
             <ArrowLeft className="h-4 w-4" />
             <span>Back to Home</span>
           </Link>
-          <h1 className="font-semibold">Vendor Dashboard</h1>
+          <h1 className="font-semibold">Peddler Dashboard</h1>
           <Button variant="ghost" size="icon" onClick={handleLogout}>
             <LogOut className="h-4 w-4" />
           </Button>
@@ -379,7 +377,7 @@ export default function VendorDashboardPage() {
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Vendor Profile</CardTitle>
+              <CardTitle>Peddler Profile</CardTitle>
               <CardDescription>
                 Manage your profile and visibility to customers
               </CardDescription>
@@ -387,18 +385,18 @@ export default function VendorDashboardPage() {
             <CardContent className="space-y-4">
               <div>
                 <h3 className="font-medium">Business Name</h3>
-                <p>{vendor.name}</p>
+                <p>{peddler.name}</p>
               </div>
 
               <div>
-                <h3 className="font-medium">Vendor Type</h3>
-                <p className="capitalize">{vendor.type}</p>
+                <h3 className="font-medium">Peddler Type</h3>
+                <p className="capitalize">{peddler.type}</p>
               </div>
 
               <div>
                 <h3 className="font-medium">Description</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {vendor.description}
+                  {peddler.description}
                 </p>
               </div>
 
@@ -408,14 +406,14 @@ export default function VendorDashboardPage() {
                     Active Status
                   </Label>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {vendor.isActive
+                    {peddler.isActive
                       ? "You are visible to customers"
                       : "You are not visible to customers"}
                   </span>
                 </div>
                 <Switch
                   id="active-status"
-                  checked={vendor.isActive}
+                  checked={peddler.isActive}
                   onCheckedChange={toggleActive}
                   disabled={isGettingLocation}
                 />
@@ -423,10 +421,10 @@ export default function VendorDashboardPage() {
 
               <div>
                 <h3 className="font-medium mb-2">Current Location</h3>
-                {vendor.location ? (
+                {peddler.location ? (
                   <div className="text-sm text-gray-500 dark:text-gray-400">
-                    <p>Latitude: {vendor.location.lat.toFixed(6)}</p>
-                    <p>Longitude: {vendor.location.lng.toFixed(6)}</p>
+                    <p>Latitude: {peddler.location.lat.toFixed(6)}</p>
+                    <p>Longitude: {peddler.location.lng.toFixed(6)}</p>
                   </div>
                 ) : (
                   <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -599,10 +597,10 @@ export default function VendorDashboardPage() {
                 <h3 className="text-lg font-medium">
                   {isSharing ? "Location Being Shared" : "Location Not Shared"}
                 </h3>
-                {vendor.location && isSharing && (
+                {peddler.location && isSharing && (
                   <p className="text-sm text-muted-foreground">
-                    Lat: {vendor.location.lat.toFixed(4)}, Lon:{" "}
-                    {vendor.location.lng.toFixed(4)}
+                    Lat: {peddler.location.lat.toFixed(4)}, Lon:{" "}
+                    {peddler.location.lng.toFixed(4)}
                   </p>
                 )}
               </div>

@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type Vendor = {
+type Peddler = {
   id: string;
   name: string;
   type: string;
@@ -22,13 +22,13 @@ type Vendor = {
 
 interface MockMapProps {
   userLocation: { lat: number; lng: number } | null;
-  vendors?: Vendor[];
-  onVendorClick?: (vendor: Vendor) => void;
+  peddlers?: Peddler[];
+  onVendorClick?: (peddler: Peddler) => void;
   selectedVendorId?: string;
   className?: string;
 }
 
-// Define vendor type colors (can be customized)
+// Define peddler type colors (can be customized)
 const vendorTypeColors: Record<string, string> = {
   bakso: "#E53935", // red
   siomay: "#43A047", // green
@@ -40,7 +40,7 @@ const vendorTypeColors: Record<string, string> = {
 
 export function MockMap({
   userLocation,
-  vendors = [],
+  peddlers = [],
   onVendorClick,
   selectedVendorId,
   className,
@@ -50,13 +50,13 @@ export function MockMap({
   const [hoveredVendorId, setHoveredVendorId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Filter vendors to only include those with valid location data
-  const validVendors = vendors.filter(
-    (vendor) =>
-      vendor &&
-      vendor.location &&
-      typeof vendor.location.lat === "number" &&
-      typeof vendor.location.lng === "number"
+  // Filter peddlers to only include those with valid location data
+  const validVendors = peddlers.filter(
+    (peddler) =>
+      peddler &&
+      peddler.location &&
+      typeof peddler.location.lat === "number" &&
+      typeof peddler.location.lng === "number"
   );
 
   // Update canvas size on mount and resize
@@ -195,25 +195,25 @@ export function MockMap({
       ctx.stroke();
     }
 
-    // Draw vendors (only those with valid locations)
-    validVendors.forEach((vendor, index) => {
-      // Distribute vendors in a circle around the user
+    // Draw peddlers (only those with valid locations)
+    validVendors.forEach((peddler, index) => {
+      // Distribute peddlers in a circle around the user
       const angle = (index / validVendors.length) * Math.PI * 2;
       const distance = 120; // distance from center
       const x = canvas.width / dpr / 2 + Math.cos(angle) * distance;
       const y = canvas.height / dpr / 2 + Math.sin(angle) * distance;
 
-      const color = vendorTypeColors[vendor.type] || vendorTypeColors.default;
-      const isSelected = vendor.id === selectedVendorId;
-      const isHovered = vendor.id === hoveredVendorId;
+      const color = vendorTypeColors[peddler.type] || vendorTypeColors.default;
+      const isSelected = peddler.id === selectedVendorId;
+      const isHovered = peddler.id === hoveredVendorId;
 
-      // Draw shadow for vendors
+      // Draw shadow for peddlers
       ctx.beginPath();
       ctx.arc(x, y + 2, isSelected ? 9 : 7, 0, Math.PI * 2);
       ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
       ctx.fill();
 
-      // Vendor marker - custom shop icon shape
+      // Peddler marker - custom shop icon shape
       ctx.beginPath();
       ctx.fillStyle = color;
       if (isSelected || isHovered) {
@@ -236,11 +236,11 @@ export function MockMap({
       ctx.font = `${isSelected ? "bold " : ""}10px Arial`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(vendor.name.charAt(0).toUpperCase(), x, y);
+      ctx.fillText(peddler.name.charAt(0).toUpperCase(), x, y);
 
-      // Vendor name with background for better readability
+      // Peddler name with background for better readability
       if (isSelected || isHovered) {
-        const nameWidth = ctx.measureText(vendor.name).width + 10;
+        const nameWidth = ctx.measureText(peddler.name).width + 10;
         const nameHeight = 20;
 
         // Draw rounded rectangle background
@@ -253,10 +253,10 @@ export function MockMap({
         ctx.fillStyle = "#111";
         ctx.font = `${isSelected ? "bold " : ""}12px Arial`;
         ctx.textAlign = "center";
-        ctx.fillText(vendor.name, x, y - 20);
+        ctx.fillText(peddler.name, x, y - 20);
 
         // Add distance info
-        if (vendor.distance) {
+        if (peddler.distance) {
           ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
           ctx.beginPath();
           ctx.roundRect(x - 30, y + 15, 60, 18, 4);
@@ -264,7 +264,7 @@ export function MockMap({
 
           ctx.fillStyle = "#64748B";
           ctx.font = "10px Arial";
-          ctx.fillText(vendor.distance, x, y + 24);
+          ctx.fillText(peddler.distance, x, y + 24);
         }
       }
     });
@@ -292,7 +292,7 @@ export function MockMap({
     const y = e.clientY - rect.top;
     const dpr = window.devicePixelRatio;
 
-    validVendors.forEach((vendor, index) => {
+    validVendors.forEach((peddler, index) => {
       const angle = (index / validVendors.length) * Math.PI * 2;
       const distance = 120;
       const vendorX = canvas.width / dpr / 2 + Math.cos(angle) * distance;
@@ -303,7 +303,7 @@ export function MockMap({
       const clickDistance = Math.sqrt(dx * dx + dy * dy);
 
       if (clickDistance <= 15) {
-        onVendorClick(vendor);
+        onVendorClick(peddler);
       }
     });
   };
@@ -323,7 +323,7 @@ export function MockMap({
     let found = false;
 
     for (let i = 0; i < validVendors.length; i++) {
-      const vendor = validVendors[i];
+      const peddler = validVendors[i];
       const angle = (i / validVendors.length) * Math.PI * 2;
       const distance = 120;
       const vendorX = canvas.width / dpr / 2 + Math.cos(angle) * distance;
@@ -334,7 +334,7 @@ export function MockMap({
       const hoverDistance = Math.sqrt(dx * dx + dy * dy);
 
       if (hoverDistance <= 15) {
-        setHoveredVendorId(vendor.id);
+        setHoveredVendorId(peddler.id);
         found = true;
         break;
       }
@@ -393,7 +393,7 @@ export function MockMap({
         </div>
         <div className="text-slate-500 mt-1 flex items-center">
           <MapPin className="h-3 w-3 mr-1" />
-          <span>{validVendors.length} nearby vendors</span>
+          <span>{validVendors.length} nearby peddlers</span>
         </div>
       </div>
 

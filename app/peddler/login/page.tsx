@@ -29,12 +29,12 @@ export default function VendorLoginPage() {
     setIsLoading(true);
 
     try {
-      // In a real app, this would call your backend API to authenticate the vendor
+      // In a real app, this would call your backend API to authenticate the peddler
       // For now, let's just simulate a delay and redirect to the dashboard
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Redirect to the dashboard upon successful login
-      router.push("/vendor/dashboard");
+      router.push("/peddler/dashboard");
     } catch (error) {
       console.error("Login error:", error);
       alert("Failed to log in. Please check your credentials and try again.");
@@ -45,7 +45,7 @@ export default function VendorLoginPage() {
 
   const HeaderComponent = (
     <MobileHeader
-      title="Vendor Login"
+      title="Peddler Login"
       centerContent={true}
       leftAction={
         <Link href="/">
@@ -62,9 +62,9 @@ export default function VendorLoginPage() {
       <div className="flex flex-col items-center justify-center py-8">
         <Card className="w-full">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-xl font-bold">Vendor Login</CardTitle>
+            <CardTitle className="text-xl font-bold">Peddler Login</CardTitle>
             <CardDescription>
-              Enter your email and password to access your vendor dashboard
+              Enter your email and password to access your peddler dashboard
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
@@ -84,7 +84,7 @@ export default function VendorLoginPage() {
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
                   <Link
-                    href="/vendor/forgot-password"
+                    href="/peddler/forgot-password"
                     className="text-sm text-primary hover:underline"
                   >
                     Forgot password?
@@ -106,10 +106,10 @@ export default function VendorLoginPage() {
               <p className="mt-4 text-center text-sm text-muted-foreground">
                 Don't have an account?{" "}
                 <Link
-                  href="/vendor/register"
+                  href="/peddler/register"
                   className="text-primary hover:underline"
                 >
-                  Register as a vendor
+                  Register as a peddler
                 </Link>
               </p>
             </CardFooter>

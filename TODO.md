@@ -6,31 +6,31 @@
   - [x] Install dependencies: `firebase-admin`, `bcrypt`, `jsonwebtoken`.
   - [x] Configure environment variables (`.env`) for Firebase credentials.
   - [x] Initialize Firebase Admin SDK.
-- [x] **Vendor Endpoints:**
-  - [x] `/api/vendors/register`: Implement vendor registration logic (hash password, save to Firestore).
-  - [x] `/api/vendors/login`: Implement vendor login logic (verify credentials, generate token - JWT).
-  - [x] `/api/vendors/profile`: Implement authenticated endpoint for vendor profile CRUD.
-  - [x] `/api/vendors/location`: Implement authenticated endpoint to receive and update vendor location and `is_active` status in Firestore.
-  - [x] `/api/vendors/route-advice`: Implement authenticated endpoint:
-    - [x] Receive vendor input (target areas/stops, vendor type, time).
+- [x] **Peddler Endpoints:**
+  - [x] `/api/peddlers/register`: Implement peddler registration logic (hash password, save to Firestore).
+  - [x] `/api/peddlers/login`: Implement peddler login logic (verify credentials, generate token - JWT).
+  - [x] `/api/peddlers/profile`: Implement authenticated endpoint for peddler profile CRUD.
+  - [x] `/api/peddlers/location`: Implement authenticated endpoint to receive and update peddler location and `is_active` status in Firestore.
+  - [x] `/api/peddlers/route-advice`: Implement authenticated endpoint:
+    - [x] Receive peddler input (target areas/stops, peddler type, time).
     - [x] Construct a suitable prompt for an AI API (gemini-2.5-flash-001).
     - [x] Call generative AI to get advice.
     - [x] Return the generated advice.
 - [x] **Find Endpoint (`/api/find`):**
-  - [x] Implement the findNearbyVendors function to search vendors near a location.
+  - [x] Implement the findNearbyVendors function to search peddlers near a location.
   - [x] Implement the endpoint logic:
     - [x] Receive user query and location.
-    - [x] Use AI to determine if the query is looking for vendors.
-    - [x] If needed, search for nearby vendors in Firestore.
-    - [x] Format response with vendor information.
+    - [x] Use AI to determine if the query is looking for peddlers.
+    - [x] If needed, search for nearby peddlers in Firestore.
+    - [x] Format response with peddler information.
     - [x] Return the response to the user.
 
-## Frontend (Vendor - Next.js)
+## Frontend (Peddler - Next.js)
 
 - [x] **Authentication:** Implement login/registration forms, token handling.
 - [x] **Profile:** Create view/edit profile screen, integrate with backend API.
-- [x] **Dashboard:** Display basic info, add "Go Live" / "Go Offline" toggle calling the `/api/vendors/location` endpoint (requires getting device location).
-- [x] **Route Advice:** Create UI to input areas/details and display advice from `/api/vendors/route-advice`.
+- [x] **Dashboard:** Display basic info, add "Go Live" / "Go Offline" toggle calling the `/api/peddlers/location` endpoint (requires getting device location).
+- [x] **Route Advice:** Create UI to input areas/details and display advice from `/api/peddlers/route-advice`.
 
 ## Frontend (Customer - Next.js)
 
@@ -43,19 +43,19 @@
 ## Performance Optimization
 
 - [x] Implement caching strategies for repeated queries
-- [x] Optimize Firebase queries for faster vendor lookups
-- [x] Implement pagination for vendor results when multiple vendors are found
+- [x] Optimize Firebase queries for faster peddler lookups
+- [x] Implement pagination for peddler results when multiple peddlers are found
 - [x] Add loading states and optimistic UI updates
 
 ## User Experience Enhancements
 
-- [x] Add vendor ratings and review system
-- [ ] Implement user favorites/bookmarks for frequently accessed vendors
-- [ ] Create vendor category filters for the find interface
-- [ ] Add push notifications for vendor proximity alerts
+- [x] Add peddler ratings and review system
+- [ ] Implement user favorites/bookmarks for frequently accessed peddlers
+- [ ] Create peddler category filters for the find interface
+- [ ] Add push notifications for peddler proximity alerts
 - [ ] Implement history of past interactions/searches
-- [x] Add best route to vendor and vice versa (using Google Maps MCP (Model Context Protocol))
-- [ ] Add vendor details to the find interface
+- [x] Add best route to peddler and vice versa (using Google Maps MCP (Model Context Protocol))
+- [ ] Add peddler details to the find interface
 - [ ] Add rehype markdown for rich text messages in chat (configure the gemini responses too)
 
 ## Security & Compliance
@@ -67,25 +67,25 @@
 ## Analytics & Monitoring
 
 - [ ] Implement analytics to track user engagement
-- [ ] Create dashboard for vendor usage statistics
+- [ ] Create dashboard for peddler usage statistics
 
 ## Documentation & Onboarding
 
 - [ ] Create comprehensive API documentation
-- [ ] Add vendor onboarding guide/tutorial
+- [ ] Add peddler onboarding guide/tutorial
 - [ ] Document codebase with JSDoc comments
 - [ ] Create user help/FAQ section
 
 ## Future Enhancements
 
-- [ ] Implement real-time updates for vendor locations
-- [ ] Add in-app messaging between users and vendors
-- [ ] Explore integration with mapping services for visual vendor tracking
-- [ ] Support for scheduled vendor appearances/events
+- [ ] Implement real-time updates for peddler locations
+- [ ] Add in-app messaging between users and peddlers
+- [ ] Explore integration with mapping services for visual peddler tracking
+- [ ] Support for scheduled peddler appearances/events
 
 ## Deployment & Testing
 
 - [x] Set up hosting for the Next.js application (e.g., Vercel).
-- [ ] Thoroughly test all vendor flows.
+- [ ] Thoroughly test all peddler flows.
 - [ ] Thoroughly test the chatbot function.
 - [x] Test geolocation permissions and handling.

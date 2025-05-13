@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
-// Types for the vendor data
-type Vendor = {
+// Types for the peddler data
+type Peddler = {
     id: string
     name: string
     type: string
@@ -15,14 +15,14 @@ type Vendor = {
     last_active: string
 }
 
-// Extended vendor type with raw_distance for internal calculations
-type VendorWithDistance = Vendor & {
+// Extended peddler type with raw_distance for internal calculations
+type PeddlerWithDistance = Peddler & {
     raw_distance?: number
 }
 
-// Mock database of vendors
+// Mock database of peddlers
 // In the real implementation, this would be stored in Firestore
-const mockVendors: Vendor[] = []; // Return empty array as mock data is removed
+const mockPeddlers: Peddler[] = []; // Return empty array as mock data is removed
 
 // Simple function to calculate distance between two coordinates (in meters)
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -60,55 +60,55 @@ export async function POST(request: Request) {
             )
         }
 
-        const { vendor_type, keywords, max_distance = 5000 } = query_details || {}
+        const { peddler_type, keywords, max_distance = 5000 } = query_details || {}
 
-        // Filter active vendors
-        let filteredVendors = mockVendors.filter(vendor => vendor.status === 'active')
+        // Filter active peddlers
+        let filteredPeddlers = mockPeddlers.filter(peddler => peddler.status === 'active')
 
         // Filter by type if provided
-        if (vendor_type) {
-            const lowerCaseType = vendor_type.toLowerCase()
-            filteredVendors = filteredVendors.filter(
-                vendor => vendor.type.toLowerCase().includes(lowerCaseType)
+        if (peddler_type) {
+            const lowerCaseType = peddler_type.toLowerCase()
+            filteredPeddlers = filteredPeddlers.filter(
+                peddler => peddler.type.toLowerCase().includes(lowerCaseType)
             )
         }
 
         // Filter by keywords if provided
         if (keywords && keywords.length > 0) {
-            filteredVendors = filteredVendors.filter(vendor => {
-                const vendorText = `${vendor.name} ${vendor.type} ${vendor.description}`.toLowerCase()
+            filteredPeddlers = filteredPeddlers.filter(peddler => {
+                const peddlerText = `${peddler.name} ${peddler.type} ${peddler.description}`.toLowerCase()
                 return keywords.some((keyword: string) =>
-                    vendorText.includes(keyword.toLowerCase())
+                    peddlerText.includes(keyword.toLowerCase())
                 )
             })
         }
 
         // Calculate distance and filter by max_distance
-        const vendorsWithDistance: VendorWithDistance[] = filteredVendors
-            .map(vendor => {
+        const peddlersWithDistance: PeddlerWithDistance[] = filteredPeddlers
+            .map(peddler => {
                 const distance = calculateDistance(
                     location.lat,
                     location.lon,
-                    vendor.location.lat,
-                    vendor.location.lon
+                    peddler.location.lat,
+                    peddler.location.lon
                 )
                 return {
-                    ...vendor,
+                    ...peddler,
                     distance: formatDistance(distance),
                     raw_distance: distance // For sorting
                 }
             })
-            .filter(vendor => (vendor.raw_distance as number) <= max_distance)
+            .filter(peddler => (peddler.raw_distance as number) <= max_distance)
             .sort((a, b) => (a.raw_distance as number) - (b.raw_distance as number))
 
         // Remove the raw_distance property
-        const result = vendorsWithDistance.map(({ raw_distance, ...vendor }) => vendor)
+        const result = peddlersWithDistance.map(({ raw_distance, ...peddler }) => peddler)
 
-        return NextResponse.json({ vendors: result }, { status: 200 })
+        return NextResponse.json({ peddlers: result }, { status: 200 })
     } catch (error) {
-        console.error('Error finding nearby vendors:', error)
+        console.error('Error finding nearby peddlers:', error)
         return NextResponse.json(
-            { error: 'Failed to find nearby vendors' },
+            { error: 'Failed to find nearby peddlers' },
             { status: 500 }
         )
     }

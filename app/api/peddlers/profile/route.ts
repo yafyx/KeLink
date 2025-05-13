@@ -2,33 +2,33 @@ import { getAuthUserFromRequest } from '@/lib/auth-utils';
 import { auth, db } from '@/lib/firebase-admin';
 import { NextResponse } from 'next/server';
 
-// Get vendor profile
+// Get peddler profile
 export async function GET(request: Request) {
     try {
         // Get authenticated user
         const decoded = getAuthUserFromRequest(request);
 
-        // Get vendor data from Firestore
-        const vendorDoc = await db.collection('vendors').doc(decoded.uid).get();
+        // Get peddler data from Firestore
+        const vendorDoc = await db.collection('peddlers').doc(decoded.uid).get();
 
         if (!vendorDoc.exists) {
             return NextResponse.json(
-                { error: 'Vendor profile not found' },
+                { error: 'Peddler profile not found' },
                 { status: 404 }
             );
         }
 
         const vendorData = vendorDoc.data();
 
-        // Return vendor profile data
+        // Return peddler profile data
         return NextResponse.json({
-            vendor: {
+            peddler: {
                 id: decoded.uid,
                 ...vendorData,
             }
         });
     } catch (error: any) {
-        console.error('Error getting vendor profile:', error);
+        console.error('Error getting peddler profile:', error);
 
         if (error.message && error.message.startsWith('Unauthorized')) {
             return NextResponse.json(
@@ -38,13 +38,13 @@ export async function GET(request: Request) {
         }
 
         return NextResponse.json(
-            { error: 'Failed to get vendor profile' },
+            { error: 'Failed to get peddler profile' },
             { status: 500 }
         );
     }
 }
 
-// Update vendor profile
+// Update peddler profile
 export async function PUT(request: Request) {
     try {
         // Get authenticated user
@@ -61,12 +61,12 @@ export async function PUT(request: Request) {
             );
         }
 
-        // Get current vendor data
-        const vendorDoc = await db.collection('vendors').doc(decoded.uid).get();
+        // Get current peddler data
+        const vendorDoc = await db.collection('peddlers').doc(decoded.uid).get();
 
         if (!vendorDoc.exists) {
             return NextResponse.json(
-                { error: 'Vendor profile not found' },
+                { error: 'Peddler profile not found' },
                 { status: 404 }
             );
         }
@@ -83,8 +83,8 @@ export async function PUT(request: Request) {
         if (description) updateData.description = description;
         if (phone) updateData.phone = phone;
 
-        // Update vendor data in Firestore
-        await db.collection('vendors').doc(decoded.uid).update(updateData);
+        // Update peddler data in Firestore
+        await db.collection('peddlers').doc(decoded.uid).update(updateData);
 
         // If name changed, update it in Firebase Auth as well
         if (name && name !== currentData?.name) {
@@ -93,17 +93,17 @@ export async function PUT(request: Request) {
             });
         }
 
-        // Return updated vendor data
+        // Return updated peddler data
         return NextResponse.json({
             message: 'Profile updated successfully',
-            vendor: {
+            peddler: {
                 id: decoded.uid,
                 ...currentData,
                 ...updateData,
             }
         });
     } catch (error: any) {
-        console.error('Error updating vendor profile:', error);
+        console.error('Error updating peddler profile:', error);
 
         if (error.message && error.message.startsWith('Unauthorized')) {
             return NextResponse.json(
@@ -113,7 +113,7 @@ export async function PUT(request: Request) {
         }
 
         return NextResponse.json(
-            { error: 'Failed to update vendor profile' },
+            { error: 'Failed to update peddler profile' },
             { status: 500 }
         );
     }
