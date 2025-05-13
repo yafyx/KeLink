@@ -1,7 +1,5 @@
-import { apps, credential, initializeApp } from 'firebase-admin';
-import { getAuth } from 'firebase-admin/auth';
-import { Firestore, getFirestore } from 'firebase-admin/firestore';
-import { getStorage } from 'firebase-admin/storage';
+import * as admin from 'firebase-admin';
+import { type Firestore } from 'firebase-admin/firestore'; // For type annotation
 
 // Create mock implementations for when Firebase initialization fails
 class MockFirestore {
@@ -29,8 +27,8 @@ class MockFirestore {
 }
 
 let db: Firestore | MockFirestore;
-let auth: any;
-let storage: any;
+let auth: admin.auth.Auth | any; // Use admin.auth.Auth for type, any for mock
+let storage: admin.storage.Storage | any; // Use admin.storage.Storage for type, any for mock
 let firebaseInitialized = false;
 
 // Check if the Firebase Admin SDK has already been initialized
@@ -41,7 +39,7 @@ const initializeFirebaseAdmin = () => {
     firebaseInitialized = true;
 
     try {
-        if (!apps.length) {
+        if (!admin.apps.length) { // Changed: apps -> admin.apps
             // Initialize the app with the service account credentials
             const firebaseConfig = {
                 projectId: process.env.FIREBASE_PROJECT_ID,
@@ -55,8 +53,8 @@ const initializeFirebaseAdmin = () => {
 
             // Only initialize with valid credentials
             if (firebaseConfig.projectId && firebaseConfig.clientEmail && firebaseConfig.privateKey) {
-                initializeApp({
-                    credential: credential.cert({
+                admin.initializeApp({ // Changed: initializeApp -> admin.initializeApp
+                    credential: admin.credential.cert({ // Changed: credential.cert -> admin.credential.cert
                         projectId: firebaseConfig.projectId,
                         clientEmail: firebaseConfig.clientEmail,
                         privateKey: firebaseConfig.privateKey,
@@ -66,18 +64,19 @@ const initializeFirebaseAdmin = () => {
                 });
 
                 // Set up the real Firestore, Auth and Storage instances
-                db = getFirestore();
-                auth = getAuth();
-                storage = getStorage();
+                db = admin.firestore(); // Changed: getFirestore() -> admin.firestore()
+                auth = admin.auth();    // Changed: getAuth() -> admin.auth()
+                storage = admin.storage(); // Changed: getStorage() -> admin.storage()
                 console.log('Firebase Admin SDK initialized successfully');
             } else {
                 throw new Error('Firebase credentials are missing or incomplete');
             }
         } else {
-            // Firebase already initialized, get instances
-            db = getFirestore();
-            auth = getAuth();
-            storage = getStorage();
+            // Firebase already initialized, get instances from the default app
+            const app = admin.app(); // Get the default app instance
+            db = admin.firestore(app);
+            auth = admin.auth(app);
+            storage = admin.storage(app);
         }
     } catch (error) {
         console.error('Error initializing Firebase Admin SDK:', error);
@@ -85,10 +84,12 @@ const initializeFirebaseAdmin = () => {
 
         // Set up mock implementations
         db = new MockFirestore();
-        auth = {
+        auth = { // Ensure mock provides methods used, like getUserByEmail
             createUser: async () => ({ uid: 'mock-uid' }),
             verifyIdToken: async () => ({ uid: 'mock-uid' }),
-            getUser: async () => ({ uid: 'mock-uid', email: 'mock@example.com' })
+            getUser: async () => ({ uid: 'mock-uid', email: 'mock@example.com' }),
+            getUserByEmail: async (email: string) => null, // Added missing mock method
+            // Add other methods if they are called and could lead to errors when mocked
         };
         storage = {
             bucket: () => ({

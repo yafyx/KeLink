@@ -26,9 +26,12 @@ export default function VendorLoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Login form submitted, preventDefault called.");
     setIsLoading(true);
 
     try {
+      console.log("Inside try block. Attempting to login with:", { email });
+
       const response = await fetch("/api/peddlers/login", {
         method: "POST",
         headers: {
@@ -36,28 +39,44 @@ export default function VendorLoginPage() {
         },
         body: JSON.stringify({ email, password }),
       });
+      console.log("Login API response status:", response.status);
+      console.log(
+        "Login API response headers:",
+        Object.fromEntries(response.headers.entries())
+      );
 
       const data = await response.json();
+      console.log("Login API response data (parsed JSON):", data);
 
       if (!response.ok) {
+        console.error(
+          "Login API request failed (response not ok):",
+          data.error
+        );
         throw new Error(data.error || "Login failed");
       }
 
-      // Store the token (e.g., in localStorage) and redirect
-      // For now, just log the token and redirect
-      console.log("Login successful, token:", data.token);
-      localStorage.setItem("peddlerToken", data.token); // Example: store token
+      console.log("Login successful, response OK. Token:", data.token);
+      localStorage.setItem("peddlerToken", data.token);
+      console.log(
+        "Token stored in localStorage. Attempting to redirect to /peddler/dashboard..."
+      );
 
-      // Redirect to the dashboard upon successful login
       router.push("/peddler/dashboard");
+      console.log(
+        "router.push('/peddler/dashboard') CALLED. If page reloads or no redirect, check dashboard page or router."
+      );
+      // Note: Any code after router.push() might not execute if it causes an immediate unload/reload.
     } catch (error: any) {
-      console.error("Login error:", error);
+      // setIsLoading(false); // Managed in finally
+      console.error("Login error caught:", error);
       alert(
         error.message ||
           "Failed to log in. Please check your credentials and try again."
       );
     } finally {
       setIsLoading(false);
+      console.log("isLoading set to false in finally block");
     }
   };
 

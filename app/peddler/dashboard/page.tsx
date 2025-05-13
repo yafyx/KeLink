@@ -57,16 +57,13 @@ export default function PeddlerDashboardPage() {
     const fetchPeddlerProfile = async () => {
       try {
         setIsLoading(true);
-        // Check for JWT token in localStorage
-        const token = localStorage.getItem("peddler_token");
+        const token = localStorage.getItem("peddlerToken");
 
         if (!token) {
-          // Redirect to login if no token found
           window.location.href = "/peddler/login";
           return;
         }
 
-        // Fetch peddler profile from the API
         const response = await fetch("/api/peddlers/profile", {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -74,9 +71,8 @@ export default function PeddlerDashboardPage() {
         });
 
         if (!response.ok) {
-          // Handle unauthorized or other errors
           if (response.status === 401) {
-            localStorage.removeItem("peddler_token");
+            localStorage.removeItem("peddlerToken");
             window.location.href = "/peddler/login";
             return;
           }
@@ -137,7 +133,7 @@ export default function PeddlerDashboardPage() {
       }
 
       // Call the API to update status
-      const token = localStorage.getItem("peddler_token");
+      const token = localStorage.getItem("peddlerToken");
       if (!token) {
         alert("You need to log in again.");
         window.location.href = "/peddler/login";
@@ -191,7 +187,7 @@ export default function PeddlerDashboardPage() {
         };
 
         // Update location in the backend
-        const token = localStorage.getItem("peddler_token");
+        const token = localStorage.getItem("peddlerToken");
         if (!token) {
           alert("You need to log in again.");
           window.location.href = "/peddler/login";
@@ -255,8 +251,9 @@ export default function PeddlerDashboardPage() {
   };
 
   const handleLogout = () => {
-    // Clear the token from localStorage
-    localStorage.removeItem("peddler_token");
+    localStorage.removeItem("peddlerToken");
+    // Clear other relevant state if necessary
+    setPeddler(initialPeddlerState);
     window.location.href = "/peddler/login";
   };
 
@@ -284,7 +281,7 @@ export default function PeddlerDashboardPage() {
 
             // Send updated location to the server
             try {
-              const token = localStorage.getItem("peddler_token");
+              const token = localStorage.getItem("peddlerToken");
               if (!token) {
                 alert("You need to log in again.");
                 window.location.href = "/peddler/login";
