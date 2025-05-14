@@ -34,6 +34,7 @@ import {
   Bell,
   TrendingUp,
   Sparkles,
+  MessageCircleQuestion,
 } from "lucide-react";
 import { MobileHeader } from "@/components/ui/mobile-header";
 import { AppLayout } from "@/components/AppLayout";
@@ -47,6 +48,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { FoodBeamBackground } from "@/components/kelink-food-beam";
 import { AnimatedBeamDemo } from "@/components/kelink-beam";
+import { BorderBeam } from "@/components/ui/border-beam";
 
 export default function Home() {
   const router = useRouter();
@@ -154,10 +156,10 @@ export default function Home() {
             <Button
               variant="ghost"
               size="icon"
-              className="relative"
-              aria-label="Notifications"
+              className="border border-gray-300 rounded-full w-10 h-10 p-0 flex items-center justify-center hover:bg-gray-100"
+              aria-label="Questions"
             >
-              <Bell className="h-7 w-7" />
+              ?
             </Button>
           }
         />
@@ -177,33 +179,17 @@ export default function Home() {
           transition={{ delay: 0.1 }}
         >
           {/* Container for AnimatedBeamDemo and blur effects - explicitly set z-index */}
-          <div className="absolute top-[-40px] left-0 right-0 w-full h-20 z-0">
+          <div className="absolute top-[-20px] left-0 right-0 w-full z-0">
             <AnimatedBeamDemo />
             <div className="absolute top-8 right-4 w-32 h-32 rounded-full bg-primary/5 blur-xl" />
             <div className="absolute bottom-4 left-8 w-24 h-24 rounded-full bg-primary/5 blur-lg" />
             <div className="absolute top-20 left-12 w-16 h-16 rounded-full bg-primary/5 blur-md" />
           </div>
           {/* Gradient Overlay - increased z-index and opacity */}
-          <div className="absolute inset-0 bg-gradient-to-b from-white/50 via-white/75 to-white/90 z-5"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/50 to-white/75 z-5"></div>
 
           <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shadow-md">
-                <MapPin className="h-6 w-6 text-primary flex-shrink-0" />
-              </div>
-              <div className="flex flex-col">
-                <p className="text-xs text-gray-500 font-medium">
-                  Your Location
-                </p>
-                <button
-                  className="text-sm font-semibold flex items-center gap-1 text-gray-700 text-left hover:text-primary transition-colors"
-                  onClick={handleRequestLocation}
-                  aria-label="Update your location"
-                >
-                  {locationText} <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+            <div className="h-30"></div>
 
             <div className="mb-6">
               <h1 className="text-3xl font-bold text-gray-900 mb-2 font-jakarta tracking-tight">
@@ -214,17 +200,37 @@ export default function Home() {
               </p>
             </div>
 
-            <Button
-              onClick={handleNavigateToFind}
-              className="w-full py-3 bg-white hover:bg-gray-50 text-gray-900 justify-between font-medium border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all"
-              disabled={isLoading}
-            >
-              <div className="flex items-center">
-                <Search className="h-4 w-4 mr-2 text-primary" />
-                <span className="text-sm">Search nearby...</span>
-              </div>
-              <ArrowRight className="h-3 w-3 text-primary" />
-            </Button>
+            <div className="relative rounded-lg">
+              <BorderBeam
+                size={80}
+                colorFrom="#facc15"
+                colorTo="#a21caf"
+                style={{ borderRadius: "0.5rem" }}
+              />
+              <Button
+                onClick={handleNavigateToFind}
+                className="relative overflow-hidden w-full py-3 bg-white hover:bg-gray-50 text-gray-900 justify-between font-medium border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all"
+                disabled={isLoading}
+              >
+                <div className="flex items-center">
+                  <Search className="h-4 w-4 mr-2 text-primary" />
+                  <span className="text-sm">
+                    Ask me to search for street peddlers nearby
+                  </span>
+                </div>
+                <ArrowRight className="h-3 w-3 text-primary" />
+                <BorderBeam
+                  size={40}
+                  initialOffset={20}
+                  className="from-transparent via-yellow-500 to-transparent"
+                  transition={{
+                    type: "spring",
+                    stiffness: 60,
+                    damping: 20,
+                  }}
+                />
+              </Button>
+            </div>
           </div>
         </motion.div>
 
@@ -404,7 +410,7 @@ export default function Home() {
                     <div className="flex">
                       <div className="relative w-32 h-32">
                         <Image
-                          src="/placeholder.jpg"
+                          src="vendor/siomay.png"
                           alt="Siomay Mang Ujang Peddler"
                           fill
                           className="object-cover"
@@ -479,14 +485,14 @@ export default function Home() {
               <Card className="border-0 shadow-md overflow-hidden rounded-xl bg-white hover:shadow-lg transition-all">
                 <CardContent className="p-0">
                   <Link
-                    href="/find?peddler=es-cendol-bu-tini"
+                    href="/find?peddler=bakso-bang-gondrong"
                     className="block"
                   >
                     <div className="flex">
                       <div className="relative w-32 h-32">
                         <Image
-                          src="/placeholder.jpg"
-                          alt="Es Cendol Bu Tini Peddler"
+                          src="vendor/bakso.png"
+                          alt="Bakso Bang Gondrong Peddler"
                           fill
                           className="object-cover"
                         />
@@ -494,7 +500,7 @@ export default function Home() {
                           <div className="flex items-center">
                             <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
                             <span className="text-xs font-semibold ml-0.5">
-                              4.5
+                              4.7
                             </span>
                           </div>
                         </div>
@@ -503,13 +509,13 @@ export default function Home() {
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            toggleFavorite("es-cendol-bu-tini");
+                            toggleFavorite("bakso-bang-gondrong");
                           }}
                         >
                           <Heart
                             className={cn(
                               "h-3.5 w-3.5",
-                              favorites.includes("es-cendol-bu-tini")
+                              favorites.includes("bakso-bang-gondrong")
                                 ? "text-red-500 fill-red-500"
                                 : "text-gray-400"
                             )}
@@ -519,7 +525,7 @@ export default function Home() {
                       <div className="p-4 flex-1">
                         <div className="flex items-center justify-between mb-1">
                           <h3 className="font-semibold text-base font-jakarta text-gray-900">
-                            Es Cendol Bu Tini
+                            Bakso Si Gondrong
                           </h3>
                           <Badge className="bg-green-100 text-green-700 border-0">
                             Active
@@ -528,21 +534,21 @@ export default function Home() {
                         <div className="flex items-center gap-1 mt-2">
                           <MapPin className="h-3.5 w-3.5 text-primary/80" />
                           <p className="text-xs text-gray-700">
-                            350m away • 3 min walk
+                            420m away • 4 min walk
                           </p>
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
                           <Clock className="h-3.5 w-3.5 text-gray-500" />
                           <p className="text-xs text-gray-600">
-                            Last seen: 2 min ago
+                            Last seen: 3 min ago
                           </p>
                         </div>
                         <div className="mt-3 flex flex-wrap gap-1.5">
                           <Badge className="bg-primary/10 text-primary border-0 px-2 py-0.5 text-xs">
-                            Es Cendol
+                            Bakso
                           </Badge>
                           <Badge className="bg-gray-100 text-gray-700 border-0 px-2 py-0.5 text-xs">
-                            Dessert
+                            Meatballs
                           </Badge>
                         </div>
                       </div>
