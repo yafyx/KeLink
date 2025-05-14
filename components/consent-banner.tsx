@@ -31,7 +31,7 @@ export function ConsentBanner() {
   const handleDecline = () => {
     // When declining, we need to let users know about limited functionality
     alert(
-      "Some features of KeLink may not work without location and data collection consent. You can change your preferences anytime."
+      "Some features of KeliLink may not work without location and data collection consent. You can change your preferences anytime."
     );
     // We close the banner but don't set the consent cookie
     setIsVisible(false);

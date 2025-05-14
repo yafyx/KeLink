@@ -1,7 +1,7 @@
 /**
  * lib/gemini.ts
  * 
- * Unified utility functions for Gemini API calls in the KeLink app.
+ * Unified utility functions for Gemini API calls in the KeliLink app.
  * Handles both general text generation and function calling capabilities.
  */
 
@@ -188,7 +188,7 @@ Berdasarkan rencana Anda di ${plannedAreas.join(', ')}, saya sarankan untuk memp
 Tips khusus untuk penjual ${peddlerType}:
 ${getPeddlerSpecificTips(peddlerType)}
 
-Ingat untuk selalu update lokasi Anda di aplikasi KeLink agar pelanggan dapat dengan mudah menemukan Anda!`;
+Ingat untuk selalu update lokasi Anda di aplikasi KeliLink agar pelanggan dapat dengan mudah menemukan Anda!`;
     }
   }
 }

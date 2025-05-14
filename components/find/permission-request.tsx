@@ -54,7 +54,7 @@ export function PermissionRequest({
             <CardContent className="space-y-4">
               <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4 text-sm text-red-700 dark:text-red-300">
                 <p>
-                  KeLink uses your location to find peddlers near you. Without
+                  KeliLink uses your location to find peddlers near you. Without
                   location access, we can only show sample results or peddlers
                   in default areas.
                 </p>
@@ -64,7 +64,7 @@ export function PermissionRequest({
                 <ol className="ml-5 list-decimal space-y-1 text-sm text-gray-600 dark:text-gray-300">
                   <li>Open your browser settings</li>
                   <li>Navigate to Site Settings or Permissions</li>
-                  <li>Find KeLink and allow location access</li>
+                  <li>Find KeliLink and allow location access</li>
                   <li>Refresh this page</li>
                 </ol>
               </div>
@@ -123,7 +123,7 @@ export function PermissionRequest({
                 Location Access Needed
               </CardTitle>
               <CardDescription>
-                KeLink uses your location to find peddlers near you
+                KeliLink uses your location to find peddlers near you
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

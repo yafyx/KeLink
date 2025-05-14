@@ -1,6 +1,6 @@
-# KeLink - Mobile Peddler Finder
+# KeliLink - Mobile Peddler Finder
 
-KeLink is a platform that connects street food peddlers in Indonesia with customers. This application helps customers find mobile food peddlers around them, and helps peddlers optimize their routes and connect with their customers.
+KeliLink is a platform that connects street food peddlers in Indonesia with customers. This application helps customers find mobile food peddlers around them, and helps peddlers optimize their routes and connect with their customers.
 
 ## Features
 

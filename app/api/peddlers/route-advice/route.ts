@@ -127,7 +127,7 @@ ${citySpecific}${areaSpecificAdvice}
 Tips khusus untuk penjual ${peddlerType}:
 ${peddlerSpecificTips}
 
-Ingat untuk selalu update lokasi Anda di aplikasi KeLink agar pelanggan dapat dengan mudah menemukan Anda!`
+Ingat untuk selalu update lokasi Anda di aplikasi KeliLink agar pelanggan dapat dengan mudah menemukan Anda!`
 }
 
 // Helper function to get time-specific advice

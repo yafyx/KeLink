@@ -531,7 +531,7 @@ export function FloatingChat({
             <MessageSquare className="text-white h-5 w-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">Chat with KeLink</p>
+            <p className="text-sm font-medium truncate">Chat with KeliLink</p>
             <p className="text-xs text-gray-500 truncate">
               Search for street peddlers or ask for directions...
             </p>

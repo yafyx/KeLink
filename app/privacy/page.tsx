@@ -2,8 +2,8 @@ import { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | KeLink",
-  description: "Privacy Policy for KeLink application",
+  title: "Privacy Policy | KeliLink",
+  description: "Privacy Policy for KeliLink application",
 };
 
 export default function PrivacyPolicyPage() {
@@ -19,7 +19,7 @@ export default function PrivacyPolicyPage() {
         <section className="mb-6">
           <h2 className="text-2xl font-semibold mb-4">Introduction</h2>
           <p>
-            KeLink ("we", "our", or "us") is committed to protecting your
+            KeliLink ("we", "our", or "us") is committed to protecting your
             privacy. This Privacy Policy explains how we collect, use, disclose,
             and safeguard your information when you use our service.
           </p>

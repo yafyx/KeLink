@@ -45,6 +45,8 @@ import { useGeolocation } from "@/hooks/use-geolocation";
 import { FeatureBanner } from "@/components/feature-card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { FoodBeamBackground } from "@/components/kelink-food-beam";
+import { AnimatedBeamDemo } from "@/components/kelink-beam";
 
 export default function Home() {
   const router = useRouter();
@@ -135,18 +137,18 @@ export default function Home() {
     <AppLayout
       header={
         <MobileHeader
-          title="KeLink"
-          centerContent={true}
+          title=""
           leftAction={
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative bg-primary hover:bg-primary/90"
-              aria-label="User profile"
-              onClick={() => router.push("/account")}
-            >
-              <UserRound className="h-7 w-7 fill-white" />
-            </Button>
+            <div className="flex items-center text-primary font-bold text-xl pl-4 font-title">
+              <Image
+                src="/kelilink-logo.png"
+                alt="KeliLink Logo"
+                width={32}
+                height={32}
+                className="mr-2"
+              />
+              KeliLink
+            </div>
           }
           rightAction={
             <Button
@@ -167,30 +169,34 @@ export default function Home() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
-        {/* Hero Banner */}
+        {/* Hero Banner with KeliLink Brand Colors */}
         <motion.div
-          className="bg-gradient-to-br from-primary/90 via-primary to-primary-dark relative pt-6 pb-10 px-4 mb-6 overflow-hidden rounded-b-3xl shadow-lg"
+          className="relative bg-gradient-to-br from-white to-gray-50 pt-6 pb-10 px-4 mb-6 overflow-hidden rounded-b-3xl shadow-lg"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          {/* Decorative Elements */}
-          <div className="absolute top-0 left-0 w-full h-full">
-            <div className="absolute top-8 right-4 w-32 h-32 rounded-full bg-white/10 blur-xl" />
-            <div className="absolute bottom-4 left-8 w-24 h-24 rounded-full bg-white/5 blur-lg" />
-            <div className="absolute top-20 left-12 w-16 h-16 rounded-full bg-white/8 blur-md" />
+          {/* Container for AnimatedBeamDemo and blur effects - explicitly set z-index */}
+          <div className="absolute top-[-40px] left-0 right-0 w-full h-20 z-0">
+            <AnimatedBeamDemo />
+            <div className="absolute top-8 right-4 w-32 h-32 rounded-full bg-primary/5 blur-xl" />
+            <div className="absolute bottom-4 left-8 w-24 h-24 rounded-full bg-primary/5 blur-lg" />
+            <div className="absolute top-20 left-12 w-16 h-16 rounded-full bg-primary/5 blur-md" />
           </div>
+          {/* Gradient Overlay - increased z-index and opacity */}
+          <div className="absolute inset-0 bg-gradient-to-b from-white/50 via-white/75 to-white/90 z-5"></div>
 
-          {/* Location and Search Section */}
           <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                <MapPin className="h-5 w-5 text-white flex-shrink-0" />
+            <div className="flex items-center gap-3 mb-5">
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shadow-md">
+                <MapPin className="h-6 w-6 text-primary flex-shrink-0" />
               </div>
               <div className="flex flex-col">
-                <p className="text-xs text-white/70">Your Location</p>
+                <p className="text-xs text-gray-500 font-medium">
+                  Your Location
+                </p>
                 <button
-                  className="text-sm font-medium flex items-center gap-1 text-white text-left"
+                  className="text-sm font-semibold flex items-center gap-1 text-gray-700 text-left hover:text-primary transition-colors"
                   onClick={handleRequestLocation}
                   aria-label="Update your location"
                 >
@@ -199,25 +205,25 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="mb-5">
-              <h1 className="text-3xl font-bold text-white mb-2 font-jakarta">
+            <div className="mb-6">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2 font-jakarta tracking-tight">
                 Find Street Food
               </h1>
-              <p className="text-sm text-white/80">
+              <p className="text-sm text-gray-600 leading-relaxed">
                 Discover authentic Indonesian street food nearby
               </p>
             </div>
 
             <Button
               onClick={handleNavigateToFind}
-              className="w-full py-6 bg-white hover:bg-white/95 text-primary justify-between h-auto font-medium rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-[1.02]"
+              className="w-full py-3 bg-white hover:bg-gray-50 text-gray-900 justify-between font-medium border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all"
               disabled={isLoading}
             >
               <div className="flex items-center">
-                <Search className="h-5 w-5 mr-2 text-primary/70" />
-                <span>Search for peddlers nearby...</span>
+                <Search className="h-4 w-4 mr-2 text-primary" />
+                <span className="text-sm">Search nearby...</span>
               </div>
-              <ArrowRight className="h-4 w-4 text-primary" />
+              <ArrowRight className="h-3 w-3 text-primary" />
             </Button>
           </div>
         </motion.div>

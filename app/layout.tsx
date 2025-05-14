@@ -17,7 +17,7 @@ const interTight = Inter_Tight({
 });
 
 export const metadata: Metadata = {
-  title: "KeLink",
+  title: "KeliLink",
   description: "Ask, Find, Enjoy: Connecting You to Mobile Peddlers with AI",
   generator: "v0.dev",
 };

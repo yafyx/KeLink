@@ -133,7 +133,7 @@ export default function VendorRegisterPage() {
       <div className="flex flex-col py-4">
         <Card className="w-full">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-xl font-bold">Join KeLink</CardTitle>
+            <CardTitle className="text-xl font-bold">Join KeliLink</CardTitle>
             <CardDescription>
               Reach more customers with our AI-powered platform
             </CardDescription>
