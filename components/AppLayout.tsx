@@ -28,13 +28,8 @@ export function AppLayout({ children, header }: AppLayoutProps) {
       icon: <Activity className="h-5 w-5" />,
     },
     {
-      href: "/chat",
-      label: "Chat",
-      icon: <MessageSquare className="h-5 w-5" />,
-    },
-    {
-      href: "/account/privacy",
-      label: "Account",
+      href: "/profile",
+      label: "Profile",
       icon: <User className="h-5 w-5" />,
     },
   ];
@@ -67,41 +62,32 @@ export function AppLayout({ children, header }: AppLayoutProps) {
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="flex flex-col items-center w-10"
+                      aria-label={item.label}
+                      tabIndex={0}
+                      className="flex flex-col items-center w-14 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary relative"
                     >
-                      <motion.div
-                        className={`flex items-center justify-center h-8 w-8 rounded-full ${
-                          isActive ? "text-primary" : "text-muted-foreground"
-                        }`}
-                        whileHover={{ scale: 1.2 }}
-                        transition={{
-                          type: "spring",
-                          stiffness: 400,
-                          damping: 17,
-                        }}
-                      >
-                        {item.icon}
-                      </motion.div>
-                      <span
-                        className={`text-[10px] mt-0.5 whitespace-nowrap text-center font-jakarta ${
+                      <div
+                        className={`flex flex-col items-center justify-center h-14 w-14 rounded-full transition-colors duration-200 gap-0.5 ${
                           isActive
-                            ? "text-primary font-medium"
-                            : "text-muted-foreground"
+                            ? "bg-primary/10 text-primary"
+                            : "bg-transparent text-muted-foreground"
                         }`}
                       >
-                        {item.label}
-                      </span>
-                      {isActive && (
                         <motion.div
-                          layoutId="nav-indicator"
-                          className="absolute bottom-[calc(100%-2px)] h-1 w-10 bg-primary rounded-full"
+                          className="flex items-center justify-center h-8 w-8"
+                          whileHover={{ scale: 1.2 }}
                           transition={{
                             type: "spring",
-                            stiffness: 350,
-                            damping: 25,
+                            stiffness: 400,
+                            damping: 17,
                           }}
-                        />
-                      )}
+                        >
+                          {item.icon}
+                        </motion.div>
+                        <span className="text-[10px] whitespace-nowrap text-center font-jakarta font-semibold">
+                          {item.label}
+                        </span>
+                      </div>
                     </Link>
                   );
                 })}

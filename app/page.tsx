@@ -49,6 +49,7 @@ import { cn } from "@/lib/utils";
 import { FoodBeamBackground } from "@/components/kelink-food-beam";
 import { AnimatedBeamDemo } from "@/components/kelink-beam";
 import { BorderBeam } from "@/components/ui/border-beam";
+import { TextAnimate } from "@/components/ui/text-animate";
 
 export default function Home() {
   const router = useRouter();
@@ -89,6 +90,15 @@ export default function Home() {
     "Pecel",
   ];
 
+  // Dynamic animated search texts
+  const searchPhrases = [
+    "to search for street peddlers nearby",
+    "to find trending food",
+    "to discover local favorites",
+    "for the best street snacks",
+  ];
+  const [searchPhraseIndex, setSearchPhraseIndex] = useState(0);
+
   useEffect(() => {
     if (location) {
       setLocationText(
@@ -98,6 +108,13 @@ export default function Home() {
       );
     }
   }, [location]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSearchPhraseIndex((prev) => (prev + 1) % searchPhrases.length);
+    }, 3000); // 3 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   const handleNavigateToFind = () => {
     setIsLoading(true);
@@ -214,8 +231,19 @@ export default function Home() {
               >
                 <div className="flex items-center">
                   <Search className="h-4 w-4 mr-2 text-primary" />
-                  <span className="text-sm">
-                    Ask me to search for street peddlers nearby
+                  <span className="text-sm flex items-center gap-1">
+                    Ask me{" "}
+                    <TextAnimate
+                      animation="blurInUp"
+                      by="character"
+                      className="inline-block"
+                      key={searchPhraseIndex}
+                      duration={0.5}
+                      startOnView={false}
+                      delay={0.1}
+                    >
+                      {searchPhrases[searchPhraseIndex]}
+                    </TextAnimate>
                   </span>
                 </div>
                 <ArrowRight className="h-3 w-3 text-primary" />
