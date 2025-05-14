@@ -35,6 +35,9 @@ import {
   TrendingUp,
   Sparkles,
   MessageCircleQuestion,
+  Users,
+  Share2,
+  Lightbulb,
 } from "lucide-react";
 import { MobileHeader } from "@/components/ui/mobile-header";
 import { AppLayout } from "@/components/AppLayout";
@@ -50,6 +53,7 @@ import { FoodBeamBackground } from "@/components/kelink-food-beam";
 import { AnimatedBeamDemo } from "@/components/kelink-beam";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { TextAnimate } from "@/components/ui/text-animate";
+import { OnboardingDialog } from "@/components/OnboardingDialog";
 
 export default function Home() {
   const router = useRouter();
@@ -65,6 +69,9 @@ export default function Home() {
   >();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(1);
+  const [userType, setUserType] = useState<"customer" | "peddler" | null>(null);
 
   // Food categories
   const categories = [
@@ -92,7 +99,7 @@ export default function Home() {
 
   // Dynamic animated search texts
   const searchPhrases = [
-    "to search for street peddlers nearby",
+    "to search for street peddlers",
     "to find trending food",
     "to discover local favorites",
     "for the best street snacks",
@@ -115,6 +122,36 @@ export default function Home() {
     }, 3000); // 3 seconds
     return () => clearInterval(interval);
   }, []);
+
+  // Onboarding dialog effect
+  useEffect(() => {
+    const hasVisited = localStorage.getItem("hasVisitedKeliLinkHome");
+    if (!hasVisited) {
+      setIsOnboardingOpen(true);
+    }
+  }, []);
+
+  const handleCloseOnboarding = () => {
+    setIsOnboardingOpen(false);
+    localStorage.setItem("hasVisitedKeliLinkHome", "true");
+
+    // Reset onboarding state for next time
+    setOnboardingStep(1);
+    setUserType(null);
+  };
+
+  const handleNextStep = () => {
+    setOnboardingStep((prev) => prev + 1);
+  };
+
+  const handlePrevStep = () => {
+    setOnboardingStep((prev) => Math.max(1, prev - 1));
+  };
+
+  const handleUserTypeSelect = (type: "customer" | "peddler") => {
+    setUserType(type);
+    handleNextStep();
+  };
 
   const handleNavigateToFind = () => {
     setIsLoading(true);
@@ -175,6 +212,7 @@ export default function Home() {
               size="icon"
               className="border border-gray-300 rounded-full w-10 h-10 p-0 flex items-center justify-center hover:bg-gray-100"
               aria-label="Questions"
+              onClick={() => setIsOnboardingOpen(true)}
             >
               ?
             </Button>
@@ -699,6 +737,17 @@ export default function Home() {
           </Card>
         </motion.div>
       </motion.div>
+
+      <OnboardingDialog
+        open={isOnboardingOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCloseOnboarding();
+          } else {
+            setIsOnboardingOpen(true);
+          }
+        }}
+      />
     </AppLayout>
   );
 }
