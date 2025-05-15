@@ -8,6 +8,19 @@ import { z } from 'zod';
 // IMPORTANT: Ensure your GOOGLE_GENERATIVE_AI_API_KEY is set in your environment
 const gemini = google('gemini-2.0-flash'); // Consistent with lib/ai/gemini.ts
 
+const KELILINK_SYSTEM_PROMPT = `You are KeliLink, a friendly and helpful assistant for finding Indonesian street food peddlers. Your goal is to provide concise and clear information to the user.
+
+When you use a tool:
+- If the tool execution is successful and provides information (e.g., finds peddlers, calculates a route), ALWAYS summarize this information in a natural, conversational way. For example, instead of just outputting raw data, say something like: "I found a few bakso peddlers near you: Bakso Pak Kumis (200m) and Bakso Enak (500m)." or "Okay, the route to Bakso Pak Kumis is about a 5-minute walk."
+- If the tool execution is successful but finds no results (e.g., no peddlers of a certain type are found), clearly inform the user. For example: "I searched for 'sate padang' peddlers, but it seems there aren\'t any active near you right now. Would you like to try a different food?"
+- If you need the user\'s location to perform an action and you don\'t have it, politely ask them to use the location button on the page to share their location, and then retry their request. For example: "I need your location to find nearby peddlers. Could you please use the 'Locate Me' button and then ask again?"
+
+General Guidelines:
+- Be concise and to the point.
+- When providing peddler information, list their name, type, and distance if available.
+- If a user\'s request is unclear, ask for clarification.
+- Do not output raw JSON or overly technical details from tools directly to the user. Integrate the information smoothly into your response.`;
+
 export const maxDuration = 30; // Allow streaming responses up to 30 seconds
 
 // Define tool schemas for the AI
@@ -101,31 +114,57 @@ const getRouteTool = tool({
 // So, we might not define requestLocationAccess as a server-side tool for streamText.
 
 export async function POST(req: Request) {
-    const { messages, data } = await req.json(); // `data` can hold additional payload from useChat `body`
+    // Correctly destructure assuming `userLocation` and other `body` fields are at the root of req.json()
+    const { messages, userLocation, currentPeddlers, selectedPeddlerId } = await req.json();
 
-    const userLocation = data?.userLocation; // Expect client to send this
-    const currentPeddlers = data?.currentPeddlers; // Expect client to send this
-    const selectedPeddlerId = data?.selectedPeddlerId;
+    console.log('!!! API CHAT ROUTE - Received request. Messages count:', messages?.length);
+    // console.log('!!! API CHAT ROUTE - Raw data object from req.json():', JSON.stringify(data, null, 2)); // No longer using a separate 'data' object for these
 
-    // Define tools with dynamic execute functions that can use userLocation, etc.
+    // const userLocation = data?.userLocation; // No longer needed
+    // const currentPeddlers = data?.currentPeddlers; // No longer needed
+    // const selectedPeddlerId = data?.selectedPeddlerId; // No longer needed
+
+    console.log('!!! API CHAT ROUTE - Parsed userLocation directly from req.json() (before tool definition):', JSON.stringify(userLocation, null, 2));
+    console.log('!!! API CHAT ROUTE - Type of userLocation:', typeof userLocation);
+    console.log('!!! API CHAT ROUTE - Parsed currentPeddlers directly from req.json():', JSON.stringify(currentPeddlers, null, 2));
+    console.log('!!! API CHAT ROUTE - Parsed selectedPeddlerId directly from req.json():', JSON.stringify(selectedPeddlerId, null, 2));
+
     const toolsForAI = {
         findNearbyPeddlers: tool({
-            description: "Searches for nearby food peddlers based on type and current user location.",
+            description: "Searches for nearby food peddlers based on type, current user location, and/or administrative areas (city, kecamatan, kelurahan).",
             parameters: z.object({
                 foodType: z.string().describe("Type of food or peddler to search for (e.g., 'bakso', 'siomay')."),
+                city: z.string().optional().describe("City name to search within (e.g., 'Depok')."),
+                kecamatan: z.string().optional().describe("Kecamatan (sub-district) name to search within."),
+                kelurahan: z.string().optional().describe("Kelurahan (village/urban ward) name to search within."),
             }),
-            execute: async ({ foodType }) => {
-                if (!userLocation || !userLocation.lat || !userLocation.lng) {
-                    return { peddlersFound: [], message: "I need your location to find peddlers. Please enable location services or click the locate me button." };
+            execute: async ({ foodType, city, kecamatan, kelurahan }) => {
+                // userLocation is available in the outer scope of the POST handler
+                console.log(
+                    '!!! findNearbyPeddlers TOOL - INSIDE EXECUTE - UserLocation value:',
+                    JSON.stringify(userLocation, null, 2)
+                );
+                console.log(
+                    '!!! findNearbyPeddlers TOOL - INSIDE EXECUTE - Type of userLocation:',
+                    typeof userLocation
+                );
+                console.log(
+                    '!!! findNearbyPeddlers TOOL - INSIDE EXECUTE - Admin areas:',
+                    JSON.stringify({ city, kecamatan, kelurahan }, null, 2)
+                );
+
+                if ((!city && !kecamatan && !kelurahan) && (!userLocation || !userLocation.lat || !userLocation.lng)) {
+                    console.log('!!! findNearbyPeddlers TOOL - Location missing or invalid (inside execute), returning LOCATION_REQUIRED status.');
+                    return { peddlersFound: [], message: "I need either your specific location (lat/lng) or an administrative area (city/kecamatan/kelurahan) to find peddlers. Please enable location services, use the locate me button, or specify an area." };
                 }
                 try {
-                    // Adapt findNearbyPeddlersService or call the /api/find logic directly
-                    // For now, a simplified mock call to the concept of findNearbyPeddlersService
                     const result = await findNearbyPeddlersService({
-                        userLocation: { lat: userLocation.lat, lon: userLocation.lng }, // Service expects lon
+                        userLocation: userLocation && userLocation.lat && userLocation.lng ? { lat: userLocation.lat, lon: userLocation.lng } : undefined,
                         peddlerType: foodType,
-                        limit: 5,
-                        // keywords and maxDistance can be added if needed
+                        city: city,
+                        kecamatan: kecamatan,
+                        kelurahan: kelurahan,
+                        limit: 5, // Keep limit for chat reasonable
                     });
                     return {
                         peddlers: result.peddlers,
@@ -133,7 +172,7 @@ export async function POST(req: Request) {
                         message: result.peddlers.length > 0 ? `Found ${result.peddlers.length} ${foodType} peddlers near you.` : `No ${foodType} peddlers found nearby.`
                     };
                 } catch (error: any) {
-                    console.error("Error in findNearbyPeddlers tool:", error);
+                    console.error("Error in findNearbyPeddlers tool (inside execute):", error);
                     return { peddlersFound: [], message: `Error finding peddlers: ${error.message}` };
                 }
             },
@@ -144,6 +183,10 @@ export async function POST(req: Request) {
                 peddlerIdToRoute: z.string().describe("ID of the peddler to navigate to."),
             }),
             execute: async ({ peddlerIdToRoute }) => {
+                console.log(
+                    '!!! getRouteToPeddler TOOL - INSIDE EXECUTE - UserLocation value:',
+                    JSON.stringify(userLocation, null, 2)
+                );
                 if (!userLocation || !userLocation.lat || !userLocation.lng) {
                     return { routeInfo: null, message: "I need your location to calculate a route." };
                 }
@@ -163,7 +206,7 @@ export async function POST(req: Request) {
                     );
                     return { routeInfo: route, message: `Route to ${peddler.name} calculated.` };
                 } catch (error: any) {
-                    console.error("Error in getRouteToPeddler tool:", error);
+                    console.error("Error in getRouteToPeddler tool (inside execute):", error);
                     return { routeInfo: null, message: `Error calculating route: ${error.message}` };
                 }
             },
@@ -173,9 +216,11 @@ export async function POST(req: Request) {
         // requestLocationAccess: tool({ ...})
     };
 
+    console.log('!!! API CHAT ROUTE - About to call streamText. userLocation at this point:', JSON.stringify(userLocation, null, 2));
+
     const result = await streamText({
         model: gemini,
-        system: 'You are KeliLink, a helpful person for finding Indonesian street food peddlers. Be friendly and concise. When providing peddler information, list their name, type, and distance if available. You can also provide routes. If you need the user\'s location and don\'t have it, ask them to use the location button.',
+        system: KELILINK_SYSTEM_PROMPT,
         messages: messages, // Assumes messages are already CoreMessages from useChat
         tools: toolsForAI,
     });

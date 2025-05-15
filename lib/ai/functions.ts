@@ -222,7 +222,7 @@ export async function executeFunctionCall(
 
         case "requestLocationAccess":
         case "get_location": // Support legacy name
-            return handleRequestLocation(onLocationResult, userLocation);
+            return await handleRequestLocation(args, userLocation);
 
         default:
             return `Function ${name} is not supported.`;
@@ -236,16 +236,18 @@ async function handleFindPeddlers(
     onVendorResults?: (peddlers: any[]) => void
 ): Promise<string> {
     try {
-        // Default values
         const peddlerType = args.peddlerType || args.foodType || "";
         const keywords = args.keywords || [];
         const maxDistance = args.maxDistance || 5000;
 
         if (!userLocation) {
-            return "I need your location to find peddlers nearby. Please enable location access.";
+            return JSON.stringify({
+                status: "LOCATION_REQUIRED",
+                uiMessage: "Your location is needed. Click 'Use My Location & Retry' below, or use the main 'Locate Me' button on the page.",
+                aiActionInstruction: "The user\'s location is missing. Inform them it\'s required and that they can use the chat button or page button to provide it. If they indicate location is ready (e.g., via the button flow), then you can try find_peddlers again."
+            });
         }
 
-        // Prepare the request body for the API
         const requestBody = {
             message: `${peddlerType} ${keywords.join(" ")}`.trim(),
             location: {
@@ -283,7 +285,11 @@ async function handleFindPeddlers(
         }
     } catch (error) {
         console.error("Error finding peddlers:", error);
-        return "Sorry, I had trouble finding peddlers. Please try again later.";
+        return JSON.stringify({
+            status: "ERROR_FINDING_PEDDLERS",
+            uiMessage: "Sorry, I had trouble finding peddlers. Please try again later.",
+            aiActionInstruction: "An error occurred while trying to find peddlers. Inform the user about the error and suggest trying again."
+        });
     }
 }
 
@@ -337,23 +343,40 @@ async function handleGetRoute(
 }
 
 // Handler for requesting location
-function handleRequestLocation(
-    onLocationResult?: () => void,
-    userLocation?: { lat: number; lng: number } | null
-): string {
+async function handleRequestLocation(
+    args: any, // Added args parameter for consistency, though not used yet
+    userLocation: { lat: number; lng: number } | null
+): Promise<string> {
     try {
-        // This will trigger the location update in the parent component
-        if (onLocationResult) {
-            onLocationResult();
+        let uiMsg = "Please enable location services in your browser or use the 'Locate Me' button on the page. ";
+        uiMsg += "Once done, you can ask me to search again.";
+
+        let aiInstruction = "You've asked the user to enable/share their location. ";
+        aiInstruction += "Instruct them to do so using their browser or the page's 'Locate Me' feature. ";
+        aiInstruction += "Then, advise them to repeat their original request (e.g., 'find bakso'). ";
+        aiInstruction += "Do not attempt the location-dependent action in this turn; wait for their next message confirming location is ready or re-requesting the action.";
+
+        if (userLocation) { // If server somehow knows location when this tool is called
+            uiMsg = "It seems I can already access your location. You can try your search again if it failed previously.";
+            aiInstruction = "It appears location is already available. You can inform the user and suggest they retry their original request if it failed due to location previously.";
+            return JSON.stringify({
+                status: "LOCATION_SEEMS_AVAILABLE_RETRY_PROMPT",
+                uiMessage: uiMsg,
+                aiActionInstruction: aiInstruction
+            });
         }
 
-        if (!userLocation) {
-            return "Requesting your location. Please enable location access if prompted.";
-        } else {
-            return "I've updated your location on the map.";
-        }
+        return JSON.stringify({
+            status: "LOCATION_PERMISSION_GUIDANCE",
+            uiMessage: uiMsg,
+            aiActionInstruction: aiInstruction
+        });
     } catch (error) {
-        console.error("Error getting location:", error);
-        return "Sorry, I had trouble accessing your location. Please check your location permissions.";
+        console.error("Error in handleRequestLocation:", error);
+        return JSON.stringify({
+            status: "ERROR_HANDLING_LOCATION_REQUEST",
+            uiMessage: "Sorry, there was an issue with the location request process.",
+            aiActionInstruction: "An error occurred while processing the location request. Inform the user."
+        });
     }
 } 

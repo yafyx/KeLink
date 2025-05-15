@@ -16,6 +16,9 @@ interface QueryAnalysisResult {
     isLookingForPeddlers: boolean;
     peddlerType: string;
     keywords: string[];
+    city?: string;
+    kecamatan?: string;
+    kelurahan?: string;
     directResponse: string;
 }
 
@@ -23,6 +26,9 @@ const QueryAnalysisResultSchema = z.object({
     isLookingForPeddlers: z.boolean().describe("True if the user's query is about finding street peddlers/peddlers, false otherwise."),
     peddlerType: z.string().describe("Specific type of peddler or food item the user is looking for (e.g., 'bakso', 'siomay', 'es kelapa'). Empty string if no specific type is mentioned or if not looking for peddlers."),
     keywords: z.array(z.string()).describe("Relevant keywords from the user's query that help identify the peddler type or search intent. Empty array if not looking for peddlers."),
+    city: z.string().optional().describe("City name mentioned by the user (e.g., 'Depok', 'Jakarta Selatan')."),
+    kecamatan: z.string().optional().describe("Kecamatan (sub-district) name mentioned by the user (e.g., 'Beji', 'Margonda')."),
+    kelurahan: z.string().optional().describe("Kelurahan (village/urban ward) name mentioned by the user (e.g., 'Pondok Cina', 'Kemirimuka')."),
     directResponse: z.string().describe("A polite, natural language response in English to the user if they are NOT looking for peddlers (isLookingForPeddlers is false). Example: 'I can help you find street food peddlers. What are you looking for?' or 'Sorry, I can only help with finding peddlers.'")
 });
 
@@ -60,9 +66,12 @@ function formatDistance(distance: number): string {
 
 // Fallback function to find nearby peddlers when Firestore is not accessible
 async function findNearbyPeddlersFallback(
-    location: { lat: number; lon: number },
+    location: { lat: number; lon: number } | undefined,
     peddlerType: string = '',
     keywords: string[] = [],
+    city: string = '',
+    kecamatan: string = '',
+    kelurahan: string = '',
     maxDistance: number = 5000,
     limit: number = 10,
     lastPeddlerId?: string
@@ -115,19 +124,24 @@ async function findNearbyPeddlersFallback(
     // Calculate distance and filter by max_distance
     let peddlersWithDistance = filteredPeddlers
         .map(peddler => {
-            const distance = calculateDistance(
-                location.lat,
-                location.lon,
-                peddler.location.lat,
-                peddler.location.lon
-            );
+            let distance = Infinity;
+            let formattedDistance = 'N/A';
+            if (location) {
+                distance = calculateDistance(
+                    location.lat,
+                    location.lon,
+                    peddler.location.lat,
+                    peddler.location.lon
+                );
+                formattedDistance = formatDistance(distance);
+            }
             return {
                 ...peddler,
-                distance: formatDistance(distance),
+                distance: formattedDistance,
                 raw_distance: distance
             };
         })
-        .filter(peddler => (peddler.raw_distance as number) <= maxDistance)
+        .filter(peddler => location ? (peddler.raw_distance as number) <= maxDistance : true)
         .sort((a, b) => (a.raw_distance as number) - (b.raw_distance as number));
 
     // Handle pagination
@@ -238,7 +252,8 @@ export async function POST(request: NextRequest) {
 
         // If we get here, the user is looking for peddlers
         // Generate a cache key based on the search parameters
-        const cacheKey = `peddlers_${normalizedLocation.lat.toFixed(4)}_${normalizedLocation.lon.toFixed(4)}_${result.peddlerType}_${result.keywords.join('-')}_${lastPeddlerId || 'first'}`;
+        const locationCacheKey = normalizedLocation ? `${normalizedLocation.lat.toFixed(4)}_${normalizedLocation.lon.toFixed(4)}` : 'no_location';
+        const cacheKey = `peddlers_${locationCacheKey}_${result.peddlerType}_${result.keywords.join('-')}_${result.city || 'anycity'}_${result.kecamatan || 'anykec'}_${result.kelurahan || 'anykel'}_${lastPeddlerId || 'first'}`;
 
         // Check if we have cached results
         const cachedResults = peddlerCache.get<PeddlerResponse>(cacheKey);
@@ -260,6 +275,9 @@ export async function POST(request: NextRequest) {
                 userLocation: normalizedLocation,
                 peddlerType: result.peddlerType,
                 keywords: result.keywords,
+                city: result.city,
+                kecamatan: result.kecamatan,
+                kelurahan: result.kelurahan,
                 maxDistance: 5000, // 5km
                 limit: parseInt(limit.toString(), 10),
                 lastPeddlerId: lastPeddlerId
@@ -294,6 +312,9 @@ export async function POST(request: NextRequest) {
                 normalizedLocation,
                 result.peddlerType,
                 result.keywords,
+                result.city,
+                result.kecamatan,
+                result.kelurahan,
                 5000,
                 parseInt(limit.toString(), 10),
                 lastPeddlerId
@@ -325,7 +346,12 @@ async function analyzeUserQuery(query: string): Promise<QueryAnalysisResult> {
     try {
         // Define the prompt for Gemini - this will be more of a system prompt or context
         // The main user query will be the 'prompt' for generateObject
-        const systemPrompt = `You are an AI assistant helping users find Indonesian street food peddlers. Analyze the user's query. Determine if they are looking for peddlers, what type (e.g., bakso, siomay, es kelapa), and extract keywords. If they are not looking for peddlers, provide a polite response in English explaining your purpose or asking for clarification. Examples of Indonesian street food types: bakso, siomay, batagor, es kelapa, es cincau, martabak, etc.`;
+        const systemPrompt = `You are an AI assistant helping users find Indonesian street food peddlers. Analyze the user's query. 
+Determine if they are looking for peddlers. 
+Identify the specific type of peddler or food (e.g., bakso, siomay, sate). 
+Extract relevant keywords. 
+Also, extract administrative location details if mentioned: city (e.g., 'Depok', 'Jakarta Selatan'), kecamatan/sub-district (e.g., 'Beji', 'Margonda'), and kelurahan/village/urban ward (e.g., 'Pondok Cina', 'Kemirimuka'). 
+If they are not looking for peddlers, provide a polite response in English explaining your purpose or asking for clarification. Examples of Indonesian street food types: bakso, siomay, batagor, es kelapa, es cincau, martabak, etc.`;
 
         const geminiFlashModel = google('gemini-2.0-flash'); // Using the same model as in lib/gemini.ts for consistency
 
@@ -351,6 +377,9 @@ async function analyzeUserQuery(query: string): Promise<QueryAnalysisResult> {
                 isLookingForPeddlers: true, // Default to true in case of error to allow search
                 peddlerType: '',
                 keywords: [query.toLowerCase().trim()], // Use the query as a keyword
+                city: undefined,
+                kecamatan: undefined,
+                kelurahan: undefined,
                 directResponse: '' // No direct response in this fallback
             };
         }
@@ -359,6 +388,9 @@ async function analyzeUserQuery(query: string): Promise<QueryAnalysisResult> {
             isLookingForPeddlers: false,
             peddlerType: '',
             keywords: [],
+            city: undefined,
+            kecamatan: undefined,
+            kelurahan: undefined,
             directResponse: 'Sorry, I encountered an issue processing your request. Please try again.'
         };
     }

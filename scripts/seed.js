@@ -54,6 +54,7 @@ const sampleVendors = [
       "Siomay ikan tenggiri, tahu, kentang, telur, dan pare. Disajikan dengan bumbu kacang legit.",
     location: { lat: -6.3888, lon: 106.8305 }, // Margonda
     status: "active",
+    phoneNumber: "081298765432",
     profileImageUrl: "https://placehold.co/400x400/43A047/white?text=SKA",
   },
   {
@@ -73,6 +74,7 @@ const sampleVendors = [
       "Nasi goreng spesial dengan ayam, telur, bakso, dan acar timun wortel.",
     location: { lat: -6.4015, lon: 106.7942 }, // Sawangan
     status: "active",
+    phoneNumber: "085712345678",
     profileImageUrl: "https://placehold.co/400x400/FF9800/white?text=NGK",
   },
   {
@@ -83,6 +85,54 @@ const sampleVendors = [
     status: "active",
     phoneNumber: "089988776655",
     profileImageUrl: "https://placehold.co/400x400/757575/white?text=KSP",
+  },
+  {
+    name: "Gorengan Bu Tuti",
+    type: "Gorengan",
+    description:
+      "Aneka gorengan hangat: bakwan, tempe, tahu isi, pisang goreng.",
+    location: { lat: -6.365, lon: 106.822 }, // Near Depok
+    status: "active",
+    phoneNumber: "081122334455",
+    profileImageUrl: "https://placehold.co/400x400/D32F2F/white?text=GBT",
+  },
+  {
+    name: "Martabak Bang Alex",
+    type: "Martabak",
+    description: "Martabak manis dan telur dengan berbagai pilihan topping.",
+    location: { lat: -6.39, lon: 106.835 }, // Near Margonda
+    status: "active",
+    phoneNumber: "082233445566",
+    profileImageUrl: "https://placehold.co/400x400/5E35B1/white?text=MBA",
+  },
+  {
+    name: "Sate Ayam Pak Budi (Cilangkap)",
+    type: "Sate Ayam",
+    description:
+      "Sate ayam bumbu kacang khas Madura, dengan lontong atau nasi.",
+    location: { lat: -6.427, lon: 106.8 }, // Near Cilangkap
+    status: "active",
+    phoneNumber: "081234500001",
+    profileImageUrl: "https://placehold.co/400x400/FDD835/black?text=SPB",
+  },
+  {
+    name: "Bubur Ayam Mang Oleh (Cilangkap)",
+    type: "Bubur Ayam",
+    description:
+      "Bubur ayam komplit dengan suwiran ayam, cakwe, kacang, dan kerupuk.",
+    location: { lat: -6.4285, lon: 106.801 }, // Near Cilangkap
+    status: "active",
+    phoneNumber: "081234500002",
+    profileImageUrl: "https://placehold.co/400x400/FFF9C4/black?text=BMO",
+  },
+  {
+    name: "Ketoprak Mas Gareng (Cilangkap)",
+    type: "Ketoprak",
+    description: "Ketoprak lezat dengan bumbu kacang, tahu, bihun, dan tauge.",
+    location: { lat: -6.4265, lon: 106.7995 }, // Near Cilangkap
+    status: "active",
+    phoneNumber: "081234500003",
+    profileImageUrl: "https://placehold.co/400x400/7CB342/white?text=KMG",
   },
 ];
 

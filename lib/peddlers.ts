@@ -73,23 +73,31 @@ export async function findNearbyPeddlers({
     userLocation,
     keywords = [],
     peddlerType = '',
+    city = '',
+    kecamatan = '',
+    kelurahan = '',
     maxDistance = 5000, // Default max distance in meters
     limit = 20, // Default limit of results
     lastPeddlerId = null, // For pagination
 }: {
-    userLocation: { lat: number; lon: number };
+    userLocation?: { lat: number; lon: number }; // Made optional as admin areas can be primary
     keywords?: string[];
     peddlerType?: string;
+    city?: string;
+    kecamatan?: string;
+    kelurahan?: string;
     maxDistance?: number;
     limit?: number;
     lastPeddlerId?: string | null;
 }): Promise<{ peddlers: Peddler[], hasMore: boolean }> {
     try {
-        // Convert maxDistance from meters to kilometers for geohashing
-        const maxDistanceKm = maxDistance / 1000;
+        // Convert maxDistance from meters to kilometers for geohashing (if used)
+        // const maxDistanceKm = maxDistance / 1000;
 
-        // Get geo cells covering the search area
-        const cells = getGeoCells(userLocation.lat, userLocation.lon, maxDistanceKm);
+        // Get geo cells covering the search area (if userLocation is primary)
+        // if (userLocation) {
+        //     const cells = getGeoCells(userLocation.lat, userLocation.lon, maxDistanceKm);
+        // }
 
         // Build the initial query
         let peddlerQuery = db.collection('peddlers') as any;
@@ -100,6 +108,17 @@ export async function findNearbyPeddlers({
         // Add type filter if provided
         if (peddlerType && peddlerType.trim() !== '') {
             peddlerQuery = peddlerQuery.where('type', '==', peddlerType.trim());
+        }
+
+        // Add administrative area filters if provided
+        if (city && city.trim() !== '') {
+            peddlerQuery = peddlerQuery.where('city', '==', city.trim());
+        }
+        if (kecamatan && kecamatan.trim() !== '') {
+            peddlerQuery = peddlerQuery.where('kecamatan', '==', kecamatan.trim());
+        }
+        if (kelurahan && kelurahan.trim() !== '') {
+            peddlerQuery = peddlerQuery.where('kelurahan', '==', kelurahan.trim());
         }
 
         // Add pagination if lastPeddlerId provided
@@ -160,23 +179,32 @@ export async function findNearbyPeddlers({
             });
         }
 
-        // Calculate distances and filter by max distance
-        const peddlersWithDistance: PeddlerWithDistance[] = peddlers
-            .map(peddler => {
-                const distance = calculateDistance(
-                    userLocation.lat,
-                    userLocation.lon,
-                    peddler.location.lat,
-                    peddler.location.lon
-                );
-                return {
-                    ...peddler,
-                    distance: formatDistance(distance),
-                    raw_distance: distance
-                };
-            })
-            .filter(peddler => (peddler.raw_distance as number) <= maxDistance)
-            .sort((a, b) => (a.raw_distance as number) - (b.raw_distance as number));
+        // Calculate distances and filter by max distance if userLocation is provided
+        let peddlersWithDistance: PeddlerWithDistance[] = [];
+
+        if (userLocation) {
+            peddlersWithDistance = peddlers
+                .map(peddler => {
+                    const distance = calculateDistance(
+                        userLocation.lat,
+                        userLocation.lon,
+                        peddler.location.lat,
+                        peddler.location.lon
+                    );
+                    return {
+                        ...peddler,
+                        distance: formatDistance(distance),
+                        raw_distance: distance
+                    };
+                })
+                .filter(peddler => (peddler.raw_distance as number) <= maxDistance)
+                .sort((a, b) => (a.raw_distance as number) - (b.raw_distance as number));
+        } else {
+            // If no userLocation, we can't calculate distance.
+            // Peddlers are already filtered by admin areas.
+            // We assign the fetched peddlers directly, without distance info.
+            peddlersWithDistance = peddlers.map(p => ({ ...p, distance: undefined, raw_distance: undefined }));
+        }
 
         // Apply limit and determine if there are more results
         const limitedPeddlers = peddlersWithDistance.slice(0, limit);

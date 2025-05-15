@@ -431,59 +431,134 @@ export default function Home() {
 
         {/* Nearby Peddlers */}
         <motion.div
-          className="px-4 mb-8"
+          className="px-4 mb-6"
           variants={containerVariants}
           initial="hidden"
           animate="show"
         >
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-semibold font-jakarta text-gray-900">
               Peddlers Nearby
             </h2>
-            <Link href="/find" className="text-primary text-sm font-medium">
+            <Link
+              href="/find"
+              className="text-primary text-sm font-medium flex items-center"
+            >
               View All
+              <ArrowRight className="ml-1 h-3 w-3" />
             </Link>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             <motion.div
               variants={itemVariants}
               whileHover={{ scale: 1.02, y: -2 }}
               whileTap={{ scale: 0.98 }}
+              className="w-full"
             >
-              <Card className="border-0 shadow-md overflow-hidden rounded-xl bg-white hover:shadow-lg transition-all">
-                <CardContent className="p-0">
-                  <Link
-                    href="/find?peddler=siomay-mang-ujang"
-                    className="block"
-                  >
+              <Link
+                href="/find?peddler=siomay-mang-ujang"
+                className="block w-full"
+              >
+                <Card className="border-0 shadow-md overflow-hidden rounded-xl bg-white hover:shadow-lg transition-all cursor-pointer">
+                  <CardContent className="p-0 relative">
                     <div className="flex">
-                      <div className="relative w-32 h-32">
+                      {/* Food image with overlay gradient for better text contrast */}
+                      <div className="relative w-24 h-24 flex-shrink-0">
                         <Image
-                          src="vendor/siomay.png"
+                          src="/vendor/siomay.png"
                           alt="Siomay Mang Ujang Peddler"
                           fill
                           className="object-cover"
                         />
-                        <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm rounded-full p-1.5 shadow-sm">
-                          <div className="flex items-center">
-                            <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
-                            <span className="text-xs font-semibold ml-0.5">
-                              4.8
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
+
+                        {/* Distance pill at bottom */}
+                        <div className="absolute bottom-1 left-1 right-1 bg-white/90 backdrop-blur-sm rounded-full py-0.5 px-2 shadow-sm flex items-center justify-center">
+                          <Navigation className="h-3 w-3 text-primary mr-1" />
+                          <span className="text-xs font-medium text-gray-800">
+                            500m away
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="py-2 px-3 flex-1 flex flex-col justify-center">
+                        <div>
+                          {/* Header with name and status */}
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-semibold text-sm font-jakarta text-gray-900">
+                              Siomay Mang Ujang
+                            </h3>
+                            <Badge
+                              variant="outline"
+                              className="bg-green-50 text-green-700 border-green-200 flex items-center gap-0.5 px-1.5 py-0.5 text-xs"
+                            >
+                              <div className="h-1 w-1 rounded-full bg-green-500"></div>
+                              Active
+                            </Badge>
+                          </div>
+
+                          {/* Rating */}
+                          <div className="flex items-center mb-0.5">
+                            <div className="flex">
+                              {[1, 2, 3, 4].map((i) => (
+                                <Star
+                                  key={i}
+                                  className="h-3 w-3 text-yellow-500 fill-yellow-500"
+                                />
+                              ))}
+                              <Star className="h-3 w-3 text-yellow-500 fill-yellow-500 opacity-80" />
+                            </div>
+                            <span className="text-xs font-medium ml-1 text-gray-700">
+                              4.8 (124)
                             </span>
                           </div>
+
+                          {/* Location info */}
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <MapPin className="h-3.5 w-3.5 text-primary/80" />
+                            <p className="text-xs text-gray-700">
+                              Jl. Tebet Timur • 5 min walk
+                            </p>
+                          </div>
+
+                          {/* Last seen info */}
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <Clock className="h-3.5 w-3.5 text-gray-500" />
+                            <p className="text-xs text-gray-600">
+                              Last updated 5 min ago
+                            </p>
+                          </div>
                         </div>
+
+                        {/* Tags */}
+                        <div className="flex flex-wrap gap-1">
+                          <Badge className="bg-primary/10 text-primary border-0 px-2 py-0.5 text-xs">
+                            Siomay
+                          </Badge>
+                          <Badge className="bg-gray-100 text-gray-700 border-0 px-2 py-0.5 text-xs">
+                            Seafood
+                          </Badge>
+                          <Badge className="bg-amber-50 text-amber-700 border-0 px-2 py-0.5 text-xs">
+                            Popular
+                          </Badge>
+                        </div>
+                      </div>
+
+                      {/* Favorite button */}
+                      <div className="absolute right-1.5 top-1.5 z-10">
                         <button
-                          className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm rounded-full p-1.5 shadow-sm"
+                          className="bg-white/90 backdrop-blur-sm rounded-full p-1 shadow-sm"
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             toggleFavorite("siomay-mang-ujang");
                           }}
+                          aria-label="Toggle favorite"
                         >
                           <Heart
                             className={cn(
-                              "h-3.5 w-3.5",
+                              "h-3 w-3",
                               favorites.includes("siomay-mang-ujang")
                                 ? "text-red-500 fill-red-500"
                                 : "text-gray-400"
@@ -491,80 +566,121 @@ export default function Home() {
                           />
                         </button>
                       </div>
-                      <div className="p-4 flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <h3 className="font-semibold text-base font-jakarta text-gray-900">
-                            Siomay Mang Ujang
-                          </h3>
-                          <Badge className="bg-green-100 text-green-700 border-0">
-                            Active
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-1 mt-2">
-                          <MapPin className="h-3.5 w-3.5 text-primary/80" />
-                          <p className="text-xs text-gray-700">
-                            500m away • 5 min walk
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1 mt-1.5">
-                          <Clock className="h-3.5 w-3.5 text-gray-500" />
-                          <p className="text-xs text-gray-600">
-                            Last seen: 5 min ago
-                          </p>
-                        </div>
-                        <div className="mt-3 flex flex-wrap gap-1.5">
-                          <Badge className="bg-primary/10 text-primary border-0 px-2 py-0.5 text-xs">
-                            Siomay
-                          </Badge>
-                          <Badge className="bg-gray-100 text-gray-700 border-0 px-2 py-0.5 text-xs">
-                            Seafood
-                          </Badge>
-                        </div>
-                      </div>
                     </div>
-                  </Link>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </Link>
             </motion.div>
 
             <motion.div
               variants={itemVariants}
               whileHover={{ scale: 1.02, y: -2 }}
               whileTap={{ scale: 0.98 }}
+              className="w-full"
             >
-              <Card className="border-0 shadow-md overflow-hidden rounded-xl bg-white hover:shadow-lg transition-all">
-                <CardContent className="p-0">
-                  <Link
-                    href="/find?peddler=bakso-bang-gondrong"
-                    className="block"
-                  >
+              <Link
+                href="/find?peddler=bakso-bang-gondrong"
+                className="block w-full"
+              >
+                <Card className="border-0 shadow-md overflow-hidden rounded-xl bg-white hover:shadow-lg transition-all cursor-pointer">
+                  <CardContent className="p-0 relative">
                     <div className="flex">
-                      <div className="relative w-32 h-32">
+                      {/* Food image with overlay gradient for better text contrast */}
+                      <div className="relative w-24 h-24 flex-shrink-0">
                         <Image
-                          src="vendor/bakso.png"
+                          src="/vendor/bakso.png"
                           alt="Bakso Bang Gondrong Peddler"
                           fill
                           className="object-cover"
                         />
-                        <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm rounded-full p-1.5 shadow-sm">
-                          <div className="flex items-center">
-                            <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
-                            <span className="text-xs font-semibold ml-0.5">
-                              4.7
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
+
+                        {/* Distance pill at bottom */}
+                        <div className="absolute bottom-1 left-1 right-1 bg-white/90 backdrop-blur-sm rounded-full py-0.5 px-2 shadow-sm flex items-center justify-center">
+                          <Navigation className="h-3 w-3 text-primary mr-1" />
+                          <span className="text-xs font-medium text-gray-800">
+                            420m away
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="py-2 px-3 flex-1 flex flex-col justify-center">
+                        <div>
+                          {/* Header with name and status */}
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-semibold text-sm font-jakarta text-gray-900">
+                              Bakso Si Gondrong
+                            </h3>
+                            <Badge
+                              variant="outline"
+                              className="bg-green-50 text-green-700 border-green-200 flex items-center gap-0.5 px-1.5 py-0.5 text-xs"
+                            >
+                              <div className="h-1 w-1 rounded-full bg-green-500"></div>
+                              Active
+                            </Badge>
+                          </div>
+
+                          {/* Rating */}
+                          <div className="flex items-center mb-0.5">
+                            <div className="flex">
+                              {[1, 2, 3, 4].map((i) => (
+                                <Star
+                                  key={i}
+                                  className="h-3 w-3 text-yellow-500 fill-yellow-500"
+                                />
+                              ))}
+                              <Star className="h-3 w-3 text-yellow-500 fill-yellow-500 opacity-70" />
+                            </div>
+                            <span className="text-xs font-medium ml-1 text-gray-700">
+                              4.7 (98)
                             </span>
                           </div>
+
+                          {/* Location info */}
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <MapPin className="h-3.5 w-3.5 text-primary/80" />
+                            <p className="text-xs text-gray-700">
+                              Jl. Menteng Raya • 4 min walk
+                            </p>
+                          </div>
+
+                          {/* Last seen info */}
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <Clock className="h-3.5 w-3.5 text-gray-500" />
+                            <p className="text-xs text-gray-600">
+                              Last updated 3 min ago
+                            </p>
+                          </div>
                         </div>
+
+                        {/* Tags */}
+                        <div className="flex flex-wrap gap-1">
+                          <Badge className="bg-primary/10 text-primary border-0 px-2 py-0.5 text-xs">
+                            Bakso
+                          </Badge>
+                          <Badge className="bg-gray-100 text-gray-700 border-0 px-2 py-0.5 text-xs">
+                            Meatballs
+                          </Badge>
+                          <Badge className="bg-amber-50 text-amber-700 border-0 px-2 py-0.5 text-xs">
+                            Top Rated
+                          </Badge>
+                        </div>
+                      </div>
+
+                      {/* Favorite button */}
+                      <div className="absolute right-1.5 top-1.5 z-10">
                         <button
-                          className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm rounded-full p-1.5 shadow-sm"
+                          className="bg-white/90 backdrop-blur-sm rounded-full p-1 shadow-sm"
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             toggleFavorite("bakso-bang-gondrong");
                           }}
+                          aria-label="Toggle favorite"
                         >
                           <Heart
                             className={cn(
-                              "h-3.5 w-3.5",
+                              "h-3 w-3",
                               favorites.includes("bakso-bang-gondrong")
                                 ? "text-red-500 fill-red-500"
                                 : "text-gray-400"
@@ -572,40 +688,10 @@ export default function Home() {
                           />
                         </button>
                       </div>
-                      <div className="p-4 flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <h3 className="font-semibold text-base font-jakarta text-gray-900">
-                            Bakso Si Gondrong
-                          </h3>
-                          <Badge className="bg-green-100 text-green-700 border-0">
-                            Active
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-1 mt-2">
-                          <MapPin className="h-3.5 w-3.5 text-primary/80" />
-                          <p className="text-xs text-gray-700">
-                            420m away • 4 min walk
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1 mt-1.5">
-                          <Clock className="h-3.5 w-3.5 text-gray-500" />
-                          <p className="text-xs text-gray-600">
-                            Last seen: 3 min ago
-                          </p>
-                        </div>
-                        <div className="mt-3 flex flex-wrap gap-1.5">
-                          <Badge className="bg-primary/10 text-primary border-0 px-2 py-0.5 text-xs">
-                            Bakso
-                          </Badge>
-                          <Badge className="bg-gray-100 text-gray-700 border-0 px-2 py-0.5 text-xs">
-                            Meatballs
-                          </Badge>
-                        </div>
-                      </div>
                     </div>
-                  </Link>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </Link>
             </motion.div>
           </div>
         </motion.div>

@@ -19,8 +19,9 @@ import { useGeolocation } from "@/hooks/use-geolocation";
 import { PermissionRequest } from "@/components/find/permission-request";
 import { RouteDetails, calculateRoute } from "@/lib/route-mapper";
 import type { Peddler } from "@/lib/peddlers";
-import { useChat } from "@ai-sdk/react";
+import { useChat, type Message as AiSdkMessage } from "@ai-sdk/react";
 import { FloatingChat } from "@/components/find/floating-chat";
+import PeddlerCard from "@/components/find/peddler/peddler-card";
 
 // Sample data for testing when API is unavailable
 // const SAMPLE_VENDORS: Peddler[] = [
@@ -84,19 +85,35 @@ export default function FindPage() {
   const [routeDetails, setRouteDetails] = useState<RouteDetails | null>(null);
   const [isLoadingRoute, setIsLoadingRoute] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const [userLocation, setUserLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({
+    lat: -6.2088,
+    lng: 106.8456,
+  });
 
   // Default Jakarta location if geolocation fails
   const defaultLocation = { lat: -6.2088, lng: 106.8456 };
 
   // Use the geolocation hook
   const {
-    location: userLocation,
+    location: userLocationFromHook,
     loading: isLocating,
     error: locationError,
     permissionState,
     update: updateLocation,
     requestPermission,
   } = useGeolocation(defaultLocation);
+
+  // Update userLocation state and mapCenter when location from hook changes
+  useEffect(() => {
+    if (userLocationFromHook) {
+      setUserLocation(userLocationFromHook);
+      setMapCenter(userLocationFromHook);
+    }
+  }, [userLocationFromHook]);
 
   // Prepare data for useChat body
   const chatRequestBody = {
@@ -115,69 +132,24 @@ export default function FindPage() {
     handleSubmit,
     isLoading: isChatLoading,
     error: chatError,
+    append: originalAppend,
+    data,
     setMessages,
   } = useChat({
-    body: chatRequestBody,
-    // The API route is /api/chat by default, which we created.
-    // We might need to handle tool results on the client to update state (e.g. setFoundVendors)
-    onToolCall: ({ toolCall }) => {
-      // This is a basic handler. The AI SDK might offer more structured ways.
-      // We need to see what `toolCall` contains and how to best update client state.
-      // Example: if toolCall.toolName === 'findNearbyPeddlers' and it returns peddlers,
-      // we'd update `foundVendors` state here.
-      console.log("Client received onToolCall:", toolCall);
-      // For now, this is a placeholder. Tool results are handled by the `toolInvocation.state === 'result'` in message rendering.
-      // Actual state updates based on tool *results* will likely happen by observing changes in `messages`
-      // or by the AI sending a text message indicating success/failure of a tool that the user acts upon.
-      // The AI SDK's `useChat` handles appending tool results to the messages array automatically.
-      // Our main job client-side, if tools directly modify client-visible state (like foundVendors),
-      // is to call our state setters when the tool result comes back via the messages.
+    api: "/api/chat",
+    body: {
+      userLocation: userLocation,
     },
-    // `onFinish` or observing `messages` could be places to parse tool results if needed for client state updates
-    onFinish: (message) => {
-      console.log("Chat finished:", message);
-      // Check message for tool invocations with results that need to update client state
-      if (message.toolInvocations) {
-        for (const toolInvocation of message.toolInvocations) {
-          if (
-            toolInvocation.state === "result" &&
-            toolInvocation.toolName === "findNearbyPeddlers"
-          ) {
-            const result = toolInvocation.result as any; // Cast for now
-            if (result && result.peddlers && Array.isArray(result.peddlers)) {
-              console.log(
-                "Tool findNearbyPeddlers returned peddlers, updating state:",
-                result.peddlers
-              );
-              setFoundVendors(
-                result.peddlers.filter(
-                  (v: any) =>
-                    v.location &&
-                    typeof v.location.lat === "number" &&
-                    typeof v.location.lon === "number"
-                ) as Peddler[]
-              );
-              // Potentially send a follow-up message or let AI summarize.
-            }
-          } else if (
-            toolInvocation.state === "result" &&
-            toolInvocation.toolName === "getRouteToPeddler"
-          ) {
-            const result = toolInvocation.result as any; // Cast for now
-            if (result && result.routeInfo) {
-              console.log(
-                "Tool getRouteToPeddler returned routeInfo, updating state:",
-                result.routeInfo
-              );
-              setRouteDetails(result.routeInfo as RouteDetails);
-              setShowRouteToVendor(true); // Automatically show the route
-              // If the AI doesn't confirm, maybe send a client message: "Route displayed."
-            }
-          }
-        }
-      }
-    },
-  });
+  } as any); // Keep 'as any' for now due to persistent type issues with useChat options
+
+  // Wrapper for the append function to satisfy FloatingChat's expected prop type
+  const appendForFloatingChat = async (
+    message: AiSdkMessage | Omit<AiSdkMessage, "id">,
+    options?: any // Simplified options type to bypass ChatRequestOptions issues
+  ): Promise<string | null> => {
+    const result = await originalAppend(message, options);
+    return result === undefined ? null : result;
+  };
 
   // Check if we should show the permission request dialog
   useEffect(() => {
@@ -220,7 +192,6 @@ export default function FindPage() {
     setShowPermissionRequest(false);
     // If user skips, add a helpful message
     if (permissionState === "denied") {
-      console.log("User skipped permission with denied state.");
     }
   };
 
@@ -317,6 +288,104 @@ export default function FindPage() {
   const foundVendorsForMap: MapVendor[] = useMemo(() => {
     return foundVendors.map(toMapVendor);
   }, [foundVendors]);
+
+  // Function to handle client-side location request
+  const handleRequestClientLocation = (): Promise<{
+    lat: number;
+    lng: number;
+  } | null> => {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        console.error("Geolocation is not supported by this browser.");
+        alert("Geolocation is not supported by this browser.");
+        resolve(null);
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const newLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          setUserLocation(newLocation);
+          setMapCenter(newLocation);
+          resolve(newLocation);
+        },
+        (geoError) => {
+          console.error("Error getting client location:", geoError);
+          alert(
+            `Error getting location: ${geoError.message}. Please ensure location services are enabled.`
+          );
+          resolve(null);
+        }
+      );
+    });
+  };
+
+  useEffect(() => {
+    // Log initial userLocation state
+    if (!userLocation) {
+      // handleRequestClientLocation(); // Let's not auto-locate on mount for now to test manual flow
+    }
+  }, []); // Empty dependency array means this runs once on mount
+
+  // Log when userLocation state changes
+  useEffect(() => {}, [userLocation]);
+
+  // Process messages to ensure natural chat flow:
+  // 1. Filter out dedicated 'tool' role messages.
+  // 2. For assistant messages, remove structured tool invocation data (toolInvocations property or tool-invocation parts)
+  //    to rely on the AI's natural language content.
+  const finalProcessedMessages = messages
+    .filter((msg: AiSdkMessage) => {
+      // Filter based on linter feedback for project's type definitions.
+      return msg.role !== "data";
+    })
+    .map((msg: AiSdkMessage) => {
+      if (msg.role === "assistant") {
+        // Destructure to isolate properties we want to control
+        const {
+          toolInvocations,
+          parts: originalParts,
+          content: originalContent,
+          ...restOfMsg
+        } = msg;
+
+        let currentContent = originalContent; // Base content
+        let textOnlyParts: AiSdkMessage["parts"] | undefined = undefined; // Default to no parts override
+
+        if (originalParts && originalParts.length > 0) {
+          const filteredTextParts = originalParts.filter(
+            (part) => part.type === "text"
+          );
+
+          if (filteredTextParts.length > 0) {
+            textOnlyParts = filteredTextParts; // These are the parts we'll pass to the renderer
+
+            // If original content was empty/null, and we have text parts,
+            // populate currentContent from these text parts.
+            if (currentContent == null || currentContent === "") {
+              currentContent = filteredTextParts
+                .map((p) => (p as { type: "text"; text: string }).text)
+                .join("");
+            }
+          }
+          // If originalParts contained only non-text parts, textOnlyParts will be empty (or undefined if initialised so),
+          // and currentContent will remain originalContent.
+        }
+
+        // Ensure content is at least an empty string if it ended up null/undefined
+        if (currentContent == null) {
+          currentContent = "";
+        }
+
+        // Return the assistant message, stripped of toolInvocations,
+        // with 'parts' containing only text parts (or undefined),
+        // and 'content' being the original or text-parts-derived content.
+        return { ...restOfMsg, content: currentContent, parts: textOnlyParts };
+      }
+      return msg;
+    });
 
   return (
     <AppLayout header={HeaderComponent}>
@@ -421,12 +490,14 @@ export default function FindPage() {
 
         {/* Chat UI */}
         <FloatingChat
-          messages={messages}
+          messages={finalProcessedMessages}
           input={input}
           handleInputChange={handleInputChange}
           handleSubmit={handleSubmit}
+          append={appendForFloatingChat}
           isLoading={isChatLoading}
           chatError={chatError}
+          onRequestClientLocation={handleRequestClientLocation}
         />
 
         {/* Status indicators */}
@@ -459,6 +530,27 @@ export default function FindPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {selectedVendorId && (
+          <div className="absolute bottom-0 left-0 right-0 p-4 z-10 md:bottom-24">
+            <PeddlerCard
+              peddler={
+                foundVendors.find((v) => v.id === selectedVendorId) as Peddler
+              }
+              onClose={() => setSelectedVendorId(null)}
+              onGetDirections={() => {
+                if (selectedVendorId) {
+                  appendForFloatingChat({
+                    role: "user",
+                    content: `Get directions to ${
+                      foundVendors.find((v) => v.id === selectedVendorId)?.name
+                    } (ID: ${selectedVendorId})`,
+                  });
+                }
+              }}
+            />
+          </div>
+        )}
       </div>
     </AppLayout>
   );

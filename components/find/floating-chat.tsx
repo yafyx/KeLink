@@ -17,6 +17,13 @@ interface FloatingChatProps {
   input: string;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  append: (
+    message: AiSdkMessage | Omit<AiSdkMessage, "id">,
+    options?: {
+      data?: Record<string, any>; // Changed from string to any for flexibility
+    }
+  ) => Promise<string | null>;
+  onRequestClientLocation?: () => Promise<{ lat: number; lng: number } | null>;
   isLoading: boolean;
   chatError?: Error | null;
 }
@@ -26,6 +33,8 @@ export function FloatingChat({
   input,
   handleInputChange,
   handleSubmit,
+  append,
+  onRequestClientLocation,
   isLoading,
   chatError,
 }: FloatingChatProps) {
@@ -75,15 +84,15 @@ export function FloatingChat({
                 className="min-h-32 max-h-96 overflow-y-auto p-4 space-y-3 bg-gray-50/50 scroll-smooth"
               >
                 {messages.length === 0 && !isLoading && (
-                  <div className="flex justify-center py-4">
-                    <div className="max-w-[90%] text-center rounded-xl px-4 py-3 bg-white border border-gray-100 shadow-sm">
-                      <p className="text-sm text-gray-700 font-medium">
-                        Welcome!
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        How can I help you find nearby food vendors or get
-                        directions today?
-                      </p>
+                  <div className="flex justify-start">
+                    <div className="max-w-[85%] rounded-2xl px-4 py-2 bg-white border border-gray-100 rounded-bl-none shadow-sm">
+                      <div className="prose prose-xs max-w-none text-sm">
+                        <p>Welcome!</p>
+                        <p>
+                          How can I help you find nearby food vendors or get
+                          directions today?
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -104,7 +113,7 @@ export function FloatingChat({
                           : "bg-white border border-gray-100 rounded-bl-none"
                       )}
                     >
-                      <div className="prose prose-sm max-w-none">
+                      <div className="prose prose-xs max-w-none text-sm">
                         <ReactMarkdown
                           rehypePlugins={[rehypeSanitize, rehypeHighlight]}
                           components={{
@@ -121,7 +130,7 @@ export function FloatingChat({
                                     "bg-gray-100 rounded px-1 py-0.5",
                                     inline
                                       ? "text-xs"
-                                      : "block text-xs p-2 my-2 overflow-x-auto",
+                                      : "block text-xs p-2 my-1 overflow-x-auto",
                                     className
                                   )}
                                   {...props}
@@ -133,7 +142,7 @@ export function FloatingChat({
                             pre({ children, ...props }: any) {
                               return (
                                 <pre
-                                  className="bg-gray-100 rounded-md p-0 my-2"
+                                  className="bg-gray-100 rounded-md p-0 my-1 text-xs"
                                   {...props}
                                 >
                                   {children}
@@ -159,16 +168,124 @@ export function FloatingChat({
                           );
                         } else if (state === "result") {
                           const resultDisplay = toolInvocation.result;
-                          statusContent = (
-                            <div className="mt-1.5 text-xs bg-gray-100 p-2 rounded-lg overflow-x-auto">
-                              <p className="font-medium mb-1">Result:</p>
-                              <span className="text-gray-700">
-                                {typeof resultDisplay === "string"
-                                  ? resultDisplay
-                                  : JSON.stringify(resultDisplay, null, 2)}
-                              </span>
-                            </div>
-                          );
+                          let parsedResult = null;
+                          let isLocationRequired = false;
+                          let uiMessageForResult = "";
+
+                          try {
+                            if (typeof resultDisplay === "string") {
+                              parsedResult = JSON.parse(resultDisplay);
+                            } else if (
+                              typeof resultDisplay === "object" &&
+                              resultDisplay !== null
+                            ) {
+                              parsedResult = resultDisplay; // Already an object
+                            }
+
+                            if (
+                              parsedResult &&
+                              parsedResult.status === "LOCATION_REQUIRED"
+                            ) {
+                              isLocationRequired = true;
+                              uiMessageForResult =
+                                parsedResult.uiMessage ||
+                                "Location is required to proceed.";
+                            } else if (parsedResult && parsedResult.uiMessage) {
+                              // For other structured messages from tools that have a uiMessage
+                              uiMessageForResult = parsedResult.uiMessage;
+                            }
+                          } catch (e) {
+                            // Not a JSON string we care about, or malformed
+                          }
+
+                          if (isLocationRequired) {
+                            statusContent = (
+                              <div className="mt-1.5 text-xs">
+                                <p className="text-gray-700 mb-2">
+                                  {uiMessageForResult}
+                                </p>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={async () => {
+                                    if (onRequestClientLocation) {
+                                      try {
+                                        const location =
+                                          await onRequestClientLocation();
+                                        console.log(
+                                          "!!! FLOATING CHAT - Location obtained by onRequestClientLocation:",
+                                          JSON.stringify(location)
+                                        );
+                                        if (location) {
+                                          console.log(
+                                            "!!! FLOATING CHAT - Appending with EXPLICIT userLocation:",
+                                            JSON.stringify(location)
+                                          );
+                                          append(
+                                            {
+                                              role: "user",
+                                              content:
+                                                "My location has been updated. Please try finding peddlers again.",
+                                            },
+                                            {
+                                              data: { userLocation: location },
+                                            }
+                                          );
+                                        } else {
+                                          console.log(
+                                            "!!! FLOATING CHAT - Location NOT obtained, appending failure message."
+                                          );
+                                          alert(
+                                            "Could not get your location. Please ensure location services are enabled or try the main 'Locate Me' button."
+                                          );
+                                          append({
+                                            role: "user",
+                                            content:
+                                              "I tried to share my location, but it failed.",
+                                          });
+                                        }
+                                      } catch (error) {
+                                        console.error(
+                                          "!!! FLOATING CHAT - Error requesting client location:",
+                                          error
+                                        );
+                                        alert(
+                                          "An error occurred while trying to fetch your location."
+                                        );
+                                      }
+                                    } else {
+                                      console.warn(
+                                        "!!! FLOATING CHAT - onRequestClientLocation prop not provided."
+                                      );
+                                      append({
+                                        role: "user",
+                                        content:
+                                          "I understand I need to share my location. How can I do that?",
+                                      });
+                                    }
+                                  }}
+                                  className="text-xs py-1 px-2 h-auto"
+                                >
+                                  Use My Location & Retry
+                                </Button>
+                              </div>
+                            );
+                          } else {
+                            statusContent = (
+                              <div className="mt-1.5 text-xs bg-gray-100 p-2 rounded-lg overflow-x-auto">
+                                <p className="font-medium mb-1 text-xs">
+                                  Result:
+                                </p>
+                                <span className="text-gray-700 text-xs">
+                                  {uiMessageForResult // Display parsed uiMessage if available
+                                    ? uiMessageForResult
+                                    : typeof resultDisplay === "string"
+                                    ? resultDisplay
+                                    : JSON.stringify(resultDisplay, null, 2)}
+                                </span>
+                              </div>
+                            );
+                          }
                         } else if (state === "partial-call") {
                           statusContent = (
                             <div className="flex items-center gap-1.5 mt-1.5 text-xs text-gray-500">
