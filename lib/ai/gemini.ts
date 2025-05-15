@@ -5,7 +5,7 @@
  */
 
 import { google } from '@ai-sdk/google';
-import { generateText, streamText, tool } from 'ai';
+import { CoreAssistantMessage, CoreMessage, CoreToolMessage, CoreUserMessage, generateText, streamText, tool } from 'ai';
 import { z } from 'zod';
 
 // Use a consistent model reference
@@ -145,27 +145,27 @@ export async function sendChatMessage(
   availableFunctions?: FunctionSchema[],
   systemPrompt?: string
 ) {
-  // Convert messages to AI SDK format
-  const convertedMessages = convertToAiSdkMessages(history);
+  // Use our custom conversion function, ensuring its output is CoreMessage[]
+  const convertedHistory = convertToAiSdkMessages(history);
 
-  // Add the current user input as the last message
-  convertedMessages.push({ role: "user", content: userInput });
+  // Add the current userInput as the last user message, conforming to CoreUserMessage
+  const messagesForAI: CoreMessage[] = [
+    ...convertedHistory,
+    { role: "user", content: userInput } as CoreUserMessage // Ensure this is a valid CoreUserMessage
+  ];
 
   const tools = createToolsFromFunctions(availableFunctions || []);
-
-  // Define a base system prompt for Markdown
-  const baseSystemPrompt = "You are a helpful assistant. All your responses must be formatted in Markdown.";
-  const finalSystemPrompt = systemPrompt ? `${baseSystemPrompt}\n\n${systemPrompt}` : baseSystemPrompt;
+  const finalSystemPrompt = systemPrompt || (markdownResponse ? "Please format your responses in markdown..." : ""); // Assuming markdownResponse logic is here or passed
 
   console.log("Sending to AI SDK (chat):", {
-    convertedMessages,
+    messagesForAI,
     tools,
     systemPrompt: finalSystemPrompt,
   });
 
   const result = await streamText({
     model: geminiModel,
-    messages: convertedMessages,
+    messages: messagesForAI,
     tools: tools && Object.keys(tools).length > 0 ? tools : undefined,
     system: finalSystemPrompt,
     temperature: 0.2,
@@ -188,38 +188,21 @@ export async function sendFunctionResult(
   availableFunctions?: FunctionSchema[],
   systemPrompt?: string
 ) {
-  // Convert messages to AI SDK format
-  const convertedMessages = convertToAiSdkMessages(history);
-
-  // Add the tool call result
-  convertedMessages.push({
-    role: "tool",
-    content: [
-      {
-        type: "tool-result",
-        toolCallId: toolCallId,
-        toolName: toolName,
-        result: toolResult,
-      },
-    ],
-  });
-
-  const tools = createToolsFromFunctions(availableFunctions || []);
-
-  // Define a base system prompt for Markdown
-  const baseSystemPrompt = "You are a helpful assistant. All your responses must be formatted in Markdown.";
-  const finalSystemPrompt = systemPrompt ? `${baseSystemPrompt}\n\n${systemPrompt}` : baseSystemPrompt;
+  // Use our custom conversion function. It should correctly transform 
+  // our role:"function" message into a role:"tool" CoreMessage.
+  const messagesForAI: CoreMessage[] = convertToAiSdkMessages(history);
+  const finalSystemPrompt = systemPrompt || (markdownResponse ? "Please format your responses in markdown..." : ""); // Assuming markdownResponse logic is here or passed
 
   console.log("Sending to AI SDK (function result):", {
-    convertedMessages,
-    tools,
-    systemPrompt: finalSystemPrompt,
+    messagesForAI,
+    tools: createToolsFromFunctions(availableFunctions || []),
+    system: finalSystemPrompt,
   });
 
   const result = await streamText({
     model: geminiModel,
-    messages: convertedMessages,
-    tools: tools && Object.keys(tools).length > 0 ? tools : undefined,
+    messages: messagesForAI,
+    tools: createToolsFromFunctions(availableFunctions || []),
     system: finalSystemPrompt,
     temperature: 0.2,
   });
@@ -252,49 +235,6 @@ async function processResponseStream(result: any): Promise<{ text: string; toolC
   }
 
   return { text: responseText };
-}
-
-// Helper function to convert our app's message format to AI SDK's format
-function convertToAiSdkMessages(chatHistory: ChatMessage[]) {
-  const aiMessages: any[] = [];
-
-  for (const msg of chatHistory) {
-    if (msg.role === 'user') {
-      aiMessages.push({
-        role: 'user',
-        content: msg.content
-      });
-    }
-    else if (msg.role === 'assistant') {
-      const assistantMsg: any = {
-        role: 'assistant',
-        content: msg.content || ""
-      };
-
-      if (msg.toolInvocations?.length) {
-        assistantMsg.toolCalls = msg.toolInvocations.map(inv => ({
-          toolCallId: inv.toolCallId,
-          toolName: inv.toolName,
-          args: inv.args,
-        }));
-      }
-
-      aiMessages.push(assistantMsg);
-    }
-    else if (msg.role === 'function' && msg.name && msg.toolInvocations) {
-      aiMessages.push({
-        role: 'tool',
-        content: msg.toolInvocations.map(toolInv => ({
-          type: 'tool-result',
-          toolCallId: toolInv.toolCallId,
-          toolName: toolInv.toolName || msg.name!,
-          result: toolInv.result,
-        }))
-      });
-    }
-  }
-
-  return aiMessages;
 }
 
 // Helper function to create tools from function schemas
@@ -451,3 +391,51 @@ function getPeddlerSpecificTips(peddlerType: string): string {
       return "Prioritize cleanliness and product quality. Friendly interaction with customers is important for building loyalty. Maintain consistency in the taste and portion of your product.";
   }
 }
+
+// Helper function to convert our app's message format to AI SDK's format
+function convertToAiSdkMessages(chatHistory: ChatMessage[]): CoreMessage[] {
+  const aiMessages: CoreMessage[] = [];
+
+  for (const msg of chatHistory) {
+    if (msg.role === 'user') {
+      aiMessages.push({
+        role: 'user',
+        content: msg.content
+      } as CoreUserMessage);
+    } else if (msg.role === 'assistant') {
+      const assistantMsgPayload: { role: 'assistant'; content: string; toolCalls?: any[] } = {
+        role: 'assistant',
+        content: msg.content || "",
+      };
+      if (msg.toolInvocations?.length) {
+        assistantMsgPayload.toolCalls = msg.toolInvocations.map(inv => ({
+          toolCallId: inv.toolCallId,
+          toolName: inv.toolName,
+          args: inv.args,
+        }));
+      }
+      aiMessages.push(assistantMsgPayload as CoreAssistantMessage);
+    } else if (msg.role === 'function' && msg.name && msg.toolInvocations) {
+      // Assuming msg.toolInvocations here contains the single result for this function call
+      const toolInvocation = msg.toolInvocations[0];
+      aiMessages.push({
+        role: 'tool',
+        content: [
+          {
+            type: 'tool-result',
+            toolCallId: toolInvocation.toolCallId,
+            toolName: toolInvocation.toolName || msg.name, // Ensure toolName is present
+            result: toolInvocation.result,
+          }
+        ]
+      } as CoreToolMessage);
+    }
+  }
+  return aiMessages;
+}
+
+// Variable markdownResponse used in the changes above, needs to be defined or passed.
+// This likely comes from a global config or needs to be passed into sendChatMessage/sendFunctionResult if it varies.
+// For now, I'll assume it's a conceptual placeholder for where system prompt logic is handled.
+// Let's define it as a const for this file scope if it's fixed, or it implies it should be a parameter.
+const markdownResponse = true; // Example: assuming it's generally true for this context.

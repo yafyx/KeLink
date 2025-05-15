@@ -20,10 +20,10 @@ interface QueryAnalysisResult {
 }
 
 const QueryAnalysisResultSchema = z.object({
-    isLookingForPeddlers: z.boolean().describe("True if the user's query is about finding street peddlers/vendors, false otherwise."),
+    isLookingForPeddlers: z.boolean().describe("True if the user's query is about finding street peddlers/peddlers, false otherwise."),
     peddlerType: z.string().describe("Specific type of peddler or food item the user is looking for (e.g., 'bakso', 'siomay', 'es kelapa'). Empty string if no specific type is mentioned or if not looking for peddlers."),
     keywords: z.array(z.string()).describe("Relevant keywords from the user's query that help identify the peddler type or search intent. Empty array if not looking for peddlers."),
-    directResponse: z.string().describe("A polite, natural language response in English to the user if they are NOT looking for peddlers (isLookingForPeddlers is false). Example: 'I can help you find street food vendors. What are you looking for?' or 'Sorry, I can only help with finding peddlers.'")
+    directResponse: z.string().describe("A polite, natural language response in English to the user if they are NOT looking for peddlers (isLookingForPeddlers is false). Example: 'I can help you find street food peddlers. What are you looking for?' or 'Sorry, I can only help with finding peddlers.'")
 });
 
 // Type definition for pagination and response

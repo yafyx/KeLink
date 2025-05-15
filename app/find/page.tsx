@@ -14,14 +14,13 @@ import { cn } from "@/lib/utils";
 import { MobileHeader } from "@/components/ui/mobile-header";
 import { AppLayout } from "@/components/app-layout";
 import { GoogleMapComponent } from "@/components/google-map";
-import { FloatingChat } from "@/components/find/floating-chat";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGeolocation } from "@/hooks/use-geolocation";
 import { PermissionRequest } from "@/components/find/permission-request";
 import { RouteDetails, calculateRoute } from "@/lib/route-mapper";
-import { availableFunctions } from "@/lib/ai/functions";
 import type { Peddler } from "@/lib/peddlers";
-import { useFunctionChat } from "@/hooks/use-function-chat";
+import { useChat } from "@ai-sdk/react";
+import { FloatingChat } from "@/components/find/floating-chat";
 
 // Sample data for testing when API is unavailable
 // const SAMPLE_VENDORS: Peddler[] = [
@@ -80,12 +79,10 @@ export default function FindPage() {
   // State for the component
   const [foundVendors, setFoundVendors] = useState<Peddler[]>([]);
   const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = useState(false);
   const [showPermissionRequest, setShowPermissionRequest] = useState(false);
   const [showRouteToVendor, setShowRouteToVendor] = useState(false);
   const [routeDetails, setRouteDetails] = useState<RouteDetails | null>(null);
   const [isLoadingRoute, setIsLoadingRoute] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
   // Default Jakarta location if geolocation fails
@@ -101,80 +98,89 @@ export default function FindPage() {
     requestPermission,
   } = useGeolocation(defaultLocation);
 
-  // Initialize the chat hook with markdown support
-  const { messages, sendMessage, isProcessing, sendFunctionResult } =
-    useFunctionChat({
-      availableFunctions,
-      markdownResponse: true, // Enable markdown responses
-    });
-
-  // Handler for peddlers found via function call
-  const handleVendorsFound = (peddlers: Peddler[]) => {
-    setFoundVendors(
-      peddlers.filter(
-        (v) =>
-          v.location &&
-          typeof v.location.lat === "number" &&
-          typeof v.location.lon === "number"
-      )
-    );
+  // Prepare data for useChat body
+  const chatRequestBody = {
+    userLocation: userLocation
+      ? { lat: userLocation.lat, lng: userLocation.lng }
+      : null,
+    currentPeddlers: foundVendors, // Send the current list of found vendors
+    selectedPeddlerId: selectedVendorId, // Send the currently selected vendor ID
   };
 
-  // Handler for route details found via function call
-  const handleRouteFound = (route: RouteDetails) => {
-    setRouteDetails(route);
-    setShowRouteToVendor(true);
-    setIsLoadingRoute(false);
-  };
-
-  // Handler for location request via function call
-  const handleLocationRequest = async () => {
-    // For users who denied permission, show permission request dialog
-    if (permissionState === "denied") {
-      setShowPermissionRequest(true);
-      return;
-    }
-
-    // If permission is prompt or unknown, request permission
-    if (permissionState === "prompt" || permissionState === "unknown") {
-      await requestPermission();
-    } else {
-      // Just update location if permission already granted
-      await updateLocation();
-    }
-  };
-
-  // Added: Handler for FloatingChat's expansion toggle
-  const handleToggleChatExpansion = () => {
-    setIsExpanded((prev) => !prev);
-  };
-
-  // Auto-expand chat when peddlers are found
-  useEffect(() => {
-    if (foundVendors.length > 0) {
-      setIsExpanded(true);
-    }
-  }, [foundVendors, setIsExpanded]);
-
-  // Auto-expand chat when a peddler is selected
-  useEffect(() => {
-    if (selectedVendorId) {
-      setIsExpanded(true);
-    }
-  }, [selectedVendorId, setIsExpanded]);
-
-  // Auto-expand chat when route is shown
-  useEffect(() => {
-    if (showRouteToVendor && routeDetails && selectedVendorId) {
-      setIsExpanded(true);
-    }
-  }, [showRouteToVendor, routeDetails, selectedVendorId, setIsExpanded]);
+  // Initialize useChat hook with the body containing contextual data
+  const {
+    messages,
+    input,
+    handleInputChange,
+    handleSubmit,
+    isLoading: isChatLoading,
+    error: chatError,
+    setMessages,
+  } = useChat({
+    body: chatRequestBody,
+    // The API route is /api/chat by default, which we created.
+    // We might need to handle tool results on the client to update state (e.g. setFoundVendors)
+    onToolCall: ({ toolCall }) => {
+      // This is a basic handler. The AI SDK might offer more structured ways.
+      // We need to see what `toolCall` contains and how to best update client state.
+      // Example: if toolCall.toolName === 'findNearbyPeddlers' and it returns peddlers,
+      // we'd update `foundVendors` state here.
+      console.log("Client received onToolCall:", toolCall);
+      // For now, this is a placeholder. Tool results are handled by the `toolInvocation.state === 'result'` in message rendering.
+      // Actual state updates based on tool *results* will likely happen by observing changes in `messages`
+      // or by the AI sending a text message indicating success/failure of a tool that the user acts upon.
+      // The AI SDK's `useChat` handles appending tool results to the messages array automatically.
+      // Our main job client-side, if tools directly modify client-visible state (like foundVendors),
+      // is to call our state setters when the tool result comes back via the messages.
+    },
+    // `onFinish` or observing `messages` could be places to parse tool results if needed for client state updates
+    onFinish: (message) => {
+      console.log("Chat finished:", message);
+      // Check message for tool invocations with results that need to update client state
+      if (message.toolInvocations) {
+        for (const toolInvocation of message.toolInvocations) {
+          if (
+            toolInvocation.state === "result" &&
+            toolInvocation.toolName === "findNearbyPeddlers"
+          ) {
+            const result = toolInvocation.result as any; // Cast for now
+            if (result && result.peddlers && Array.isArray(result.peddlers)) {
+              console.log(
+                "Tool findNearbyPeddlers returned peddlers, updating state:",
+                result.peddlers
+              );
+              setFoundVendors(
+                result.peddlers.filter(
+                  (v: any) =>
+                    v.location &&
+                    typeof v.location.lat === "number" &&
+                    typeof v.location.lon === "number"
+                ) as Peddler[]
+              );
+              // Potentially send a follow-up message or let AI summarize.
+            }
+          } else if (
+            toolInvocation.state === "result" &&
+            toolInvocation.toolName === "getRouteToPeddler"
+          ) {
+            const result = toolInvocation.result as any; // Cast for now
+            if (result && result.routeInfo) {
+              console.log(
+                "Tool getRouteToPeddler returned routeInfo, updating state:",
+                result.routeInfo
+              );
+              setRouteDetails(result.routeInfo as RouteDetails);
+              setShowRouteToVendor(true); // Automatically show the route
+              // If the AI doesn't confirm, maybe send a client message: "Route displayed."
+            }
+          }
+        }
+      }
+    },
+  });
 
   // Check if we should show the permission request dialog
   useEffect(() => {
-    // Show the permission request dialog when:
-    // 1. The app is loaded for the first time and permission state is prompt
-    // 2. The user has denied permission
     if (permissionState === "prompt" || permissionState === "denied") {
       setShowPermissionRequest(true);
     } else {
@@ -202,11 +208,6 @@ export default function FindPage() {
     }
   }, []);
 
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
   const handlePermissionRequest = async () => {
     const granted = await requestPermission();
     // If granted, automatically hide the permission request
@@ -219,9 +220,7 @@ export default function FindPage() {
     setShowPermissionRequest(false);
     // If user skips, add a helpful message
     if (permissionState === "denied") {
-      sendMessage(
-        "I can't access your location. Please allow location permissions."
-      );
+      console.log("User skipped permission with denied state.");
     }
   };
 
@@ -243,6 +242,7 @@ export default function FindPage() {
             variant="ghost"
             size="icon"
             className="h-9 w-9 flex items-center justify-center"
+            aria-label="Go back to homepage"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -295,16 +295,13 @@ export default function FindPage() {
           setRouteDetails(route);
           setIsLoadingRoute(false);
 
-          // Add a message about the route via the chat system
-          if (route) {
-            sendMessage(`Tunjukkan rute ke ${selectedVendor.name}`);
-          }
+          // Placeholder for user feedback, old sendMessage is gone
+          // if (route) { console.log(`Route calculated to ${selectedVendor.name}`); }
         } catch (error) {
           console.error("Error calculating route:", error);
           setIsLoadingRoute(false);
-          sendMessage(
-            "Gagal menghitung rute ke peddler yang dipilih. Coba lagi nanti."
-          );
+          // Placeholder for user feedback
+          // console.log("Failed to calculate route");
         }
       }
     } else {
@@ -312,18 +309,6 @@ export default function FindPage() {
       setRouteDetails(null);
     }
   };
-
-  // When a new message arrives from assistant, ensure chat is visible
-  useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    if (
-      lastMessage &&
-      lastMessage.role === "assistant" &&
-      !lastMessage.pending
-    ) {
-      setIsExpanded(true);
-    }
-  }, [messages]);
 
   // Add before render:
   const foundVendorsForMap: MapVendor[] = foundVendors.map(toMapVendor);
@@ -358,6 +343,13 @@ export default function FindPage() {
             )}
             onClick={handleLocateMe}
             disabled={isLocating}
+            aria-label={
+              isLocating
+                ? "Locating your position"
+                : permissionState === "denied"
+                ? "Location permission denied"
+                : "Locate me"
+            }
           >
             {isLocating ? (
               <Compass className="h-5 w-5 text-primary animate-spin" />
@@ -386,6 +378,13 @@ export default function FindPage() {
               )}
               onClick={toggleRouteDisplay}
               disabled={isLoadingRoute}
+              aria-label={
+                isLoadingRoute
+                  ? "Calculating route"
+                  : showRouteToVendor
+                  ? "Hide route"
+                  : "Show route to selected peddler"
+              }
             >
               {isLoadingRoute ? (
                 <span className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -415,40 +414,15 @@ export default function FindPage() {
           )}
         </AnimatePresence>
 
-        {/* Floating chat positioned at the bottom - only render when visible */}
-        <AnimatePresence>
-          <motion.div
-            className="absolute bottom-6 left-0 right-0 px-4 z-10 w-full"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{
-              delay: 0.3,
-              type: "spring",
-              stiffness: 300,
-              damping: 30,
-            }}
-          >
-            <FloatingChat
-              messages={messages}
-              isLoading={isProcessing}
-              onSendMessage={sendMessage}
-              peddlers={foundVendorsForMap}
-              selectedVendorId={selectedVendorId || undefined}
-              onVendorClick={handleVendorClick as any}
-              isExpanded={isExpanded}
-              onToggleExpanded={handleToggleChatExpansion}
-              className={cn(
-                "max-w-md mx-auto",
-                isExpanded ? "rounded-xl shadow-xl" : "shadow-lg"
-              )}
-              bubbleClassName="rounded-xl shadow-sm"
-              routeDetails={routeDetails}
-              showRoute={showRouteToVendor}
-              onToggleRoute={toggleRouteDisplay}
-            />
-          </motion.div>
-        </AnimatePresence>
+        {/* Chat UI */}
+        <FloatingChat
+          messages={messages}
+          input={input}
+          handleInputChange={handleInputChange}
+          handleSubmit={handleSubmit}
+          isLoading={isChatLoading}
+          chatError={chatError}
+        />
 
         {/* Status indicators */}
         <AnimatePresence>
