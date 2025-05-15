@@ -20,12 +20,16 @@ interface FloatingChatProps {
   append: (
     message: AiSdkMessage | Omit<AiSdkMessage, "id">,
     options?: {
-      data?: Record<string, any>; // Changed from string to any for flexibility
+      data?: Record<string, any>;
     }
   ) => Promise<string | null>;
   onRequestClientLocation?: () => Promise<{ lat: number; lng: number } | null>;
   isLoading: boolean;
   chatError?: Error | null;
+  reloadChat?: () => void;
+  setUserLocation?: React.Dispatch<
+    React.SetStateAction<{ lat: number; lng: number } | null>
+  >;
 }
 
 export function FloatingChat({
@@ -37,6 +41,8 @@ export function FloatingChat({
   onRequestClientLocation,
   isLoading,
   chatError,
+  reloadChat,
+  setUserLocation,
 }: FloatingChatProps) {
   const [isChatExpanded, setIsChatExpanded] = useState(true);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
@@ -97,216 +103,265 @@ export function FloatingChat({
                   </div>
                 )}
 
-                {messages.map((m: AiSdkMessage) => (
-                  <div
-                    key={m.id}
-                    className={cn(
-                      "flex",
-                      m.role === "user" ? "justify-end" : "justify-start"
-                    )}
-                  >
+                {messages.map((m: AiSdkMessage) => {
+                  const isAIMessage = m.role !== "user";
+                  const locationRequestTriggerPhrase = "I need your location";
+                  const aiRequestsLocation =
+                    isAIMessage &&
+                    m.content
+                      .toLowerCase()
+                      .includes(locationRequestTriggerPhrase.toLowerCase());
+
+                  const showLocationButtonFromAIContent =
+                    aiRequestsLocation && reloadChat && setUserLocation;
+
+                  return (
                     <div
+                      key={m.id}
                       className={cn(
-                        "max-w-[85%] rounded-2xl px-4 py-2 shadow-sm",
-                        m.role === "user"
-                          ? "bg-primary text-white rounded-br-none"
-                          : "bg-white border border-gray-100 rounded-bl-none"
+                        "flex",
+                        m.role === "user" ? "justify-end" : "justify-start"
                       )}
                     >
-                      <div className="prose prose-xs max-w-none text-sm">
-                        <ReactMarkdown
-                          rehypePlugins={[rehypeSanitize, rehypeHighlight]}
-                          components={{
-                            code({
-                              node,
-                              inline,
-                              className,
-                              children,
-                              ...props
-                            }: any) {
-                              return (
-                                <code
-                                  className={cn(
-                                    "bg-gray-100 rounded px-1 py-0.5",
-                                    inline
-                                      ? "text-xs"
-                                      : "block text-xs p-2 my-1 overflow-x-auto",
-                                    className
-                                  )}
-                                  {...props}
-                                >
-                                  {children}
-                                </code>
-                              );
-                            },
-                            pre({ children, ...props }: any) {
-                              return (
-                                <pre
-                                  className="bg-gray-100 rounded-md p-0 my-1 text-xs"
-                                  {...props}
-                                >
-                                  {children}
-                                </pre>
-                              );
-                            },
-                          }}
-                        >
-                          {m.content}
-                        </ReactMarkdown>
-                      </div>
+                      <div
+                        className={cn(
+                          "max-w-[85%] rounded-2xl px-4 py-2 shadow-sm",
+                          m.role === "user"
+                            ? "bg-primary text-white rounded-br-none"
+                            : "bg-white border border-gray-100 rounded-bl-none"
+                        )}
+                      >
+                        <div className="prose prose-xs max-w-none text-sm">
+                          <ReactMarkdown
+                            rehypePlugins={[rehypeSanitize, rehypeHighlight]}
+                            components={{
+                              code({
+                                node,
+                                inline,
+                                className,
+                                children,
+                                ...props
+                              }: any) {
+                                return (
+                                  <code
+                                    className={cn(
+                                      "bg-gray-100 rounded px-1 py-0.5",
+                                      inline
+                                        ? "text-xs"
+                                        : "block text-xs p-2 my-1 overflow-x-auto",
+                                      className
+                                    )}
+                                    {...props}
+                                  >
+                                    {children}
+                                  </code>
+                                );
+                              },
+                              pre({ children, ...props }: any) {
+                                return (
+                                  <pre
+                                    className="bg-gray-100 rounded-md p-0 my-1 text-xs"
+                                    {...props}
+                                  >
+                                    {children}
+                                  </pre>
+                                );
+                              },
+                            }}
+                          >
+                            {m.content}
+                          </ReactMarkdown>
+                        </div>
 
-                      {m.toolInvocations?.map((toolInvocation) => {
-                        const { toolCallId, toolName, state } = toolInvocation;
-                        let statusContent = null;
+                        {showLocationButtonFromAIContent && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="mt-2 text-xs py-1 px-2 h-auto"
+                            onClick={() => {
+                              if (
+                                navigator.geolocation &&
+                                setUserLocation &&
+                                append
+                              ) {
+                                navigator.geolocation.getCurrentPosition(
+                                  (position) => {
+                                    const newLocation = {
+                                      lat: position.coords.latitude,
+                                      lng: position.coords.longitude,
+                                    };
+                                    setUserLocation(newLocation);
+                                    append({
+                                      role: "user",
+                                      content:
+                                        "I have provided my location. Please try my previous request again.",
+                                    });
+                                  },
+                                  (error) => {
+                                    console.error(
+                                      "Error getting location:",
+                                      error
+                                    );
+                                    alert(
+                                      "Failed to get location. Please ensure location services are enabled."
+                                    );
+                                  }
+                                );
+                              } else {
+                                alert(
+                                  "Geolocation is not supported or action cannot be performed."
+                                );
+                              }
+                            }}
+                          >
+                            Use My Location & Retry
+                          </Button>
+                        )}
 
-                        if (state === "call") {
-                          statusContent = (
-                            <div className="flex items-center gap-1.5 mt-1.5 text-xs text-gray-500">
-                              <span className="h-2 w-2 bg-primary/60 rounded-full animate-pulse"></span>
-                              <span>Processing {toolName}...</span>
-                            </div>
-                          );
-                        } else if (state === "result") {
-                          const resultDisplay = toolInvocation.result;
-                          let parsedResult = null;
-                          let isLocationRequired = false;
-                          let uiMessageForResult = "";
+                        {m.toolInvocations?.map((toolInvocation) => {
+                          const { toolCallId, toolName, state } =
+                            toolInvocation;
+                          let statusContent: React.ReactNode = null;
 
-                          try {
-                            if (typeof resultDisplay === "string") {
-                              parsedResult = JSON.parse(resultDisplay);
-                            } else if (
-                              typeof resultDisplay === "object" &&
-                              resultDisplay !== null
-                            ) {
-                              parsedResult = resultDisplay; // Already an object
-                            }
-
-                            if (
-                              parsedResult &&
-                              parsedResult.status === "LOCATION_REQUIRED"
-                            ) {
-                              isLocationRequired = true;
-                              uiMessageForResult =
-                                parsedResult.uiMessage ||
-                                "Location is required to proceed.";
-                            } else if (parsedResult && parsedResult.uiMessage) {
-                              // For other structured messages from tools that have a uiMessage
-                              uiMessageForResult = parsedResult.uiMessage;
-                            }
-                          } catch (e) {
-                            // Not a JSON string we care about, or malformed
-                          }
-
-                          if (isLocationRequired) {
+                          if (state === "call") {
                             statusContent = (
-                              <div className="mt-1.5 text-xs">
-                                <p className="text-gray-700 mb-2">
-                                  {uiMessageForResult}
-                                </p>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={async () => {
-                                    if (onRequestClientLocation) {
-                                      try {
-                                        const location =
-                                          await onRequestClientLocation();
-                                        console.log(
-                                          "!!! FLOATING CHAT - Location obtained by onRequestClientLocation:",
-                                          JSON.stringify(location)
-                                        );
-                                        if (location) {
-                                          console.log(
-                                            "!!! FLOATING CHAT - Appending with EXPLICIT userLocation:",
-                                            JSON.stringify(location)
-                                          );
-                                          append(
-                                            {
+                              <div className="flex items-center gap-1.5 mt-1.5 text-xs text-gray-500">
+                                <span className="h-2 w-2 bg-primary/60 rounded-full animate-pulse"></span>
+                                <span>Processing {toolName}...</span>
+                              </div>
+                            );
+                          } else if (state === "result") {
+                            const resultDisplay = toolInvocation.result;
+                            let parsedResult: any = null;
+                            let isLocationRequiredFromTool = false;
+                            let uiMessageForResult = "";
+
+                            try {
+                              if (typeof resultDisplay === "string") {
+                                parsedResult = JSON.parse(resultDisplay);
+                              } else if (
+                                typeof resultDisplay === "object" &&
+                                resultDisplay !== null
+                              ) {
+                                parsedResult = resultDisplay;
+                              }
+
+                              if (
+                                parsedResult &&
+                                parsedResult.status === "LOCATION_REQUIRED"
+                              ) {
+                                isLocationRequiredFromTool = true;
+                                uiMessageForResult =
+                                  parsedResult.uiMessage ||
+                                  "Location is required to proceed.";
+                              } else if (
+                                parsedResult &&
+                                parsedResult.uiMessage
+                              ) {
+                                uiMessageForResult = parsedResult.uiMessage;
+                              }
+                            } catch (e) {
+                              // Not a JSON string we care about for structured status, or malformed
+                            }
+
+                            if (isLocationRequiredFromTool) {
+                              statusContent = (
+                                <div className="mt-1.5 text-xs">
+                                  <p className="text-gray-700 mb-2">
+                                    {uiMessageForResult}
+                                  </p>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs py-1 px-2 h-auto"
+                                    onClick={async () => {
+                                      if (onRequestClientLocation) {
+                                        try {
+                                          const location =
+                                            await onRequestClientLocation();
+                                          if (location) {
+                                            append(
+                                              {
+                                                role: "user",
+                                                content:
+                                                  "My location has been updated. Please try again.",
+                                              },
+                                              {
+                                                data: {
+                                                  userLocation: location,
+                                                },
+                                              }
+                                            );
+                                          } else {
+                                            alert(
+                                              "Could not get your location. Please ensure location services are enabled or try the main 'Locate Me' button."
+                                            );
+                                            append({
                                               role: "user",
                                               content:
-                                                "My location has been updated. Please try finding peddlers again.",
-                                            },
-                                            {
-                                              data: { userLocation: location },
-                                            }
-                                          );
-                                        } else {
-                                          console.log(
-                                            "!!! FLOATING CHAT - Location NOT obtained, appending failure message."
+                                                "I tried to share my location, but it failed.",
+                                            });
+                                          }
+                                        } catch (error) {
+                                          console.error(
+                                            "Error requesting client location:",
+                                            error
                                           );
                                           alert(
-                                            "Could not get your location. Please ensure location services are enabled or try the main 'Locate Me' button."
+                                            "An error occurred while trying to fetch your location."
                                           );
-                                          append({
-                                            role: "user",
-                                            content:
-                                              "I tried to share my location, but it failed.",
-                                          });
                                         }
-                                      } catch (error) {
-                                        console.error(
-                                          "!!! FLOATING CHAT - Error requesting client location:",
-                                          error
+                                      } else {
+                                        console.warn(
+                                          "onRequestClientLocation prop not provided for tool button."
                                         );
-                                        alert(
-                                          "An error occurred while trying to fetch your location."
-                                        );
+                                        append({
+                                          role: "user",
+                                          content:
+                                            "Location action for tool is not fully configured. Please use the main page button or retry.",
+                                        });
                                       }
-                                    } else {
-                                      console.warn(
-                                        "!!! FLOATING CHAT - onRequestClientLocation prop not provided."
-                                      );
-                                      append({
-                                        role: "user",
-                                        content:
-                                          "I understand I need to share my location. How can I do that?",
-                                      });
-                                    }
-                                  }}
-                                  className="text-xs py-1 px-2 h-auto"
-                                >
-                                  Use My Location & Retry
-                                </Button>
-                              </div>
-                            );
-                          } else {
+                                    }}
+                                  >
+                                    Use My Location & Retry (Tool)
+                                  </Button>
+                                </div>
+                              );
+                            } else {
+                              statusContent = (
+                                <div className="mt-1.5 text-xs bg-gray-100 p-2 rounded-lg overflow-x-auto">
+                                  <p className="font-medium mb-1 text-xs">
+                                    Result for {toolName}:
+                                  </p>
+                                  <span className="text-gray-700 text-xs">
+                                    {uiMessageForResult
+                                      ? uiMessageForResult
+                                      : typeof resultDisplay === "string"
+                                      ? resultDisplay
+                                      : JSON.stringify(resultDisplay, null, 2)}
+                                  </span>
+                                </div>
+                              );
+                            }
+                          } else if (state === "partial-call") {
                             statusContent = (
-                              <div className="mt-1.5 text-xs bg-gray-100 p-2 rounded-lg overflow-x-auto">
-                                <p className="font-medium mb-1 text-xs">
-                                  Result:
-                                </p>
-                                <span className="text-gray-700 text-xs">
-                                  {uiMessageForResult // Display parsed uiMessage if available
-                                    ? uiMessageForResult
-                                    : typeof resultDisplay === "string"
-                                    ? resultDisplay
-                                    : JSON.stringify(resultDisplay, null, 2)}
-                                </span>
+                              <div className="flex items-center gap-1.5 mt-1.5 text-xs text-gray-500">
+                                <span className="h-2 w-2 bg-amber-400 rounded-full animate-pulse"></span>
+                                <span>Loading {toolName}...</span>
                               </div>
                             );
                           }
-                        } else if (state === "partial-call") {
-                          statusContent = (
-                            <div className="flex items-center gap-1.5 mt-1.5 text-xs text-gray-500">
-                              <span className="h-2 w-2 bg-amber-400 rounded-full animate-pulse"></span>
-                              <span>Loading {toolName}...</span>
-                            </div>
-                          );
-                        }
 
-                        return (
-                          <div key={toolCallId} className="mt-2">
-                            <div className="text-xs font-medium text-gray-500">
-                              {toolName}
+                          return statusContent ? (
+                            <div key={toolCallId} className="mt-2">
+                              {statusContent}
                             </div>
-                            {statusContent}
-                          </div>
-                        );
-                      })}
+                          ) : null;
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {chatError && (

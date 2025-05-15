@@ -100,15 +100,18 @@ export async function findNearbyPeddlers({
         // }
 
         // Build the initial query
-        let peddlerQuery = db.collection('peddlers') as any;
+        let peddlerQuery = db.collection('peddlers') as any; // Reverted to 'as any'
 
         // Add status filter (active peddlers only)
         peddlerQuery = peddlerQuery.where('status', '==', 'active');
 
-        // Add type filter if provided
+        // Temporarily comment out the Firestore type filter for diagnostics
+        /*
         if (peddlerType && peddlerType.trim() !== '') {
-            peddlerQuery = peddlerQuery.where('type', '==', peddlerType.trim());
+            const typeStr = peddlerType.trim();
+            peddlerQuery = peddlerQuery.where('type', '>=', typeStr).where('type', '<=', typeStr + '\uf8ff');
         }
+        */
 
         // Add administrative area filters if provided
         if (city && city.trim() !== '') {
@@ -129,8 +132,8 @@ export async function findNearbyPeddlers({
             }
         }
 
-        // Execute query with limit to get a subset of potential matches
-        const snapshot = await peddlerQuery.limit(limit * 3).get();
+        // Execute query with a slightly larger limit to accommodate in-memory filtering
+        const snapshot = await peddlerQuery.limit(limit * 5).get(); // Increased limit
 
         if (snapshot.empty) {
             return { peddlers: [], hasMore: false };
@@ -169,12 +172,24 @@ export async function findNearbyPeddlers({
             });
         });
 
-        // Filter by keywords if provided - done in-memory for flexibility
-        if (keywords && keywords.length > 0) {
+        // Filter by keywords (and peddlerType) in-memory for flexibility
+        const effectiveKeywords = [...(keywords || [])];
+        if (peddlerType && peddlerType.trim() !== '') {
+            // Add peddlerType to the list of keywords to check in-memory
+            // This ensures it's checked case-insensitively against both name and type fields
+            if (!effectiveKeywords.map(k => k.toLowerCase()).includes(peddlerType.trim().toLowerCase())) {
+                effectiveKeywords.push(peddlerType.trim());
+            }
+        }
+
+        if (effectiveKeywords.length > 0) {
+            const lowerKeywords = effectiveKeywords.map(k => k.toLowerCase());
             peddlers = peddlers.filter(peddler => {
-                const peddlerText = `${peddler.name} ${peddler.type} ${peddler.description}`.toLowerCase();
-                return keywords.some(keyword =>
-                    peddlerText.includes(keyword.toLowerCase())
+                const peddlerName = peddler.name.toLowerCase();
+                const peddlerTypeNormalized = peddler.type.toLowerCase();
+                // Check if any keyword is in the name OR if any keyword is in the type
+                return lowerKeywords.some(keyword =>
+                    peddlerName.includes(keyword) || peddlerTypeNormalized.includes(keyword)
                 );
             });
         }

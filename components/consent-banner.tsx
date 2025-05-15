@@ -12,16 +12,20 @@ export function ConsentBanner() {
     "privacy-consent",
     false
   );
+  const [hasVisitedKeliLinkHome] = useLocalStorage(
+    "hasVisitedKeliLinkHome",
+    false
+  );
 
   useEffect(() => {
-    // Show banner if consent hasn't been given yet
+    // Only show banner if consent hasn't been given yet AND the user has completed onboarding
     // Using a small delay to avoid showing banner during hydration
     const timer = setTimeout(() => {
-      setIsVisible(!consentGiven);
+      setIsVisible(!consentGiven && hasVisitedKeliLinkHome);
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [consentGiven]);
+  }, [consentGiven, hasVisitedKeliLinkHome]);
 
   const handleAccept = () => {
     setConsentGiven(true);
@@ -42,7 +46,7 @@ export function ConsentBanner() {
   }
 
   return (
-    <div className="fixed bottom-4 left-0 right-0 z-50 mx-auto max-w-3xl px-4">
+    <div className="fixed bottom-4 left-0 right-0 z-[60] mx-auto max-w-3xl px-4">
       <div className="rounded-xl bg-white/90 backdrop-blur-sm dark:bg-gray-900/90 shadow-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
         <div className="relative p-6">
           <div className="flex items-start gap-4">

@@ -133,6 +133,7 @@ export default function FindPage() {
     isLoading: isChatLoading,
     error: chatError,
     append: originalAppend,
+    reload,
     data,
     setMessages,
   } = useChat({
@@ -498,6 +499,8 @@ export default function FindPage() {
           isLoading={isChatLoading}
           chatError={chatError}
           onRequestClientLocation={handleRequestClientLocation}
+          reloadChat={reload}
+          setUserLocation={setUserLocation}
         />
 
         {/* Status indicators */}

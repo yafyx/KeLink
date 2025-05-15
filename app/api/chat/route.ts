@@ -14,6 +14,7 @@ When you use a tool:
 - If the tool execution is successful and provides information (e.g., finds peddlers, calculates a route), ALWAYS summarize this information in a natural, conversational way. For example, instead of just outputting raw data, say something like: "I found a few bakso peddlers near you: Bakso Pak Kumis (200m) and Bakso Enak (500m)." or "Okay, the route to Bakso Pak Kumis is about a 5-minute walk."
 - If the tool execution is successful but finds no results (e.g., no peddlers of a certain type are found), clearly inform the user. For example: "I searched for 'sate padang' peddlers, but it seems there aren\'t any active near you right now. Would you like to try a different food?"
 - If you need the user\'s location to perform an action and you don\'t have it, politely ask them to use the location button on the page to share their location, and then retry their request. For example: "I need your location to find nearby peddlers. Could you please use the 'Locate Me' button and then ask again?"
+- When searching for peddlers, if the user mentions a specific peddler name (e.g., "Bakso Pak Kumis"), use that name as a keyword. If they mention a general type (e.g., "bakso"), use that as the foodType.
 
 General Guidelines:
 - Be concise and to the point.
@@ -131,27 +132,34 @@ export async function POST(req: Request) {
 
     const toolsForAI = {
         findNearbyPeddlers: tool({
-            description: "Searches for nearby food peddlers based on type, current user location, and/or administrative areas (city, kecamatan, kelurahan).",
+            description: "Searches for nearby food peddlers based on type, keywords, current user location, and/or administrative areas (city, kecamatan, kelurahan).",
             parameters: z.object({
-                foodType: z.string().describe("Type of food or peddler to search for (e.g., 'bakso', 'siomay')."),
+                foodType: z.string().optional().describe("General type of food or peddler to search for (e.g., 'bakso', 'siomay'). Use this if the user mentions a category."),
+                keywords: z.array(z.string()).optional().describe("Specific keywords from the user's query, such as a peddler's business name (e.g., ['Bakso Pak Kumis'], ['Soto Ayam Lamongan Cak Har']). Use this for specific names."),
                 city: z.string().optional().describe("City name to search within (e.g., 'Depok')."),
                 kecamatan: z.string().optional().describe("Kecamatan (sub-district) name to search within."),
                 kelurahan: z.string().optional().describe("Kelurahan (village/urban ward) name to search within."),
             }),
-            execute: async ({ foodType, city, kecamatan, kelurahan }) => {
+            execute: async ({ foodType, keywords, city, kecamatan, kelurahan }) => {
                 // userLocation is available in the outer scope of the POST handler
                 console.log(
                     '!!! findNearbyPeddlers TOOL - INSIDE EXECUTE - UserLocation value:',
                     JSON.stringify(userLocation, null, 2)
                 );
                 console.log(
-                    '!!! findNearbyPeddlers TOOL - INSIDE EXECUTE - Type of userLocation:',
-                    typeof userLocation
+                    '!!! findNearbyPeddlers TOOL - INSIDE EXECUTE - foodType:', foodType
+                );
+                console.log(
+                    '!!! findNearbyPeddlers TOOL - INSIDE EXECUTE - keywords:', keywords
                 );
                 console.log(
                     '!!! findNearbyPeddlers TOOL - INSIDE EXECUTE - Admin areas:',
                     JSON.stringify({ city, kecamatan, kelurahan }, null, 2)
                 );
+
+                if (!keywords && !foodType && !city && !kecamatan && !kelurahan) {
+                    return { peddlersFound: [], message: "Please specify what you're looking for (e.g., food type, peddler name, or area)." };
+                }
 
                 if ((!city && !kecamatan && !kelurahan) && (!userLocation || !userLocation.lat || !userLocation.lng)) {
                     console.log('!!! findNearbyPeddlers TOOL - Location missing or invalid (inside execute), returning LOCATION_REQUIRED status.');
@@ -160,16 +168,37 @@ export async function POST(req: Request) {
                 try {
                     const result = await findNearbyPeddlersService({
                         userLocation: userLocation && userLocation.lat && userLocation.lng ? { lat: userLocation.lat, lon: userLocation.lng } : undefined,
-                        peddlerType: foodType,
+                        peddlerType: foodType, // Pass foodType
+                        keywords: keywords, // Pass keywords
                         city: city,
                         kecamatan: kecamatan,
                         kelurahan: kelurahan,
                         limit: 5, // Keep limit for chat reasonable
                     });
+                    // Ensure the message reflects what was found, or not found.
+                    let message;
+                    if (result.peddlers && result.peddlers.length > 0) {
+                        message = `I found ${result.peddlers.length} peddler(s) that might match your search.`;
+                        // If foodType was used, mention it
+                        if (foodType) message = `I found ${result.peddlers.length} ${foodType} peddler(s) nearby.`;
+                        // If keywords were used, incorporate them
+                        if (keywords && keywords.length > 0) message = `I found ${result.peddlers.length} peddler(s) matching '${keywords.join(', ')}'.`;
+                        if (foodType && keywords && keywords.length > 0) message = `I found ${result.peddlers.length} ${foodType} peddler(s) matching '${keywords.join(', ')}'.`;
+
+                    } else {
+                        message = "I couldn't find any peddlers matching your current search criteria.";
+                        if (foodType && keywords && keywords.length > 0) {
+                            message = `I couldn't find any ${foodType} peddlers matching '${keywords.join(', ')}' near you.`;
+                        } else if (foodType) {
+                            message = `I couldn't find any ${foodType} peddlers near you.`;
+                        } else if (keywords && keywords.length > 0) {
+                            message = `I couldn't find any peddlers matching '${keywords.join(', ')}' near you.`;
+                        }
+                    }
                     return {
                         peddlers: result.peddlers,
                         hasMore: result.hasMore,
-                        message: result.peddlers.length > 0 ? `Found ${result.peddlers.length} ${foodType} peddlers near you.` : `No ${foodType} peddlers found nearby.`
+                        message: message
                     };
                 } catch (error: any) {
                     console.error("Error in findNearbyPeddlers tool (inside execute):", error);
