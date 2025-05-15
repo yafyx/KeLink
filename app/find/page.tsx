@@ -142,7 +142,7 @@ export default function FindPage() {
       userLocation: userLocation,
     },
     maxSteps: 5,
-  } as any); // Keep 'as any' for now due to persistent type issues with useChat options
+  });
 
   // Wrapper for the append function to satisfy FloatingChat's expected prop type
   const appendForFloatingChat = async (
@@ -333,6 +333,70 @@ export default function FindPage() {
 
   // Log when userLocation state changes
   useEffect(() => {}, [userLocation]);
+
+  // useEffect to handle AI-driven route display
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+
+    if (lastMessage && (lastMessage.role as string) === "tool") {
+      // Content should be an array of parts for a tool message from @ai-sdk/react
+      if (
+        Array.isArray(lastMessage.content) &&
+        lastMessage.content.length > 0
+      ) {
+        // Iterate over parts, as there could be multiple tool calls in one assistant turn,
+        // though typically one tool result message corresponds to one tool call part.
+        for (const part of lastMessage.content) {
+          if (part.type === "tool-result") {
+            // Now, `part` should be of a type like { type: 'tool-result', toolCallId: string, toolName: string, result: any }
+            const toolResultPart = part as any; // Cast for easier access, assuming structure
+
+            if (
+              toolResultPart.toolName === "getRouteToPeddler" &&
+              toolResultPart.toolCallId
+            ) {
+              const toolResultData = toolResultPart.result;
+
+              if (toolResultData && toolResultData.routeInfo) {
+                setRouteDetails(toolResultData.routeInfo as RouteDetails);
+                setShowRouteToVendor(true);
+
+                const initiatingAssistantCall = messages.find(
+                  (m) =>
+                    m.role === "assistant" &&
+                    m.toolInvocations?.some(
+                      (inv) => inv.toolCallId === toolResultPart.toolCallId
+                    )
+                );
+
+                if (
+                  initiatingAssistantCall &&
+                  initiatingAssistantCall.toolInvocations
+                ) {
+                  const toolInvocationArgs =
+                    initiatingAssistantCall.toolInvocations.find(
+                      (inv) =>
+                        inv.toolCallId === toolResultPart.toolCallId &&
+                        inv.toolName === "getRouteToPeddler"
+                    )?.args;
+                  const peddlerIdFromToolArgs =
+                    toolInvocationArgs?.peddlerIdToRoute as string | undefined;
+                  if (
+                    peddlerIdFromToolArgs &&
+                    selectedVendorId !== peddlerIdFromToolArgs
+                  ) {
+                    setSelectedVendorId(peddlerIdFromToolArgs);
+                  }
+                }
+                // Assuming one route per message, break from loop over parts
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+  }, [messages, selectedVendorId, setSelectedVendorId]);
 
   // Process messages to ensure natural chat flow:
   // 1. Filter out dedicated 'tool' role messages.

@@ -39,130 +39,30 @@ interface PeddlerResponse {
     lastPeddlerId?: string;
 }
 
-// Mock database of peddlers for fallback when Firestore is not accessible
-const mockPeddlers: any[] = []; // Initialize as empty array as mock data is removed
+// Mock database of peddlers for fallback - REMOVED
+// const mockPeddlers: any[] = [];
 
-// Helper functions for fallback mode
+// Helper functions for fallback mode - REMOVED as they relied on mockPeddlers
+/*
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371e3; // Earth radius in meters
-    const φ1 = (lat1 * Math.PI) / 180;
-    const φ2 = (lat2 * Math.PI) / 180;
-    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-        Math.cos(φ1) * Math.cos(φ2) *
-        Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+    // ... implementation ...
 }
 
 function formatDistance(distance: number): string {
-    if (distance < 1000) {
-        return `${Math.round(distance)}m`;
-    } else {
-        return `${(distance / 1000).toFixed(1)}km`;
-    }
+    // ... implementation ...
 }
+*/
 
-// Fallback function to find nearby peddlers when Firestore is not accessible
+// Fallback function to find nearby peddlers - REMOVED
+/*
 async function findNearbyPeddlersFallback(
     location: { lat: number; lon: number } | undefined,
-    peddlerType: string = '',
-    keywords: string[] = [],
-    city: string = '',
-    kecamatan: string = '',
-    kelurahan: string = '',
-    maxDistance: number = 5000,
-    limit: number = 10,
-    lastPeddlerId?: string
+    // ... other params ...
 ): Promise<PeddlerResponse> {
-    // Filter active peddlers
-    let filteredPeddlers = mockPeddlers.filter(peddler => peddler.status === 'active');
-
-    // Filter by type if provided
-    if (peddlerType && peddlerType.trim() !== '') {
-        const lowerCaseType = peddlerType.toLowerCase();
-        filteredPeddlers = filteredPeddlers.filter(
-            peddler => peddler.type.toLowerCase().includes(lowerCaseType)
-        );
-    } else if (keywords && keywords.length > 0) {
-        // If no specific peddler type but keywords are provided
-        filteredPeddlers = filteredPeddlers.filter(peddler => {
-            const peddlerText = `${peddler.name} ${peddler.type} ${peddler.description}`.toLowerCase();
-            return keywords.some(keyword =>
-                peddlerText.includes(keyword.toLowerCase())
-            );
-        });
-    }
-
-    // If no results with strict filtering, make a more lenient search
-    if (filteredPeddlers.length === 0) {
-        // Include all peddlers for these common food terms
-        const commonFoodTerms = ['makanan', 'food', 'jual', 'pedagang', 'penjual', 'cari'];
-        if (keywords.some(keyword => commonFoodTerms.includes(keyword.toLowerCase()))) {
-            filteredPeddlers = mockPeddlers.filter(peddler => peddler.status === 'active');
-        }
-
-        // For "bakso" specifically, match the bakso peddlers
-        if (keywords.some(keyword => keyword.toLowerCase().includes('bakso'))) {
-            filteredPeddlers = mockPeddlers.filter(
-                peddler => peddler.type.toLowerCase().includes('bakso') && peddler.status === 'active'
-            );
-        }
-    }
-
-    // If still no results and query contains any common food keyword, return all active peddlers
-    if (filteredPeddlers.length === 0) {
-        const foodKeywords = ['makan', 'food', 'jajan', 'kuliner', 'lapar', 'laper'];
-        if (keywords.some(keyword =>
-            foodKeywords.some(food => keyword.toLowerCase().includes(food))
-        )) {
-            filteredPeddlers = mockPeddlers.filter(peddler => peddler.status === 'active');
-        }
-    }
-
-    // Calculate distance and filter by max_distance
-    let peddlersWithDistance = filteredPeddlers
-        .map(peddler => {
-            let distance = Infinity;
-            let formattedDistance = 'N/A';
-            if (location) {
-                distance = calculateDistance(
-                    location.lat,
-                    location.lon,
-                    peddler.location.lat,
-                    peddler.location.lon
-                );
-                formattedDistance = formatDistance(distance);
-            }
-            return {
-                ...peddler,
-                distance: formattedDistance,
-                raw_distance: distance
-            };
-        })
-        .filter(peddler => location ? (peddler.raw_distance as number) <= maxDistance : true)
-        .sort((a, b) => (a.raw_distance as number) - (b.raw_distance as number));
-
-    // Handle pagination
-    if (lastPeddlerId) {
-        const lastPeddlerIndex = peddlersWithDistance.findIndex(v => v.id === lastPeddlerId);
-        if (lastPeddlerIndex !== -1) {
-            peddlersWithDistance = peddlersWithDistance.slice(lastPeddlerIndex + 1);
-        }
-    }
-
-    const hasMore = peddlersWithDistance.length > limit;
-    const paginatedPeddlers = peddlersWithDistance.slice(0, limit);
-    const lastId = paginatedPeddlers.length > 0 ? paginatedPeddlers[paginatedPeddlers.length - 1].id : undefined;
-
-    // Return peddlers without the raw_distance property
-    return {
-        peddlers: paginatedPeddlers.map(({ raw_distance, ...peddler }) => peddler),
-        hasMore,
-        lastPeddlerId: lastId
-    };
+    // ... implementation using mockPeddlers ...
+    return { peddlers: [], hasMore: false }; // Simplified return after removing mock logic
 }
+*/
 
 export async function POST(request: NextRequest) {
     // Apply rate limiting
@@ -285,6 +185,47 @@ export async function POST(request: NextRequest) {
 
             const lastId = peddlers.length > 0 ? peddlers[peddlers.length - 1].id : undefined;
 
+            // Identify targeted peddlers for logging
+            let targetedPeddlerInfoForLogging: Array<{ peddlerId: string; queryType: 'direct_match' | 'keyword_match' }> = [];
+            if (result.keywords && result.keywords.length > 0 && peddlers.length > 0) {
+                peddlers.forEach(p => {
+                    const pNameLower = p.name.toLowerCase();
+                    const pTypeLower = p.type.toLowerCase();
+                    let matched = false;
+                    // Check for direct name match in keywords
+                    if (result.keywords.some(kw => pNameLower.includes(kw.toLowerCase()))) {
+                        targetedPeddlerInfoForLogging.push({ peddlerId: p.id, queryType: 'direct_match' });
+                        matched = true;
+                    }
+                    // Check if peddlerType from query analysis matches peddler type and a keyword also matches name/type (more general match)
+                    if (!matched && result.peddlerType && pTypeLower.includes(result.peddlerType.toLowerCase())) {
+                        if (result.keywords.some(kw => pNameLower.includes(kw.toLowerCase()) || pTypeLower.includes(kw.toLowerCase()))) {
+                            targetedPeddlerInfoForLogging.push({ peddlerId: p.id, queryType: 'keyword_match' });
+                        }
+                    }
+                });
+            }
+            // Deduplicate, in case a peddler matched multiple ways, preferring direct_match
+            const uniqueTargetedPeddlers = Array.from(new Map(targetedPeddlerInfoForLogging.map(item => [item.peddlerId, item])).values());
+
+            // Update the call to storeUserQuery to include targeted peddler info
+            // This assumes storeUserQuery is updated to handle this new parameter.
+            // The actual implementation of how it stores this is in lib/data-protection.ts (not provided)
+            if (normalizedLocation) { // Re-check normalizedLocation as it was in a different if block before
+                const locationToStore = hasConsent ? normalizedLocation : dataProtection.anonymizeLocation(normalizedLocation);
+                // The line below is the original call. 
+                // To log uniqueTargetedPeddlers, dataProtection.storeUserQuery would need to be modified
+                // to accept a fourth argument, e.g.:
+                // await dataProtection.storeUserQuery(message, locationToStore, hasConsent, uniqueTargetedPeddlers);
+                // For now, uniqueTargetedPeddlers is prepared but not passed to the original storeUserQuery.
+                await dataProtection.storeUserQuery(message, locationToStore, hasConsent);
+                // TODO: Log uniqueTargetedPeddlers separately or update storeUserQuery to handle them.
+                // Example of separate logging (conceptual):
+                // if (uniqueTargetedPeddlers.length > 0) {
+                //   await dataProtection.logPeddlerSearchEvents(uniqueTargetedPeddlers, message, locationToStore, hasConsent);
+                // }
+            }
+
             // Cache the results
             peddlerCache.set(cacheKey, { peddlers, hasMore, lastPeddlerId: lastId });
 
@@ -306,28 +247,20 @@ export async function POST(request: NextRequest) {
             }, { headers: rateLimitHeaders });
         } catch (error) {
             console.error("Error finding peddlers:", error);
-
-            // Fallback to mock data if Firestore search fails
-            const fallbackResults = await findNearbyPeddlersFallback(
-                normalizedLocation,
-                result.peddlerType,
-                result.keywords,
-                result.city,
-                result.kecamatan,
-                result.kelurahan,
-                5000,
-                parseInt(limit.toString(), 10),
-                lastPeddlerId
-            );
-
-            return NextResponse.json({
-                response: {
-                    text: `Here are some ${result.peddlerType || 'food'} peddlers near you (fallback data):`,
-                    peddlers: fallbackResults.peddlers,
-                    hasMore: fallbackResults.hasMore,
-                    lastPeddlerId: fallbackResults.lastPeddlerId
+            // If findNearbyPeddlers (actual service) fails, return a generic error
+            return NextResponse.json(
+                {
+                    response: {
+                        text: "Sorry, I encountered an error while trying to find peddlers. Please try again later.",
+                        peddlers: [],
+                        hasMore: false
+                    }
+                },
+                {
+                    status: 500,
+                    headers: rateLimitHeaders
                 }
-            }, { headers: rateLimitHeaders });
+            );
         }
     } catch (error) {
         console.error("API error:", error);

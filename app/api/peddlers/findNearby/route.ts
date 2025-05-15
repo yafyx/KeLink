@@ -20,9 +20,9 @@ type PeddlerWithDistance = Peddler & {
     raw_distance?: number
 }
 
-// Mock database of peddlers
+// Mock database of peddlers - REMOVED
 // In the real implementation, this would be stored in Firestore
-const mockPeddlers: Peddler[] = []; // Return empty array as mock data is removed
+const mockPeddlers: Peddler[] = [];
 
 // Simple function to calculate distance between two coordinates (in meters)
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {

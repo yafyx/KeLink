@@ -11,17 +11,20 @@ const gemini = google('gemini-2.0-flash'); // Consistent with lib/ai/gemini.ts
 const KELILINK_SYSTEM_PROMPT = `You are KeliLink, a friendly and helpful assistant for finding Indonesian street food peddlers. Your goal is to provide concise and clear information to the user.
 
 When you use a tool:
-- When you decide to use a tool, first briefly acknowledge the user's request and state your action (e.g., "Alright, I'll search for those peddlers for you."). Then, after the tool executes, summarize the information it provides in a natural, conversational way. For example, instead of just outputting raw data, say something like: "I found a few bakso peddlers near you: Bakso Pak Kumis (200m) and Bakso Enak (500m)." or "Okay, the route to Bakso Pak Kumis is about a 5-minute walk."
-- If the tool execution is successful but finds no results (e.g., no peddlers of a certain type are found), clearly inform the user and then proactively ask for more specific criteria to try again. For example: "I searched for 'sate padang' peddlers, but it seems there aren\'t any active near you right now. What other type of food, specific peddler name, or area would you like me to search for?"
-- If you need the user\'s location to perform an action and you don\'t have it, politely ask them to use the location button on the page to share their location, and then retry their request. For example: "I need your location to find nearby peddlers. Could you please use the 'Locate Me' button and then ask again?"
-- When searching for peddlers, if the user mentions a specific peddler name (e.g., "Bakso Pak Kumis"), use that name as a keyword. If they mention a general type (e.g., "bakso"), use that as the foodType.
-- If the user asks to find peddlers but their query is too generic (e.g., "find food", "any peddlers nearby?") and does not provide a specific food type, peddler name, or category, you should ask them for more details (e.g., "Sure, I can help with that! What kind of food are you looking for?") instead of calling the findNearbyPeddlers tool with no specific criteria.
+- When you decide to use a tool, first briefly acknowledge the user's request and state your action (e.g., "Alright, I'll search for those peddlers for you."). Then, after the tool executes, summarize the information it provides in a natural, conversational way.
+- For route calculations using 'getRouteToPeddler':
+    - If the user asks for directions to a specific peddler (e.g., 'How do I get to Bakso Pak Kumis?' or has a peddler selected), use the 'getRouteToPeddler' tool with the 'peddlerIdToRoute' parameter.
+    - If the user asks for directions to a general place (e.g., "How to get to Pasar Santa?"), first use the 'getCoordinatesForPlace' tool to attempt a real coordinate lookup. If successful, then use 'getRouteToPeddler' with the 'destinationPlaceName' parameter.
+    - Inform the user that you are calculating the route, then, upon successful calculation, state the approximate duration and distance.
+- If 'getCoordinatesForPlace' is used and returns coordinates, you can then use these for subsequent actions. If it fails to find coordinates, inform the user clearly.
+- If you need the user's location (e.g., for 'findNearbyPeddlers' or 'getRouteToPeddler' from current position) AND the userLocation context provided to you is missing or null, you MUST call the 'requestClientLocation' tool. Do not try to proceed with the original request in the same turn; wait for the user to provide their location.
+- If the tool execution is successful but finds no results (e.g., no peddlers), clearly inform the user.
+- When searching for peddlers with 'findNearbyPeddlers', use 'keywords' for specific names and 'foodType' for general types.
+- If a user's query to find peddlers is too generic, ask for more details.
 
 General Guidelines:
-- Be concise, interactive and to the point.
-- When providing peddler information, list their name, type, and distance if available.
-- If a user\'s request is unclear or a search yields no useful results due to lack of specificity, be proactive in asking clarifying questions. If a first clarifying question doesn't help, try asking a different type of question to get more details (e.g., "Okay, if you're not sure about the food type, perhaps you can tell me if you're looking for a meal, a snack, or a drink?").
-- Do not output raw JSON or overly technical details from tools directly to the user. Integrate the information smoothly into your response.`;
+- Be concise and interactive.
+- Integrate tool information smoothly into your response.`;
 
 export const maxDuration = 30; // Allow streaming responses up to 30 seconds
 
@@ -163,38 +166,27 @@ export async function POST(req: Request) {
                 }
 
                 if ((!city && !kecamatan && !kelurahan) && (!userLocation || !userLocation.lat || !userLocation.lng)) {
-                    console.log('!!! findNearbyPeddlers TOOL - Location missing or invalid (inside execute), returning LOCATION_REQUIRED status.');
-                    return { peddlersFound: [], message: "I need either your specific location (lat/lng) or an administrative area (city/kecamatan/kelurahan) to find peddlers. Please enable location services, use the locate me button, or specify an area." };
+                    return { peddlersFound: [], message: "I need either your specific current location or an administrative area to find peddlers. If you want to use your current location, please enable it first." };
                 }
                 try {
                     const result = await findNearbyPeddlersService({
                         userLocation: userLocation && userLocation.lat && userLocation.lng ? { lat: userLocation.lat, lon: userLocation.lng } : undefined,
-                        peddlerType: foodType, // Pass foodType
-                        keywords: keywords, // Pass keywords
+                        peddlerType: foodType,
+                        keywords: keywords,
                         city: city,
                         kecamatan: kecamatan,
                         kelurahan: kelurahan,
-                        limit: 5, // Keep limit for chat reasonable
+                        limit: 5,
                     });
-                    // Ensure the message reflects what was found, or not found.
                     let message;
                     if (result.peddlers && result.peddlers.length > 0) {
                         message = `I found ${result.peddlers.length} peddler(s) that might match your search.`;
-                        // If foodType was used, mention it
-                        if (foodType) message = `I found ${result.peddlers.length} ${foodType} peddler(s) nearby.`;
-                        // If keywords were used, incorporate them
+                        if (foodType) message = `I found ${result.peddlers.length} ${foodType} peddler(s).`;
                         if (keywords && keywords.length > 0) message = `I found ${result.peddlers.length} peddler(s) matching '${keywords.join(', ')}'.`;
                         if (foodType && keywords && keywords.length > 0) message = `I found ${result.peddlers.length} ${foodType} peddler(s) matching '${keywords.join(', ')}'.`;
 
                     } else {
                         message = "I couldn't find any peddlers matching your current search criteria.";
-                        if (foodType && keywords && keywords.length > 0) {
-                            message = `I couldn't find any ${foodType} peddlers matching '${keywords.join(', ')}' near you.`;
-                        } else if (foodType) {
-                            message = `I couldn't find any ${foodType} peddlers near you.`;
-                        } else if (keywords && keywords.length > 0) {
-                            message = `I couldn't find any peddlers matching '${keywords.join(', ')}' near you.`;
-                        }
                     }
                     return {
                         peddlers: result.peddlers,
@@ -208,42 +200,143 @@ export async function POST(req: Request) {
             },
         }),
         getRouteToPeddler: tool({
-            description: "Calculates a walking route to a selected peddler.",
+            description: "Calculates a walking route to a selected peddler or a named destination.",
             parameters: z.object({
-                peddlerIdToRoute: z.string().describe("ID of the peddler to navigate to."),
+                peddlerIdToRoute: z.string().optional().describe("ID of the peddler to navigate to. Use this if a specific peddler is selected or mentioned."),
+                destinationPlaceName: z.string().optional().describe("Name of a general place or point of interest to navigate to (e.g., 'Monas', 'Pasar Santa'). Use this if no specific peddler ID is available but a place is mentioned, typically after getting its coordinates via 'getCoordinatesForPlace'."),
             }),
-            execute: async ({ peddlerIdToRoute }) => {
+            execute: async ({ peddlerIdToRoute, destinationPlaceName }) => {
                 console.log(
                     '!!! getRouteToPeddler TOOL - INSIDE EXECUTE - UserLocation value:',
                     JSON.stringify(userLocation, null, 2)
                 );
+                console.log('!!! getRouteToPeddler TOOL - Args:', { peddlerIdToRoute, destinationPlaceName });
+
                 if (!userLocation || !userLocation.lat || !userLocation.lng) {
-                    return { routeInfo: null, message: "I need your location to calculate a route." };
+                    return { routeInfo: null, message: "I need your location to calculate a route. If you want to use your current location, please enable it first.", peddlerName: null };
                 }
-                if (!currentPeddlers || currentPeddlers.length === 0) {
-                    return { routeInfo: null, message: "No peddlers available to route to. Please find peddlers first." };
+
+                let targetLocation: { lat: number; lng: number } | null = null;
+                let targetName: string = "the destination";
+
+                if (peddlerIdToRoute) {
+                    if (!currentPeddlers || currentPeddlers.length === 0) {
+                        return { routeInfo: null, message: "No peddlers available to route to. Please find peddlers first.", peddlerName: null };
+                    }
+                    const peddler = currentPeddlers.find((p: Peddler) => p.id === peddlerIdToRoute);
+                    if (!peddler || !peddler.location || !peddler.location.lat || !peddler.location.lon) {
+                        return { routeInfo: null, message: `Peddler with ID ${peddlerIdToRoute} not found or has no location.`, peddlerName: null };
+                    }
+                    targetLocation = { lat: peddler.location.lat, lng: peddler.location.lon };
+                    targetName = peddler.name;
+                } else if (destinationPlaceName) {
+                    return {
+                        routeInfo: null,
+                        message: `To route to '${destinationPlaceName}', I need its specific coordinates. Please ask me to find its coordinates first using the 'getCoordinatesForPlace' tool.`,
+                        peddlerName: null
+                    };
+                } else {
+                    return { routeInfo: null, message: "Please specify a peddler ID or a destination place name (after getting its coordinates) to get a route.", peddlerName: null };
                 }
-                const peddler = currentPeddlers.find((p: Peddler) => p.id === peddlerIdToRoute);
-                if (!peddler || !peddler.location || !peddler.location.lat || !peddler.location.lon) {
-                    return { routeInfo: null, message: `Peddler with ID ${peddlerIdToRoute} not found or has no location.` };
+
+                if (!targetLocation) {
+                    return { routeInfo: null, message: "Could not determine the destination location.", peddlerName: null };
                 }
 
                 try {
                     const route = await calculateRouteService(
                         { lat: userLocation.lat, lng: userLocation.lng },
-                        { lat: peddler.location.lat, lng: peddler.location.lon }, // Service expects lng
+                        targetLocation,
                         "WALKING"
                     );
-                    return { routeInfo: route, message: `Route to ${peddler.name} calculated.` };
+                    return { routeInfo: route, message: `Route to ${targetName} calculated.`, peddlerName: targetName };
                 } catch (error: any) {
                     console.error("Error in getRouteToPeddler tool (inside execute):", error);
-                    return { routeInfo: null, message: `Error calculating route: ${error.message}` };
+                    return { routeInfo: null, message: `Error calculating route: ${error.message}`, peddlerName: targetName };
                 }
             },
         }),
-        // We can add a simplified requestLocation tool if AI needs to explicitly ask for it,
-        // though the client-side "Locate Me" button is the primary mechanism.
-        // requestLocationAccess: tool({ ...})
+        getCoordinatesForPlace: tool({
+            description: "Gets the geographic coordinates (latitude and longitude) for a given place name, optionally within a city context. Useful for then calculating routes to general points of interest if a specific peddler ID is not known.",
+            parameters: z.object({
+                placeName: z.string().describe("The name of the place or point of interest (e.g., 'Monas', 'Pasar Santa', 'Blok M Plaza')."),
+                cityContext: z.string().optional().describe("The city to search within, to improve accuracy (e.g., 'Jakarta', 'Bandung')."),
+            }),
+            execute: async ({ placeName, cityContext }) => {
+                const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+                if (!apiKey) {
+                    console.error("Google Maps API key is missing.");
+                    return { placeName, coordinates: null, formattedAddress: null, message: "Sorry, I'm unable to look up coordinates at the moment due to a configuration issue." };
+                }
+
+                let addressToSearch = placeName;
+                if (cityContext) {
+                    addressToSearch += `, ${cityContext}`;
+                }
+                // Optional: Add ", Indonesia" to bias results, especially if cityContext is not always provided or is broad.
+                // addressToSearch += ", Indonesia";
+
+
+                const geocodingUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addressToSearch)}&key=${apiKey}`;
+
+                try {
+                    console.log(`Fetching geocoding for: ${addressToSearch}`);
+                    const response = await fetch(geocodingUrl);
+                    const data = await response.json();
+
+                    if (data.status === "OK" && data.results && data.results.length > 0) {
+                        const firstResult = data.results[0];
+                        const location = firstResult.geometry.location; // {lat, lng}
+                        const formattedAddress = firstResult.formatted_address;
+                        return {
+                            placeName,
+                            coordinates: { lat: location.lat, lon: location.lng }, // Note: Google uses lng, we use lon internally for Peddler
+                            formattedAddress,
+                            message: `Found coordinates for ${placeName}: ${formattedAddress}.`
+                        };
+                    } else if (data.status === "ZERO_RESULTS") {
+                        return {
+                            placeName,
+                            coordinates: null,
+                            formattedAddress: null,
+                            message: `Sorry, I could not find exact coordinates for '${placeName}'${cityContext ? ' in ' + cityContext : ''}. Please try a more specific name or check the spelling.`
+                        };
+                    } else {
+                        console.error("Geocoding API error:", data.status, data.error_message);
+                        return {
+                            placeName,
+                            coordinates: null,
+                            formattedAddress: null,
+                            message: `Sorry, an error occurred while trying to find coordinates for '${placeName}'. Status: ${data.status}`
+                        };
+                    }
+                } catch (error) {
+                    console.error("Error calling Geocoding API:", error);
+                    return {
+                        placeName,
+                        coordinates: null,
+                        formattedAddress: null,
+                        message: "Sorry, I encountered an issue while trying to look up coordinates."
+                    };
+                }
+            }
+        }),
+        requestClientLocation: tool({
+            description: "Call this tool when the user's location is needed for a function (like finding nearby peddlers or calculating a route from their current position) BUT the userLocation context is missing or null. This tool will prompt the user on the client-side to share their location.",
+            parameters: z.object({
+                requestMessage: z.string().optional().describe("Optional message to explain why location is needed, though a default will be used if not provided."),
+            }),
+            execute: async ({ requestMessage }) => {
+                // This tool's purpose is to signal the client. The actual location fetching happens client-side.
+                // The returned object structure should be recognized by the client (FloatingChat.tsx)
+                // to show a specific button or prompt.
+                return {
+                    status: "LOCATION_REQUIRED", // This status is key for FloatingChat.tsx
+                    uiMessage: requestMessage || "Your location is needed to proceed. Please click the button below or use the main 'Locate Me' button on the page to share it.",
+                    aiActionInstruction: "The user has been prompted to share their location via a client-side UI element. Wait for their next message which might include their location or a re-request of the original action."
+                };
+            }
+        })
     };
 
     console.log('!!! API CHAT ROUTE - About to call streamText. userLocation at this point:', JSON.stringify(userLocation, null, 2));
