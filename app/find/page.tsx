@@ -12,19 +12,16 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { MobileHeader } from "@/components/ui/mobile-header";
-import { AppLayout } from "@/components/AppLayout";
+import { AppLayout } from "@/components/app-layout";
 import { GoogleMapComponent } from "@/components/google-map";
 import { FloatingChat } from "@/components/find/floating-chat";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGeolocation } from "@/hooks/use-geolocation";
 import { PermissionRequest } from "@/components/find/permission-request";
 import { RouteDetails, calculateRoute } from "@/lib/route-mapper";
-import {
-  useFunctionChat,
-  Message as ChatMessage,
-} from "@/hooks/use-function-chat";
-import { availableFunctions } from "@/lib/function-calling/functions";
+import { availableFunctions } from "@/lib/ai/functions";
 import type { Peddler } from "@/lib/peddlers";
+import { useFunctionChat } from "@/hooks/use-function-chat";
 
 // Sample data for testing when API is unavailable
 // const SAMPLE_VENDORS: Peddler[] = [
@@ -80,16 +77,6 @@ const toMapVendor = (p: Peddler): MapVendor => ({
 });
 
 export default function FindPage() {
-  // Initialize with a welcome message
-  const initialMessages: ChatMessage[] = [
-    {
-      id: "1",
-      role: "assistant",
-      content:
-        "Hello! I can help you find nearby street peddlers. What are you looking for today?",
-    },
-  ];
-
   // State for the component
   const [foundVendors, setFoundVendors] = useState<Peddler[]>([]);
   const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null);
@@ -113,6 +100,13 @@ export default function FindPage() {
     update: updateLocation,
     requestPermission,
   } = useGeolocation(defaultLocation);
+
+  // Initialize the chat hook with markdown support
+  const { messages, sendMessage, isProcessing, sendFunctionResult } =
+    useFunctionChat({
+      availableFunctions,
+      markdownResponse: true, // Enable markdown responses
+    });
 
   // Handler for peddlers found via function call
   const handleVendorsFound = (peddlers: Peddler[]) => {
@@ -149,17 +143,6 @@ export default function FindPage() {
       await updateLocation();
     }
   };
-
-  // Use the function chat hook
-  const { messages, isProcessing, processingFunctionCall, sendMessage } =
-    useFunctionChat(initialMessages, {
-      userLocation,
-      foundVendors,
-      onVendorResults: handleVendorsFound,
-      onRouteResult: handleRouteFound,
-      onLocationRequest: handleLocationRequest,
-      functionSchemas: availableFunctions,
-    });
 
   // Added: Handler for FloatingChat's expansion toggle
   const handleToggleChatExpansion = () => {

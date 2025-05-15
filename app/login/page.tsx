@@ -2,7 +2,7 @@
 
 import { GalleryVerticalEnd, ArrowLeft } from "lucide-react";
 import { LoginForm } from "@/components/login-form";
-import { MobileLayout } from "@/components/MobileLayout";
+import { MobileLayout } from "@/components/mobile-layout";
 import { MobileHeader } from "@/components/ui/mobile-header";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";

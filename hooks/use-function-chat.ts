@@ -1,246 +1,431 @@
-import { executeFunctionCall } from "@/lib/function-calling/functions";
-import { FunctionSchema, ChatMessage as GeminiChatMessage, sendChatMessage, sendFunctionResult } from "@/lib/gemini";
-import { useCallback, useState } from "react";
-import { v4 as uuidv4 } from "uuid";
-
-// Message types
-export type MessageRole = "user" | "assistant" | "function";
+import { executeFunctionCall } from "@/lib/ai/functions";
+import { FunctionSchema, ChatMessage as GeminiChatMessage, sendChatMessage, sendFunctionResult as sendFunctionResultToAI } from "@/lib/ai/gemini";
+import { useCallback, useEffect, useState } from "react";
 
 export interface Message {
     id: string;
-    role: MessageRole;
+    role: "user" | "assistant" | "function";
     content: string;
     name?: string;
     pending?: boolean;
-    functionCall?: {
-        name: string;
-        arguments: string;
-    };
+    toolInvocations?: { toolCallId: string; toolName: string; args: any; result: any }[];
 }
 
-interface UseFunctionChatProps {
-    userLocation: { lat: number; lng: number } | null;
-    foundVendors: any[];
-    onVendorResults?: (peddlers: any[]) => void;
-    onRouteResult?: (routeDetails: any) => void;
-    onLocationRequest?: () => void;
-    functionSchemas?: FunctionSchema[];
+interface UseFunctionChatOptions {
+    availableFunctions?: FunctionSchema[];
+    markdownResponse?: boolean; // Option to get markdown responses
+    initialMessages?: Message[];
 }
 
-// Hook to manage chat with function calling capabilities
-export function useFunctionChat(
-    initialMessages: Message[] = [],
-    {
-        userLocation,
-        foundVendors,
-        onVendorResults,
-        onRouteResult,
-        onLocationRequest,
-        functionSchemas,
-    }: UseFunctionChatProps
-) {
+export function useFunctionChat({
+    availableFunctions = [],
+    markdownResponse = false, // Default to false for backward compatibility
+    initialMessages = [],
+}: UseFunctionChatOptions = {}) {
     const [messages, setMessages] = useState<Message[]>(initialMessages);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [processingFunctionCall, setProcessingFunctionCall] = useState<string | null>(null);
+    const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+    const [foundVendors, setFoundVendors] = useState<any[]>([]);
 
-    // Function to add a message to the chat
-    const addMessage = useCallback((message: Omit<Message, "id">) => {
-        const newMessage = {
-            ...message,
-            id: uuidv4(),
-        };
-        setMessages((prev) => [...prev, newMessage]);
-        return newMessage;
+    // Generate a unique ID for messages
+    const generateId = () => {
+        return Math.random().toString(36).substring(2, 15);
+    };
+
+    // Handle vendor results from function calls
+    const handleVendorResults = useCallback((peddlers: any[]) => {
+        setFoundVendors(peddlers);
     }, []);
 
-    // Function to update a message in the chat
-    const updateMessage = useCallback((id: string, updates: Partial<Message>) => {
-        setMessages((prev) =>
-            prev.map((message) =>
-                message.id === id ? { ...message, ...updates } : message
-            )
-        );
+    // Handle route results from function calls
+    const handleRouteResult = useCallback((routeDetails: any) => {
+        // This function could be expanded to handle route results
+        // For now, we're just logging it
+        console.log("Route details:", routeDetails);
     }, []);
 
-    // Function to handle the execution of function calls
-    const handleFunctionCall = useCallback(
-        async (functionCall: any, assistantMessageId: string) => {
+    // Handle location results from function calls
+    const handleLocationResult = useCallback(() => {
+        // This function could be expanded to handle location updates
+        // For now, it's just a placeholder
+        console.log("Location updated");
+    }, []);
+
+    // Update user location
+    useEffect(() => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    setUserLocation({
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude,
+                    });
+                },
+                (error) => {
+                    console.error("Error getting location:", error);
+                }
+            );
+        }
+    }, []);
+
+    // Send a message to the AI
+    const sendMessage = useCallback(
+        async (content: string) => {
+            // Add user message to the state
+            const userMessageId = generateId();
+            const userMessage: Message = {
+                id: userMessageId,
+                role: "user",
+                content,
+            };
+
+            // Add assistant's pending message
+            const pendingAssistantMessageId = generateId();
+            const pendingAssistantMessage: Message = {
+                id: pendingAssistantMessageId,
+                role: "assistant",
+                content: "",
+                pending: true,
+            };
+
+            setMessages((prev) => [...prev, userMessage, pendingAssistantMessage]);
+            setIsProcessing(true);
+
             try {
-                // Mark that we're processing a function call
-                setProcessingFunctionCall(functionCall.name);
-
-                // Add a function message placeholder
-                const functionMessageId = addMessage({
-                    role: "function",
-                    content: "Processing...",
-                    name: functionCall.name,
-                    pending: true,
-                }).id;
-
-                // Parse the function arguments
-                const args = JSON.parse(functionCall.args ? JSON.stringify(functionCall.args) : "{}");
-
-                // Execute the function
-                const functionResult = await executeFunctionCall(
-                    {
-                        name: functionCall.name,
-                        args,
-                    },
-                    userLocation,
-                    foundVendors,
-                    onVendorResults,
-                    onRouteResult,
-                    onLocationRequest
-                );
-
-                // Update the function message with the result
-                updateMessage(functionMessageId, {
-                    content: functionResult,
-                    pending: false,
-                });
-
-                // Get a response from the LLM based on the function result
-                const functionMessages = messages.concat([
-                    {
-                        id: assistantMessageId,
-                        role: "assistant",
-                        content: "",
-                    } as Message,
-                    {
-                        id: functionMessageId,
-                        role: "function",
-                        content: functionResult,
-                        name: functionCall.name,
-                    } as Message,
-                ]);
-
-                // Convert to format expected by gemini.ts
-                const geminiChatHistory: GeminiChatMessage[] = functionMessages.map((msg) => ({
+                // Convert our messages to the format expected by the AI
+                const chatHistory: GeminiChatMessage[] = messages.map((msg) => ({
                     role: msg.role,
                     content: msg.content,
                     name: msg.name,
+                    toolInvocations: msg.toolInvocations,
                 }));
 
-                const response = await sendFunctionResult(
-                    functionCall.name,
-                    functionResult,
-                    geminiChatHistory,
-                    functionSchemas
+                // Add the new user message
+                chatHistory.push({
+                    role: "user",
+                    content,
+                } as GeminiChatMessage);
+
+                // Add system prompt for markdown if enabled
+                let systemPrompt = "";
+                if (markdownResponse) {
+                    systemPrompt = "Please format your responses in markdown for better readability. Ensure that any lists are properly formatted with hyphens or numbers, and code blocks are enclosed in triple backticks. Bold text should use double asterisks and italics single asterisks.";
+                }
+
+                // Send the message to the AI
+                const response = await sendChatMessage(content, chatHistory, availableFunctions, systemPrompt);
+
+                // Remove the pending message and add the real response
+                setMessages((prev) =>
+                    prev.filter((msg) => msg.id !== pendingAssistantMessageId).concat({
+                        id: generateId(),
+                        role: "assistant",
+                        content: response.text || "",
+                        toolInvocations: response.toolCalls?.map((tc) => ({
+                            toolCallId: tc.toolCallId,
+                            toolName: tc.toolName,
+                            args: tc.args,
+                            result: null, // Initialize with null since we don't have results yet
+                        })),
+                    })
                 );
 
-                // Add the assistant's response
-                const newAssistantMessageId = addMessage({
-                    role: "assistant",
-                    content: response.text,
-                    functionCall: response.functionCall
-                        ? {
-                            name: response.functionCall.name,
-                            arguments: JSON.stringify(response.functionCall.args),
-                        }
-                        : undefined,
-                }).id;
+                // Handle function calls if any
+                if (response.toolCalls && response.toolCalls.length > 0) {
+                    // For each function call, execute it and send the result back
+                    for (const toolCall of response.toolCalls) {
+                        await handleFunctionCall(toolCall);
+                    }
+                }
+            } catch (error) {
+                console.error("Error sending message:", error);
 
-                // If there's another function call, handle it recursively
-                if (response.functionCall) {
-                    await handleFunctionCall(response.functionCall, newAssistantMessageId);
+                // Update the pending message with an error
+                setMessages((prev) =>
+                    prev.map((msg) =>
+                        msg.id === pendingAssistantMessageId
+                            ? {
+                                ...msg,
+                                content: "Sorry, there was an error processing your request.",
+                                pending: false,
+                            }
+                            : msg
+                    )
+                );
+            } finally {
+                setIsProcessing(false);
+            }
+        },
+        [messages, availableFunctions, markdownResponse]
+    );
+
+    // Handle function calls from the AI
+    const handleFunctionCall = useCallback(
+        async (toolCall: { toolCallId: string; toolName: string; args: any }) => {
+            const { toolCallId, toolName, args } = toolCall;
+
+            try {
+                // Execute the function
+                const functionCallResult = {
+                    name: toolName,
+                    args,
+                };
+
+                // Execute the function call
+                const result = await executeFunctionCall(
+                    functionCallResult,
+                    userLocation,
+                    foundVendors,
+                    handleVendorResults,
+                    handleRouteResult,
+                    handleLocationResult
+                );
+
+                // Add function result message
+                const functionResultMessageId = generateId();
+                setMessages((prev) => [
+                    ...prev,
+                    {
+                        id: functionResultMessageId,
+                        role: "function",
+                        name: toolName,
+                        content: result,
+                        toolInvocations: [
+                            {
+                                toolCallId,
+                                toolName,
+                                args,
+                                result,
+                            },
+                        ],
+                    },
+                ]);
+
+                // Add pending assistant message
+                const pendingAssistantMessageId = generateId();
+                setMessages((prev) => [
+                    ...prev,
+                    {
+                        id: pendingAssistantMessageId,
+                        role: "assistant",
+                        content: "",
+                        pending: true,
+                    },
+                ]);
+
+                setIsProcessing(true);
+
+                // Send the function result back to the AI
+                const chatHistory: GeminiChatMessage[] = messages.map((msg) => ({
+                    role: msg.role,
+                    content: msg.content,
+                    name: msg.name,
+                    toolInvocations: msg.toolInvocations,
+                }));
+
+                // Add the function result message
+                chatHistory.push({
+                    role: "function",
+                    name: toolName,
+                    content: result,
+                    toolInvocations: [
+                        {
+                            toolCallId,
+                            toolName,
+                            args,
+                            result,
+                        },
+                    ],
+                } as GeminiChatMessage);
+
+                // Add system prompt for markdown if enabled (consistency)
+                let systemPromptForResult = "";
+                if (markdownResponse) {
+                    systemPromptForResult = "Please format your responses in markdown for better readability. Ensure that any lists are properly formatted with hyphens or numbers, and code blocks are enclosed in triple backticks. Bold text should use double asterisks and italics single asterisks.";
+                }
+
+                const response = await sendFunctionResultToAI(
+                    toolCallId,
+                    toolName,
+                    result,
+                    chatHistory,
+                    availableFunctions,
+                    systemPromptForResult
+                );
+
+                // Remove the pending message and add the real response
+                setMessages((prev) =>
+                    prev.filter((msg) => msg.id !== pendingAssistantMessageId).concat({
+                        id: generateId(),
+                        role: "assistant",
+                        content: response.text || "",
+                        toolInvocations: response.toolCalls?.map((tc) => ({
+                            toolCallId: tc.toolCallId,
+                            toolName: tc.toolName,
+                            args: tc.args,
+                            result: null, // Initialize with null since we don't have results yet
+                        })),
+                    })
+                );
+
+                // Handle any new function calls
+                if (response.toolCalls && response.toolCalls.length > 0) {
+                    for (const newToolCall of response.toolCalls) {
+                        await handleFunctionCall(newToolCall);
+                    }
                 }
             } catch (error) {
                 console.error("Error handling function call:", error);
-                addMessage({
-                    role: "assistant",
-                    content:
-                        "Sorry, I encountered an error while processing your request. Please try again.",
-                });
+
+                // Add an error message
+                setMessages((prev) => [
+                    ...prev,
+                    {
+                        id: generateId(),
+                        role: "assistant",
+                        content: "Sorry, there was an error processing the function call.",
+                    },
+                ]);
             } finally {
-                setProcessingFunctionCall(null);
+                setIsProcessing(false);
             }
         },
         [
             messages,
             userLocation,
             foundVendors,
-            onVendorResults,
-            onRouteResult,
-            onLocationRequest,
-            addMessage,
-            updateMessage,
-            functionSchemas,
+            handleVendorResults,
+            handleRouteResult,
+            handleLocationResult,
+            availableFunctions,
         ]
     );
 
-    // Function to send a user message
-    const sendMessage = useCallback(
-        async (content: string) => {
-            if (!content.trim() || isProcessing) {
-                return;
-            }
+    // Manually send a function result (useful for external integrations)
+    const sendFunctionResult = useCallback(
+        async (toolCallId: string, toolName: string, result: any) => {
+            // Add function result message
+            const functionResultMessageId = generateId();
+            setMessages((prev) => [
+                ...prev,
+                {
+                    id: functionResultMessageId,
+                    role: "function",
+                    name: toolName,
+                    content: JSON.stringify(result),
+                    toolInvocations: [
+                        {
+                            toolCallId,
+                            toolName,
+                            args: {},
+                            result,
+                        },
+                    ],
+                },
+            ]);
 
-            try {
-                setIsProcessing(true);
-
-                // Add the user message
-                const userMessageId = addMessage({
-                    role: "user",
-                    content,
-                }).id;
-
-                // Add a pending assistant message
-                const assistantMessageId = addMessage({
+            // Add pending assistant message
+            const pendingAssistantMessageId = generateId();
+            setMessages((prev) => [
+                ...prev,
+                {
+                    id: pendingAssistantMessageId,
                     role: "assistant",
                     content: "",
                     pending: true,
-                }).id;
+                },
+            ]);
 
-                // Convert messages to the format expected by gemini.ts
-                const geminiChatHistory: GeminiChatMessage[] = messages.map((msg) => ({
+            setIsProcessing(true);
+
+            try {
+                // Convert our messages to the format expected by the AI
+                const chatHistory: GeminiChatMessage[] = messages.map((msg) => ({
                     role: msg.role,
                     content: msg.content,
                     name: msg.name,
+                    toolInvocations: msg.toolInvocations,
                 }));
 
-                // Add the new user message to chat history
-                geminiChatHistory.push({
-                    role: "user",
-                    content,
-                    name: undefined,
-                });
+                // Add the function result message
+                chatHistory.push({
+                    role: "function",
+                    name: toolName,
+                    content: JSON.stringify(result),
+                    toolInvocations: [
+                        {
+                            toolCallId,
+                            toolName,
+                            args: {},
+                            result,
+                        },
+                    ],
+                } as GeminiChatMessage);
 
-                const response = await sendChatMessage(content, geminiChatHistory, functionSchemas);
+                // Add system prompt for markdown if enabled (consistency)
+                let systemPromptForManualResult = "";
+                if (markdownResponse) {
+                    systemPromptForManualResult = "Please format your responses in markdown for better readability. Ensure that any lists are properly formatted with hyphens or numbers, and code blocks are enclosed in triple backticks. Bold text should use double asterisks and italics single asterisks.";
+                }
 
-                // Update the assistant message with the response
-                updateMessage(assistantMessageId, {
-                    content: response.text,
-                    pending: false,
-                    functionCall: response.functionCall
-                        ? {
-                            name: response.functionCall.name,
-                            arguments: JSON.stringify(response.functionCall.args),
-                        }
-                        : undefined,
-                });
+                // Send the function result to the AI
+                const response = await sendFunctionResultToAI(
+                    toolCallId,
+                    toolName,
+                    result,
+                    chatHistory,
+                    availableFunctions,
+                    systemPromptForManualResult
+                );
 
-                // Handle function call if present
-                if (response.functionCall) {
-                    await handleFunctionCall(response.functionCall, assistantMessageId);
+                // Remove the pending message and add the real response
+                setMessages((prev) =>
+                    prev.filter((msg) => msg.id !== pendingAssistantMessageId).concat({
+                        id: generateId(),
+                        role: "assistant",
+                        content: response.text || "",
+                        toolInvocations: response.toolCalls?.map((tc) => ({
+                            toolCallId: tc.toolCallId,
+                            toolName: tc.toolName,
+                            args: tc.args,
+                            result: null, // Initialize with null since we don't have results yet
+                        })),
+                    })
+                );
+
+                // Handle any new function calls
+                if (response.toolCalls && response.toolCalls.length > 0) {
+                    for (const toolCall of response.toolCalls) {
+                        await handleFunctionCall(toolCall);
+                    }
                 }
             } catch (error) {
-                console.error("Error sending message:", error);
-                addMessage({
-                    role: "assistant",
-                    content:
-                        "Sorry, I encountered an error while processing your message. Please try again.",
-                });
+                console.error("Error sending function result:", error);
+
+                // Update the pending message with an error
+                setMessages((prev) =>
+                    prev.map((msg) =>
+                        msg.id === pendingAssistantMessageId
+                            ? {
+                                ...msg,
+                                content: "Sorry, there was an error processing your request.",
+                                pending: false,
+                            }
+                            : msg
+                    )
+                );
             } finally {
                 setIsProcessing(false);
             }
         },
-        [messages, isProcessing, addMessage, updateMessage, handleFunctionCall, functionSchemas]
+        [messages, availableFunctions, handleFunctionCall]
     );
 
     return {
         messages,
-        isProcessing,
-        processingFunctionCall,
         sendMessage,
+        sendFunctionResult,
+        isProcessing,
+        foundVendors,
     };
 } 

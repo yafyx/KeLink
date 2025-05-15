@@ -1,9 +1,8 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
-import { NextResponse } from 'next/server'
+import { google } from '@ai-sdk/google';
+import { streamText } from 'ai';
+import { NextResponse } from 'next/server';
 
-// Initialize Google Generative AI with API key
-// Use server-side env variable
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
+const routeAdviceModel = google('gemini-2.0-flash');
 
 export async function POST(request: Request) {
     try {
@@ -16,10 +15,6 @@ export async function POST(request: Request) {
             )
         }
 
-        // Call Gemini API to generate route advice
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
-
-        // Construct prompt for Gemini API
         const prompt = `
             As an assistant for street peddlers in Indonesia, provide route advice for:
             
@@ -37,11 +32,13 @@ export async function POST(request: Request) {
             Format your response in clear and structured English.
         `
 
-        const result = await model.generateContent(prompt)
-        const response = result.response
-        const text = response.text()
+        const result = await streamText({
+            model: routeAdviceModel,
+            prompt: prompt,
+        });
 
-        return NextResponse.json({ advice: text }, { status: 200 })
+        return result.toDataStreamResponse();
+
     } catch (error) {
         console.error('Error generating route advice:', error)
 
@@ -51,7 +48,6 @@ export async function POST(request: Request) {
         let timeOfDay: string | undefined;
 
         try {
-            // Try to extract request data if possible
             const requestData = await request.json();
             peddlerType = requestData.peddler_type || '';
             plannedAreas = requestData.planned_areas || [];
@@ -61,7 +57,6 @@ export async function POST(request: Request) {
             console.error('Error parsing request in error handler:', jsonError);
         }
 
-        // Fallback to the mock response if API call fails
         const fallbackResponse = generateRouteAdvice(
             peddlerType,
             plannedAreas,
@@ -79,15 +74,12 @@ export async function POST(request: Request) {
     }
 }
 
-// Mock function to generate route advice
-// Will be used as fallback if the Gemini API call fails
 function generateRouteAdvice(
     peddlerType: string,
     plannedAreas: string[],
     city: string,
     timeOfDay?: string
 ): string {
-    // Example logic for various peddler types
     const timeContext = timeOfDay ? getTimeContext(timeOfDay) : getTimeContext(getCurrentTimeOfDay())
     const citySpecific = getCitySpecificAdvice(city, peddlerType)
 
@@ -130,7 +122,6 @@ ${peddlerSpecificTips}
 Ingat untuk selalu update lokasi Anda di aplikasi KeliLink agar pelanggan dapat dengan mudah menemukan Anda!`
 }
 
-// Helper function to get time-specific advice
 function getTimeContext(timeOfDay: string): string {
     switch (timeOfDay.toLowerCase()) {
         case 'morning':
@@ -150,7 +141,6 @@ function getTimeContext(timeOfDay: string): string {
     }
 }
 
-// Get current time of day
 function getCurrentTimeOfDay(): string {
     const hour = new Date().getHours();
     if (hour >= 5 && hour < 11) return 'pagi';
@@ -159,9 +149,7 @@ function getCurrentTimeOfDay(): string {
     return 'malam';
 }
 
-// Helper function for city-specific advice
 function getCitySpecificAdvice(city: string, peddlerType: string): string {
-    // Just a few examples
     if (city.toLowerCase().includes('jakarta')) {
         return 'Jakarta memiliki banyak area perkantoran yang ramai di jam makan siang dan jam pulang kerja. Di pagi hari, stasiun MRT dan halte TransJakarta bisa menjadi lokasi strategis.';
     } else if (city.toLowerCase().includes('bandung')) {
@@ -175,11 +163,6 @@ function getCitySpecificAdvice(city: string, peddlerType: string): string {
     }
 }
 
-// Helper function to prioritize areas
 function prioritizeAreas(areas: string[], peddlerType: string, timeOfDay?: string): string[] {
-    // This is a simplified mock implementation
-    // In a real implementation, this would use more complex logic or AI
-
-    // Just shuffle the array to simulate prioritization
     return [...areas].sort(() => Math.random() - 0.5);
-} 
+}

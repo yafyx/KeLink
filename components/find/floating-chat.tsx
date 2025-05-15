@@ -201,8 +201,7 @@ export function FloatingChat({
   };
 
   // Handle form submission
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleFormSubmit = () => {
     const currentInput = input.trim();
     if (!currentInput) return;
 
@@ -340,7 +339,7 @@ export function FloatingChat({
               bubbleClassName={bubbleClassName}
               messagesEndRef={messagesEndRef}
               toggleExpanded={localToggleExpanded}
-              onViewAllVendors={() => setActiveTab("peddlers")}
+              className="h-full"
             />
           </TabsContent>
 
@@ -508,12 +507,10 @@ export function FloatingChat({
 
           <div className="p-2 border-t">
             <ChatInput
-              input={input}
-              setInput={setInput}
-              onFormSubmit={handleFormSubmit}
+              value={input}
+              onChange={setInput}
+              onSubmit={handleFormSubmit}
               isLoading={isLoading}
-              isExpanded={isExpanded}
-              toggleExpanded={localToggleExpanded}
               inputRef={inputRef}
             />
           </div>

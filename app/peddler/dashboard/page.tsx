@@ -37,11 +37,11 @@ import {
   ChevronRight,
   ArrowRight,
 } from "lucide-react";
-import { getRouteAdvice } from "@/lib/gemini";
+import { getRouteAdvice } from "@/lib/ai/gemini";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { MobileHeader } from "@/components/ui/mobile-header";
-import { MobileLayout } from "@/components/MobileLayout";
+import { MobileLayout } from "@/components/mobile-layout";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";

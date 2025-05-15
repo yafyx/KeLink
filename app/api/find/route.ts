@@ -1,13 +1,12 @@
 import { DataProtection } from '@/lib/data-protection';
 import { findNearbyPeddlers } from '@/lib/peddlers';
 import { RateLimiter } from '@/lib/rate-limiter';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { google } from '@ai-sdk/google';
+import { generateObject } from 'ai';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import NodeCache from 'node-cache';
-
-// Initialize Google Generative AI with API key
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+import { z } from 'zod';
 
 // Initialize cache with a default TTL (e.g., 5 minutes)
 const peddlerCache = new NodeCache({ stdTTL: 300, checkperiod: 120 });
@@ -19,6 +18,13 @@ interface QueryAnalysisResult {
     keywords: string[];
     directResponse: string;
 }
+
+const QueryAnalysisResultSchema = z.object({
+    isLookingForPeddlers: z.boolean().describe("True if the user's query is about finding street peddlers/vendors, false otherwise."),
+    peddlerType: z.string().describe("Specific type of peddler or food item the user is looking for (e.g., 'bakso', 'siomay', 'es kelapa'). Empty string if no specific type is mentioned or if not looking for peddlers."),
+    keywords: z.array(z.string()).describe("Relevant keywords from the user's query that help identify the peddler type or search intent. Empty array if not looking for peddlers."),
+    directResponse: z.string().describe("A polite, natural language response in English to the user if they are NOT looking for peddlers (isLookingForPeddlers is false). Example: 'I can help you find street food vendors. What are you looking for?' or 'Sorry, I can only help with finding peddlers.'")
+});
 
 // Type definition for pagination and response
 interface PeddlerResponse {
@@ -317,62 +323,43 @@ export async function POST(request: NextRequest) {
 // Function to analyze user query with Gemini AI
 async function analyzeUserQuery(query: string): Promise<QueryAnalysisResult> {
     try {
-        // Define the prompt for Gemini
-        const prompt = `
-        Analyze the following user query to find street peddlers:
-        "${query}"
-        
-        Provide a response in JSON format with the following structure:
-        {
-          "isLookingForPeddlers": boolean, // whether the user is looking for street peddlers
-          "peddlerType": string, // type of peddler being sought (e.g. "bakso", "siomay", etc.) or empty if not specific
-          "keywords": string[], // important keywords from the query
-          "directResponse": string // direct response if not looking for peddlers
+        // Define the prompt for Gemini - this will be more of a system prompt or context
+        // The main user query will be the 'prompt' for generateObject
+        const systemPrompt = `You are an AI assistant helping users find Indonesian street food peddlers. Analyze the user's query. Determine if they are looking for peddlers, what type (e.g., bakso, siomay, es kelapa), and extract keywords. If they are not looking for peddlers, provide a polite response in English explaining your purpose or asking for clarification. Examples of Indonesian street food types: bakso, siomay, batagor, es kelapa, es cincau, martabak, etc.`;
+
+        const geminiFlashModel = google('gemini-2.0-flash'); // Using the same model as in lib/gemini.ts for consistency
+
+        // Use generateObject for structured output
+        const { object } = await generateObject({
+            model: geminiFlashModel,
+            schema: QueryAnalysisResultSchema,
+            prompt: query, // The user's raw query
+            system: systemPrompt, // System prompt to guide the LLM's behavior
+        });
+
+        return object;
+
+    } catch (error) {
+        console.error('Error analyzing user query with AI SDK:', error);
+        // Fallback response if AI SDK call fails or parsing fails
+        // Check if the error is a specific AIError or a ZodError for more granular handling if needed
+
+        // A simple fallback: assume they are looking for peddlers with the query as keyword
+        // This is similar to the original fallback but without attempting to determine directResponse.
+        if (query && query.trim().length > 0) {
+            return {
+                isLookingForPeddlers: true, // Default to true in case of error to allow search
+                peddlerType: '',
+                keywords: [query.toLowerCase().trim()], // Use the query as a keyword
+                directResponse: '' // No direct response in this fallback
+            };
         }
-        
-        Examples of Indonesian street food types: bakso, siomay, batagor, es kelapa, es cincau, martabak, etc.
-        If the user is not looking for peddlers, provide a natural response in English.
-        `;
-
-        // Get the generative model
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
-        // Generate content based on the prompt
-        const result = await model.generateContent(prompt);
-        const responseText = result.response.text();
-
-        // Parse the JSON response
-        try {
-            // Extract JSON from the text (in case there's any wrapper text)
-            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                const parsedResult = JSON.parse(jsonMatch[0]) as Partial<QueryAnalysisResult>;
-                return {
-                    isLookingForPeddlers: parsedResult.isLookingForPeddlers || false,
-                    peddlerType: parsedResult.peddlerType || '',
-                    keywords: parsedResult.keywords || [],
-                    directResponse: parsedResult.directResponse || 'Sorry, I don\'t understand what you mean. Could you please explain what you are looking for?'
-                };
-            }
-        } catch (parseError) {
-            console.error('Error parsing AI response:', parseError);
-        }
-
-        // Fallback response if parsing fails
+        // More generic fallback if query is empty or other unhandled error
         return {
             isLookingForPeddlers: false,
             peddlerType: '',
             keywords: [],
-            directResponse: 'Sorry, I can\'t process your request at this time. Could you try rephrasing it?'
-        };
-    } catch (error) {
-        console.error('Error analyzing user query:', error);
-        // Fallback to assume they are looking for peddlers with the query as keyword
-        return {
-            isLookingForPeddlers: true,
-            peddlerType: '',
-            keywords: [query],
-            directResponse: ''
+            directResponse: 'Sorry, I encountered an issue processing your request. Please try again.'
         };
     }
 } 

@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import { Separator } from "@/components/ui/separator";
 
 interface MobileHeaderProps {
   title: string;
@@ -18,10 +19,9 @@ export function MobileHeader({
 }: MobileHeaderProps) {
   return (
     <div
-      className="backdrop-blur-sm w-full border-b"
+      className="backdrop-blur-sm w-full"
       style={{
         backgroundColor: "hsl(var(--background)/0.8)",
-        borderColor: "hsl(var(--border))",
       }}
     >
       <div className="mobile-container">
@@ -45,6 +45,7 @@ export function MobileHeader({
           </div>
         </div>
       </div>
+      <Separator />
     </div>
   );
 }

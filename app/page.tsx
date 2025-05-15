@@ -8,40 +8,25 @@ import {
   MapPin,
   Star,
   Clock,
-  ChevronRight,
   Navigation,
   MessageCircle,
   Route,
-  Menu,
   Search,
-  Bookmark,
-  Filter,
   Heart,
-  ChefHat,
   Coffee,
   Utensils,
-  BadgeDollarSign,
-  AlertCircle,
   Soup,
   Sun,
   Moon,
-  Droplet,
   CupSoda,
   FlameKindling,
-  UtensilsCrossed,
   Beef,
-  UserRound,
-  Bell,
   TrendingUp,
   Sparkles,
-  MessageCircleQuestion,
-  Users,
-  Share2,
-  Lightbulb,
 } from "lucide-react";
 import { MobileHeader } from "@/components/ui/mobile-header";
-import { AppLayout } from "@/components/AppLayout";
-import { motion, AnimatePresence } from "framer-motion";
+import { AppLayout } from "@/components/app-layout";
+import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -49,11 +34,10 @@ import { useGeolocation } from "@/hooks/use-geolocation";
 import { FeatureBanner } from "@/components/feature-card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { FoodBeamBackground } from "@/components/kelink-food-beam";
 import { AnimatedBeamDemo } from "@/components/kelink-beam";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { TextAnimate } from "@/components/ui/text-animate";
-import { OnboardingDialog } from "@/components/OnboardingDialog";
+import { OnboardingDialog } from "@/components/onboarding-dialog";
 
 export default function Home() {
   const router = useRouter();

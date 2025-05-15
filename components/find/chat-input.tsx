@@ -1,104 +1,54 @@
 "use client";
 
-import { useRef } from "react";
-import { Send, ChevronUp, ChevronDown, MinusCircle } from "lucide-react";
+import { FormEvent } from "react";
+import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 interface ChatInputProps {
-  input: string;
-  setInput: (value: string) => void;
-  onFormSubmit: (e: React.FormEvent) => void;
-  isLoading: boolean;
-  isExpanded: boolean;
-  toggleExpanded: () => void;
-  inputRef: React.RefObject<HTMLInputElement | null>;
+  value: string;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+  isLoading?: boolean;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
+  className?: string;
 }
 
 export function ChatInput({
-  input,
-  setInput,
-  onFormSubmit,
-  isLoading,
-  isExpanded,
-  toggleExpanded,
+  value,
+  onChange,
+  onSubmit,
+  isLoading = false,
   inputRef,
+  className,
 }: ChatInputProps) {
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !e.shiftKey && !(isLoading || !input.trim())) {
-      onFormSubmit(e as unknown as React.FormEvent);
-    } else if (e.key === "Escape") {
-      if (isExpanded) {
-        e.preventDefault();
-        toggleExpanded();
-      }
-    }
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!value.trim()) return;
+    onSubmit();
   };
 
   return (
     <form
-      onSubmit={onFormSubmit}
-      className="flex items-center gap-2 p-2 relative"
+      onSubmit={handleSubmit}
+      className={cn("flex items-center gap-2 p-2", className)}
     >
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="h-10 w-10 rounded-full flex items-center justify-center hover:bg-gray-100 transition-all duration-200"
-        onClick={toggleExpanded}
-        aria-label={isExpanded ? "Minimize chat" : "Expand chat"}
-        title={isExpanded ? "Minimize chat" : "Expand chat"}
-      >
-        {isExpanded ? (
-          <ChevronDown className="h-5 w-5" />
-        ) : (
-          <ChevronUp className="h-5 w-5" />
-        )}
-      </Button>
-      <div className="relative flex-1">
-        <Input
-          ref={inputRef}
-          type="text"
-          placeholder={
-            isLoading ? "Waiting..." : "Ask me or search for street peddlers..."
-          }
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={isLoading}
-          className={cn(
-            "flex-1 h-10 border border-input bg-transparent transition-all duration-200 w-full",
-            isLoading ? "opacity-70 cursor-not-allowed" : "hover:bg-gray-50/50"
-          )}
-        />
-        {isLoading && (
-          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center justify-center">
-            <div className="typing-indicator">
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
-          </div>
-        )}
-      </div>
+      <Input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Type a message..."
+        disabled={isLoading}
+        className="flex-1"
+      />
       <Button
         type="submit"
         size="icon"
-        disabled={isLoading || !input.trim()}
-        className={cn(
-          "h-10 w-10 rounded-full transition-all duration-200",
-          input.trim()
-            ? "bg-primary hover:bg-primary/90 scale-100"
-            : "bg-gray-200 scale-95"
-        )}
+        disabled={isLoading || !value.trim()}
+        className={cn("h-8 w-8 rounded-full", !value.trim() && "opacity-50")}
       >
-        <Send
-          className={cn(
-            "h-4 w-4",
-            input.trim() ? "text-white" : "text-gray-400"
-          )}
-        />
+        <Send className="h-4 w-4" />
       </Button>
     </form>
   );

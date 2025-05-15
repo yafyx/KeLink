@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { MobileLayout } from "@/components/MobileLayout";
+import { MobileLayout } from "@/components/mobile-layout";
 import { MobileHeader } from "@/components/ui/mobile-header";
 
 export default function UserRegisterPage() {

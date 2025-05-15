@@ -24,10 +24,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, Loader2, Wand2 } from "lucide-react";
-import { generatePeddlerDescription } from "@/lib/gemini";
 import { useRouter } from "next/navigation";
-import { MobileLayout } from "@/components/MobileLayout";
+import { MobileLayout } from "@/components/mobile-layout";
 import { MobileHeader } from "@/components/ui/mobile-header";
+import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
 
 export default function VendorRegisterPage() {
   const [formData, setFormData] = useState({
@@ -63,11 +64,26 @@ export default function VendorRegisterPage() {
 
     setIsGeneratingDescription(true);
     try {
-      const description = await generatePeddlerDescription(
-        formData.vendorType,
-        formData.name
-      );
-      setFormData((prev) => ({ ...prev, description }));
+      const response = await fetch("/api/ai/generate-description", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          peddlerType: formData.vendorType,
+          peddlerName: formData.name,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.error || "Failed to generate description from API"
+        );
+      }
+
+      const data = await response.json();
+      setFormData((prev) => ({ ...prev, description: data.description }));
     } catch (error) {
       console.error("Error generating description:", error);
       alert("Failed to generate description. Please try manually.");
@@ -104,7 +120,6 @@ export default function VendorRegisterPage() {
 
       console.log("Peddler registered:", data.peddler);
       alert("Registration successful! Please log in.");
-      // Redirect to login page after successful registration
       router.push("/peddler/login");
     } catch (error: any) {
       console.error("Error registering peddler:", error);
@@ -119,9 +134,9 @@ export default function VendorRegisterPage() {
       title="Register as Peddler"
       centerContent={true}
       leftAction={
-        <Link href="/">
+        <Link href="/" aria-label="Go back to homepage">
           <Button variant="ghost" size="icon" className="h-9 w-9">
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
       }
@@ -130,145 +145,260 @@ export default function VendorRegisterPage() {
 
   return (
     <MobileLayout header={HeaderComponent}>
-      <div className="flex flex-col py-4">
-        <Card className="w-full">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-xl font-bold">Join KeliLink</CardTitle>
-            <CardDescription>
-              Reach more customers with our AI-powered platform
+      <div className="flex flex-col items-center justify-start w-full px-4 bg-background">
+        <Card className="w-full max-w-md shadow-lg border-border/60">
+          <CardHeader className="py-3">
+            <CardTitle className="text-2xl font-bold tracking-tight">
+              Join KeliLink
+            </CardTitle>
+            <CardDescription className="text-sm text-muted-foreground">
+              Expand your reach with our AI-powered platform.
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Business Name</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
+            <CardContent className="space-y-4 px-4 py-2">
+              {/* Section 1: Business Information */}
+              <div className="space-y-3 rounded-lg bg-accent/10 p-3">
+                <h3 className="text-base font-medium text-primary flex items-center gap-2">
+                  <span className="h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs">
+                    1
+                  </span>
+                  Business Information
+                </h3>
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="name" className="text-sm font-medium">
+                      Business Name
+                    </Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      placeholder="e.g., Bakso Pak Kumis"
+                      value={formData.name}
+                      onChange={handleChange}
+                      required
+                      aria-required="true"
+                      className="h-9"
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="email" className="text-sm font-medium">
+                        Email Address
+                      </Label>
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        placeholder="you@example.com"
+                        value={formData.email}
+                        onChange={handleChange}
+                        required
+                        aria-required="true"
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="phone" className="text-sm font-medium">
+                        Phone Number
+                      </Label>
+                      <Input
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        placeholder="081234567890"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        required
+                        aria-required="true"
+                        className="h-9"
+                      />
+                    </div>
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  name="phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="vendorType">Peddler Type</Label>
-                <Select
-                  value={formData.vendorType}
-                  onValueChange={(value) =>
-                    handleSelectChange("vendorType", value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select peddler type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bakso">Bakso</SelectItem>
-                    <SelectItem value="siomay">Siomay</SelectItem>
-                    <SelectItem value="batagor">Batagor</SelectItem>
-                    <SelectItem value="es_cendol">Es Cendol</SelectItem>
-                    <SelectItem value="sate_padang">Sate Padang</SelectItem>
-                    <SelectItem value="martabak">Martabak</SelectItem>
-                    <SelectItem value="bubur_ayam">Bubur Ayam</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label htmlFor="description">Business Description</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleGenerateDescription}
-                    disabled={isGeneratingDescription || !formData.vendorType}
-                  >
-                    <Wand2 className="h-3.5 w-3.5 mr-2" />
-                    {isGeneratingDescription
-                      ? "Generating..."
-                      : "Generate with AI"}
-                  </Button>
+                  <div className="space-y-1">
+                    <Label htmlFor="vendorType" className="text-sm font-medium">
+                      Peddler Type
+                    </Label>
+                    <Select
+                      value={formData.vendorType}
+                      onValueChange={(value) =>
+                        handleSelectChange("vendorType", value)
+                      }
+                      name="vendorType"
+                    >
+                      <SelectTrigger
+                        id="vendorType"
+                        aria-label="Select peddler type"
+                        className="h-9"
+                      >
+                        <SelectValue placeholder="Select your peddler type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="bakso">Bakso</SelectItem>
+                        <SelectItem value="siomay">Siomay</SelectItem>
+                        <SelectItem value="batagor">Batagor</SelectItem>
+                        <SelectItem value="es_cendol">Es Cendol</SelectItem>
+                        <SelectItem value="sate_padang">Sate Padang</SelectItem>
+                        <SelectItem value="martabak">Martabak</SelectItem>
+                        <SelectItem value="bubur_ayam">Bubur Ayam</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <Textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  rows={3}
-                  className="resize-none"
-                />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                />
+              {/* Section 2: Business Description */}
+              <div className="space-y-3 rounded-lg bg-accent/10 p-3">
+                <h3 className="text-base font-medium text-primary flex items-center gap-2">
+                  <span className="h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs">
+                    2
+                  </span>
+                  Business Description
+                </h3>
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <Label
+                        htmlFor="description"
+                        className="text-sm font-medium"
+                      >
+                        Tell us about your business
+                      </Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleGenerateDescription}
+                        disabled={
+                          isGeneratingDescription || !formData.vendorType
+                        }
+                        aria-label="Generate business description with AI"
+                        className="h-7 px-2 text-xs"
+                      >
+                        {isGeneratingDescription ? (
+                          <>
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            <Wand2 className="h-3 w-3 mr-1" />
+                            Generate with AI
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <Textarea
+                      id="description"
+                      name="description"
+                      value={formData.description}
+                      onChange={handleChange}
+                      rows={3}
+                      className="resize-none text-sm min-h-[70px]"
+                      placeholder="Describe what you sell, your specialties, etc."
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label
+                      htmlFor="descriptionPreview"
+                      className="text-sm font-medium"
+                    >
+                      Description Preview
+                    </Label>
+                    <div
+                      id="descriptionPreview"
+                      className="p-2 border rounded-md min-h-[60px] bg-background prose dark:prose-invert max-w-full text-xs"
+                    >
+                      <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                        {formData.description ||
+                          "Your AI-generated or manually typed description will appear here."}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  required
-                />
+              {/* Section 3: Account Credentials */}
+              <div className="space-y-3 rounded-lg bg-accent/10 p-3">
+                <h3 className="text-base font-medium text-primary flex items-center gap-2">
+                  <span className="h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs">
+                    3
+                  </span>
+                  Account Credentials
+                </h3>
+                <div className="space-y-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="password" className="text-sm font-medium">
+                        Password
+                      </Label>
+                      <Input
+                        id="password"
+                        name="password"
+                        type="password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        required
+                        aria-required="true"
+                        placeholder="Min. 8 characters"
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="confirmPassword"
+                        className="text-sm font-medium"
+                      >
+                        Confirm Password
+                      </Label>
+                      <Input
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        type="password"
+                        value={formData.confirmPassword}
+                        onChange={handleChange}
+                        required
+                        aria-required="true"
+                        placeholder="Re-enter password"
+                        className="h-9"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             </CardContent>
-            <CardFooter>
-              <Button className="w-full" type="submit" disabled={isSubmitting}>
+            <CardFooter className="flex flex-col space-y-2 px-4 py-3 bg-muted/20 border-t">
+              <Button
+                className="w-full h-10 font-medium"
+                type="submit"
+                disabled={isSubmitting}
+              >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Registering...
+                    Creating Account...
                   </>
                 ) : (
-                  "Register"
+                  "Create Peddler Account"
                 )}
               </Button>
+              <p className="text-center text-xs text-muted-foreground">
+                Already have an account?{" "}
+                <Link
+                  href="/peddler/login"
+                  className="font-medium text-primary hover:underline"
+                  aria-label="Log in to your existing peddler account"
+                >
+                  Log in here
+                </Link>
+              </p>
             </CardFooter>
           </form>
         </Card>
-        <p className="text-center text-sm text-muted-foreground mt-4">
-          Already have an account?{" "}
-          <Link href="/peddler/login" className="text-primary hover:underline">
-            Log in
-          </Link>
-        </p>
       </div>
     </MobileLayout>
   );
