@@ -141,6 +141,7 @@ export default function FindPage() {
     body: {
       userLocation: userLocation,
     },
+    maxSteps: 5,
   } as any); // Keep 'as any' for now due to persistent type issues with useChat options
 
   // Wrapper for the append function to satisfy FloatingChat's expected prop type
