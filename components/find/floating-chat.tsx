@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { MessageCircle, X, Send } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -28,7 +29,7 @@ export function FloatingChat({
   isLoading,
   chatError,
 }: FloatingChatProps) {
-  const [isChatExpanded, setIsChatExpanded] = useState(false);
+  const [isChatExpanded, setIsChatExpanded] = useState(true);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
   const prevMessagesLength = useRef(0);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -203,10 +204,10 @@ export function FloatingChat({
 
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-md flex gap-3 bg-white/90 backdrop-blur-md p-5 rounded-full shadow-lg border border-gray-100"
+        className="w-full max-w-md flex items-center gap-3 bg-white/90 backdrop-blur-md p-5 rounded-full shadow-lg border border-gray-100"
       >
-        <input
-          className="flex-1 p-2 px-3 text-sm border border-gray-200 rounded-full focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+        <Input
+          className="flex-1 p-2 px-3 text-sm rounded-full shadow-none"
           value={input}
           placeholder={
             isLoading ? "AI is thinking..." : "Ask about food vendors..."
