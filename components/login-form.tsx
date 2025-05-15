@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { Loader2 } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -17,18 +18,25 @@ import {
 } from "@/components/ui/card";
 
 export function LoginForm() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const { login } = useAuth();
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setIsSubmitting(true);
 
     try {
-      await login(email, password, "user");
+      await login(formData.email, formData.password, "user");
       router.push("/"); // Redirect to home/dashboard
     } catch (error: any) {
       alert(
@@ -36,65 +44,97 @@ export function LoginForm() {
           "Failed to log in. Please check your credentials and try again."
       );
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">Sign In</CardTitle>
-        <CardDescription>
-          Enter your email and password to access your account
+    <Card className="w-full max-w-md shadow-lg border-border/60">
+      <CardHeader className="py-3">
+        <CardTitle className="text-2xl font-bold tracking-tight">
+          Welcome Back
+        </CardTitle>
+        <CardDescription className="text-sm text-muted-foreground">
+          Sign in to your account to continue
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="your.email@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <Link
-                href="/forgot-password"
-                className="text-sm text-primary hover:underline"
-              >
-                Forgot password?
-              </Link>
+        <CardContent className="space-y-4 px-4 py-2">
+          <div className="space-y-3 rounded-lg bg-accent/10 p-3">
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <Label htmlFor="email" className="text-sm font-medium">
+                  Email Address
+                </Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  aria-required="true"
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password" className="text-sm font-medium">
+                    Password
+                  </Label>
+                  <Link
+                    href="/forgot-password"
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  aria-required="true"
+                  className="h-9"
+                />
+              </div>
             </div>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
           </div>
         </CardContent>
-        <CardFooter className="flex flex-col">
-          <Button className="w-full" type="submit" disabled={isLoading}>
-            {isLoading ? "Signing In..." : "Sign In"}
+        <CardFooter className="flex flex-col space-y-2 px-4 py-3 bg-muted/20 border-t">
+          <Button
+            className="w-full h-10 font-medium"
+            type="submit"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Signing In...
+              </>
+            ) : (
+              "Sign In"
+            )}
           </Button>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
+          <p className="text-center text-xs text-muted-foreground">
             Don't have an account?{" "}
-            <Link href="/register" className="text-primary hover:underline">
-              Register
+            <Link
+              href="/register"
+              className="font-medium text-primary hover:underline"
+              aria-label="Register a new account"
+            >
+              Register here
             </Link>
           </p>
-          <p className="mt-2 text-center text-sm text-muted-foreground">
-            Looking to become a peddler?{" "}
+          <p className="text-center text-xs text-muted-foreground pt-1">
+            Looking to sell your food?{" "}
             <Link
               href="/peddler/login"
-              className="text-primary hover:underline"
+              className="font-medium text-primary hover:underline"
+              aria-label="Log in as a peddler"
             >
               Peddler Login
             </Link>

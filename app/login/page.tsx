@@ -13,9 +13,9 @@ export default function UserLoginPage() {
       title="User Login"
       centerContent={true}
       leftAction={
-        <Link href="/">
+        <Link href="/" aria-label="Go back to homepage">
           <Button variant="ghost" size="icon" className="h-9 w-9">
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
       }
@@ -24,17 +24,8 @@ export default function UserLoginPage() {
 
   return (
     <MobileLayout header={HeaderComponent}>
-      <div className="flex flex-col items-center justify-center py-8">
-        <div className="flex w-full flex-col gap-6">
-          <a
-            href="/"
-            className="flex items-center gap-2 self-center font-medium"
-          >
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <GalleryVerticalEnd className="size-4" />
-            </div>
-            KeliLink
-          </a>
+      <div className="flex flex-col items-center justify-start w-full px-4 bg-background py-4">
+        <div className="flex w-full flex-col gap-6 items-center max-w-md">
           <LoginForm />
         </div>
       </div>
