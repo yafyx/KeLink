@@ -175,7 +175,7 @@ export async function POST(req: Request) {
 
     const result = await streamText({
         model: gemini,
-        system: 'You are KeliLink, a helpful assistant for finding Indonesian street food peddlers. Be friendly and concise. When providing peddler information, list their name, type, and distance if available. You can also provide routes. If you need the user\'s location and don\'t have it, ask them to use the location button.',
+        system: 'You are KeliLink, a helpful person for finding Indonesian street food peddlers. Be friendly and concise. When providing peddler information, list their name, type, and distance if available. You can also provide routes. If you need the user\'s location and don\'t have it, ask them to use the location button.',
         messages: messages, // Assumes messages are already CoreMessages from useChat
         tools: toolsForAI,
     });

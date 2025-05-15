@@ -11,6 +11,7 @@ import { MockMap } from "./mock-map";
 import { motion } from "framer-motion";
 import { RouteDetails, RoutePoint, calculateRoute } from "@/lib/route-mapper";
 import ReactDOM from "react-dom/client";
+import React from "react";
 
 const hideGoogleElements = `
   .gm-style-cc { display: none !important; }
@@ -280,14 +281,14 @@ const AdvancedMarkerWrapper: React.FC<AdvancedMarkerWrapperProps> = ({
 // Define libraries array as a constant outside the component to prevent re-creation on each render
 const libraries: ["marker"] = ["marker"];
 
-export function GoogleMapComponent({
+const GoogleMapComponentFunction: React.FC<GoogleMapComponentProps> = ({
   userLocation,
   peddlers = [],
   onVendorClick,
   selectedVendorId,
   className,
   showRoute = false,
-}: GoogleMapComponentProps) {
+}: GoogleMapComponentProps) => {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
   const hasApiKey =
     apiKey && apiKey !== "YOUR_GOOGLE_MAPS_API_KEY_HERE" && apiKey.length > 10;
@@ -699,4 +700,6 @@ export function GoogleMapComponent({
       )}
     </div>
   );
-}
+};
+
+export const GoogleMapComponent = React.memo(GoogleMapComponentFunction);

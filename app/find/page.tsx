@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   ArrowLeft,
   Compass,
@@ -224,13 +224,16 @@ export default function FindPage() {
     }
   };
 
-  const handleVendorClick = (peddler: MapVendor) => {
-    if (selectedVendorId !== peddler.id) {
-      setShowRouteToVendor(false);
-      setRouteDetails(null);
-    }
-    setSelectedVendorId(peddler.id);
-  };
+  const handleVendorClick = useCallback(
+    (peddler: MapVendor) => {
+      if (selectedVendorId !== peddler.id) {
+        setShowRouteToVendor(false);
+        setRouteDetails(null);
+      }
+      setSelectedVendorId(peddler.id);
+    },
+    [selectedVendorId]
+  );
 
   const HeaderComponent = (
     <MobileHeader
@@ -311,7 +314,9 @@ export default function FindPage() {
   };
 
   // Add before render:
-  const foundVendorsForMap: MapVendor[] = foundVendors.map(toMapVendor);
+  const foundVendorsForMap: MapVendor[] = useMemo(() => {
+    return foundVendors.map(toMapVendor);
+  }, [foundVendors]);
 
   return (
     <AppLayout header={HeaderComponent}>
