@@ -92,7 +92,7 @@ export function FloatingChat({
                 {messages.length === 0 && !isLoading && (
                   <div className="flex justify-start">
                     <div className="max-w-[85%] rounded-2xl px-4 py-2 bg-white border border-gray-100 rounded-bl-none shadow-sm">
-                      <div className="prose prose-xs max-w-none text-sm">
+                      <div className="text-sm">
                         <p>Welcome!</p>
                         <p>
                           How can I help you find nearby food vendors or get
@@ -132,6 +132,15 @@ export function FloatingChat({
                         )}
                       >
                         <div className="prose prose-xs max-w-none text-sm">
+                          {(() => {
+                            if (m.role !== "user") {
+                              console.log(
+                                "AI Message Content for Markdown check:",
+                                m.content
+                              );
+                            }
+                            return null; // This ensures the expression returns a valid ReactNode (null)
+                          })()}
                           <ReactMarkdown
                             rehypePlugins={[rehypeSanitize, rehypeHighlight]}
                             components={{

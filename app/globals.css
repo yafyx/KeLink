@@ -249,3 +249,33 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom styles for lists within Tailwind Prose */
+.prose ol,
+.prose ul {
+  padding-left: 20px; /* Adjust indentation as needed */
+}
+
+.prose ol {
+  list-style-type: decimal;
+}
+
+.prose ul {
+  list-style-type: disc;
+}
+
+.prose li {
+  display: list-item;
+  margin-bottom: 0.25em; /* Optional: adds a little space between list items */
+}
+
+/* Specific overrides for prose-xs if needed, 
+   as prose-xs might have its own strong opinions */
+.prose-xs ol,
+.prose-xs ul {
+  padding-left: 18px; /* Slightly less padding for xs */
+}
+
+.prose-xs li {
+  margin-bottom: 0.2em;
+}

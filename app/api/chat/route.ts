@@ -12,19 +12,36 @@ const KELILINK_SYSTEM_PROMPT = `You are KeliLink, a friendly and helpful assista
 
 When you use a tool:
 - When you decide to use a tool, first briefly acknowledge the user's request and state your action (e.g., "Alright, I'll search for those peddlers for you."). Then, after the tool executes, summarize the information it provides in a natural, conversational way.
-- For route calculations using 'getRouteToPeddler':
-    - If the user asks for directions to a specific peddler (e.g., 'How do I get to Bakso Pak Kumis?' or has a peddler selected), use the 'getRouteToPeddler' tool with the 'peddlerIdToRoute' parameter.
-    - If the user asks for directions to a general place (e.g., "How to get to Pasar Santa?"), first use the 'getCoordinatesForPlace' tool to attempt a real coordinate lookup. If successful, then use 'getRouteToPeddler' with the 'destinationPlaceName' parameter.
-    - Inform the user that you are calculating the route, then, upon successful calculation, state the approximate duration and distance.
-- If 'getCoordinatesForPlace' is used and returns coordinates, you can then use these for subsequent actions. If it fails to find coordinates, inform the user clearly.
+- For route calculations:
+    - If the user asks for directions to a specific peddler (e.g., 'How do I get to Bakso Pak Kumis?' or has a peddler selected), use the 'getRouteToPeddler' tool with the 'peddlerIdToRoute' parameter (and you can also pass 'destinationPlaceName' with the peddler's name for clarity in messages).
+    - If the user asks for directions to a general place (e.g., "How to get to Pasar Santa?"):
+        1. First, you MUST use the 'getCoordinatesForPlace' tool to get its coordinates. Provide the place name to 'placeName' and any city context to 'cityContext'.
+        2. If 'getCoordinatesForPlace' successfully returns coordinates in its result (e.g., \`toolResult.coordinates.lat\` and \`toolResult.coordinates.lon\`), then in your next step, you MUST call the 'getRouteToPeddler' tool. When calling it, pass the latitude to \`destinationCoordinates.lat\`, the longitude to \`destinationCoordinates.lng\`, and the original place name (or \`toolResult.formattedAddress\`) to \`destinationPlaceName\`.
+        3. Do NOT call 'getRouteToPeddler' with only a 'destinationPlaceName' if you don't have coordinates for it; the tool requires either a peddler ID or explicit coordinates.
+    - After 'getRouteToPeddler' successfully executes and returns 'routeInfo': State the approximate duration and distance. 
+      Then, for the step-by-step instructions from 'routeInfo.instructions' (which is an array of strings):
+      You MUST iterate through this array and format each instruction as an item in a Markdown list (e.g., using '-' or '1.' prefixes).
+      For example, if 'routeInfo.instructions' is ["Go straight for 100m", "Turn left at the junction"], your Markdown output for this part should be:
+      \`\`\`markdown
+      - Go straight for 100m
+      - Turn left at the junction
+      \`\`\`
+      Or using numbers:
+      \`\`\`markdown
+      1. Go straight for 100m
+      2. Turn left at the junction
+      \`\`\`
+      Finally, mention that they should also see the route highlighted on their map shortly. Example combined response: "Okay, I'm calculating the route to [Peddler/Place Name]... The route is about [Duration] and [Distance]. Here are the steps:\n[Your Markdown List Here]\nYou should see this on your map too."
+- If 'getCoordinatesForPlace' is used and it fails to find coordinates, inform the user clearly based on the message from the tool, and do not attempt to call 'getRouteToPeddler' for that place without coordinates.
 - If you need the user's location (e.g., for 'findNearbyPeddlers' or 'getRouteToPeddler' from current position) AND the userLocation context provided to you is missing or null, you MUST call the 'requestClientLocation' tool. Do not try to proceed with the original request in the same turn; wait for the user to provide their location.
-- If the tool execution is successful but finds no results (e.g., no peddlers), clearly inform the user.
+- If any tool execution is successful but finds no results (e.g., no peddlers), clearly inform the user.
 - When searching for peddlers with 'findNearbyPeddlers', use 'keywords' for specific names and 'foodType' for general types.
 - If a user's query to find peddlers is too generic, ask for more details.
 
 General Guidelines:
 - Be concise and interactive.
-- Integrate tool information smoothly into your response.`;
+- Integrate tool information smoothly into your response.
+- Always format your responses using Markdown.`;
 
 export const maxDuration = 30; // Allow streaming responses up to 30 seconds
 
@@ -161,13 +178,22 @@ export async function POST(req: Request) {
                     JSON.stringify({ city, kecamatan, kelurahan }, null, 2)
                 );
 
-                if (!keywords && !foodType && !city && !kecamatan && !kelurahan) {
-                    return { peddlersFound: [], message: "Please specify what you're looking for (e.g., food type, peddler name, or area)." };
+                // New logic to check if a search can be performed
+                const canSearchByLocation = userLocation && userLocation.lat && userLocation.lng;
+                const canSearchByAdminArea = city || kecamatan || kelurahan;
+
+                if (!canSearchByLocation && !canSearchByAdminArea) {
+                    // If neither location nor admin area is available, we cannot search.
+                    return {
+                        peddlersFound: [],
+                        message: "To find peddlers, I need either your current location or an area like a city or sub-district. Please share your location or tell me an area to search in."
+                    };
                 }
 
-                if ((!city && !kecamatan && !kelurahan) && (!userLocation || !userLocation.lat || !userLocation.lng)) {
-                    return { peddlersFound: [], message: "I need either your specific current location or an administrative area to find peddlers. If you want to use your current location, please enable it first." };
-                }
+                // If we reach here, we have either a valid location or an admin area (or both).
+                // The search can proceed. If foodType/keywords are not specified,
+                // the findNearbyPeddlersService is expected to perform a general search.
+
                 try {
                     const result = await findNearbyPeddlersService({
                         userLocation: userLocation && userLocation.lat && userLocation.lng ? { lat: userLocation.lat, lon: userLocation.lng } : undefined,
@@ -200,24 +226,28 @@ export async function POST(req: Request) {
             },
         }),
         getRouteToPeddler: tool({
-            description: "Calculates a walking route to a selected peddler or a named destination.",
+            description: "Calculates a walking route to a selected peddler or a named destination if its coordinates are provided.",
             parameters: z.object({
                 peddlerIdToRoute: z.string().optional().describe("ID of the peddler to navigate to. Use this if a specific peddler is selected or mentioned."),
-                destinationPlaceName: z.string().optional().describe("Name of a general place or point of interest to navigate to (e.g., 'Monas', 'Pasar Santa'). Use this if no specific peddler ID is available but a place is mentioned, typically after getting its coordinates via 'getCoordinatesForPlace'."),
+                destinationPlaceName: z.string().optional().describe("Name of a general place or point of interest. Used for display purposes if routing to coordinates."),
+                destinationCoordinates: z.object({
+                    lat: z.number(),
+                    lng: z.number(),
+                }).optional().describe("The geographic coordinates (latitude, longitude) of the general place to navigate to. Typically obtained from the 'getCoordinatesForPlace' tool first."),
             }),
-            execute: async ({ peddlerIdToRoute, destinationPlaceName }) => {
+            execute: async ({ peddlerIdToRoute, destinationPlaceName, destinationCoordinates }) => {
                 console.log(
                     '!!! getRouteToPeddler TOOL - INSIDE EXECUTE - UserLocation value:',
                     JSON.stringify(userLocation, null, 2)
                 );
-                console.log('!!! getRouteToPeddler TOOL - Args:', { peddlerIdToRoute, destinationPlaceName });
+                console.log('!!! getRouteToPeddler TOOL - Args:', { peddlerIdToRoute, destinationPlaceName, destinationCoordinates });
 
                 if (!userLocation || !userLocation.lat || !userLocation.lng) {
-                    return { routeInfo: null, message: "I need your location to calculate a route. If you want to use your current location, please enable it first.", peddlerName: null };
+                    return { routeInfo: null, message: "I need your current location to calculate a route. Please use the 'Locate Me' button.", peddlerName: null };
                 }
 
                 let targetLocation: { lat: number; lng: number } | null = null;
-                let targetName: string = "the destination";
+                let targetName: string | null = null;
 
                 if (peddlerIdToRoute) {
                     if (!currentPeddlers || currentPeddlers.length === 0) {
@@ -229,18 +259,19 @@ export async function POST(req: Request) {
                     }
                     targetLocation = { lat: peddler.location.lat, lng: peddler.location.lon };
                     targetName = peddler.name;
-                } else if (destinationPlaceName) {
+                } else if (destinationCoordinates && destinationCoordinates.lat && destinationCoordinates.lng) {
+                    targetLocation = destinationCoordinates;
+                    targetName = destinationPlaceName || "the specified location";
+                } else {
                     return {
                         routeInfo: null,
-                        message: `To route to '${destinationPlaceName}', I need its specific coordinates. Please ask me to find its coordinates first using the 'getCoordinatesForPlace' tool.`,
-                        peddlerName: null
+                        message: "To calculate a route to a general place, I need its coordinates first. Please ask me to find coordinates for the place if you haven't already.",
+                        peddlerName: destinationPlaceName
                     };
-                } else {
-                    return { routeInfo: null, message: "Please specify a peddler ID or a destination place name (after getting its coordinates) to get a route.", peddlerName: null };
                 }
 
                 if (!targetLocation) {
-                    return { routeInfo: null, message: "Could not determine the destination location.", peddlerName: null };
+                    return { routeInfo: null, message: "Could not determine the destination location.", peddlerName: targetName };
                 }
 
                 try {
@@ -249,7 +280,7 @@ export async function POST(req: Request) {
                         targetLocation,
                         "WALKING"
                     );
-                    return { routeInfo: route, message: `Route to ${targetName} calculated.`, peddlerName: targetName };
+                    return { routeInfo: route, message: `Route to ${targetName || 'destination'} calculated.`, peddlerName: targetName };
                 } catch (error: any) {
                     console.error("Error in getRouteToPeddler tool (inside execute):", error);
                     return { routeInfo: null, message: `Error calculating route: ${error.message}`, peddlerName: targetName };

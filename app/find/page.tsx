@@ -112,6 +112,56 @@ export default function FindPage() {
     if (userLocationFromHook) {
       setUserLocation(userLocationFromHook);
       setMapCenter(userLocationFromHook);
+
+      // Fetch peddlers based on userLocationFromHook
+      const fetchPeddlers = async (location: { lat: number; lng: number }) => {
+        try {
+          console.log("Fetching peddlers for location:", location);
+          const response = await fetch("/api/peddlers/findNearby", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              location: { lat: location.lat, lon: location.lng }, // API expects lon
+              query_details: { max_distance: 10000 }, // Search within 10km for example
+            }),
+          });
+
+          if (!response.ok) {
+            const errorBody = await response.text();
+            console.error(
+              "Failed to fetch peddlers:",
+              response.status,
+              errorBody
+            );
+            throw new Error(`Failed to fetch peddlers: ${response.status}`);
+          }
+
+          const data = await response.json();
+          console.log("Fetched peddlers data:", data);
+
+          if (data.peddlers && Array.isArray(data.peddlers)) {
+            // Ensure the location structure is correct (lat, lng) for the map component
+            const mappedPeddlers = data.peddlers.map((p: any) => ({
+              ...p,
+              location: { lat: p.location.lat, lng: p.location.lon }, // Map lon to lng
+            }));
+            setFoundVendors(mappedPeddlers);
+          } else {
+            console.warn("Peddlers data is not in the expected format:", data);
+            setFoundVendors([]);
+          }
+        } catch (error) {
+          console.error("Error fetching peddlers:", error);
+          setFoundVendors([]); // Set to empty array on error
+        }
+      };
+
+      fetchPeddlers({
+        lat: userLocationFromHook.lat,
+        lng: userLocationFromHook.lng,
+      });
     }
   }, [userLocationFromHook]);
 

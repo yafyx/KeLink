@@ -43,85 +43,94 @@ export const isGoogleMapsLoaded = (): boolean => {
  * @param travelMode Travel mode ("DRIVING", "WALKING", "BICYCLING", "TRANSIT")
  * @returns Promise resolving to route details
  */
-export const calculateRoute = (
+export const calculateRoute = async (
     origin: RoutePoint,
     destination: RoutePoint,
     travelMode: TravelModeType = "WALKING"
 ): Promise<RouteDetails | null> => {
-    return new Promise((resolve, reject) => {
-        if (typeof window === 'undefined' || !window.google || !window.google.maps) {
-            reject(new Error("Google Maps API not loaded"));
-            return;
-        }
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
 
-        const directionsService = new window.google.maps.DirectionsService();
+    if (!apiKey) {
+        console.error("Google Maps API key is missing. Set GOOGLE_MAPS_API_KEY environment variable.");
+        // Consider returning a more specific error or throwing, depending on desired handling
+        return null;
+    }
 
-        directionsService.route(
-            {
-                origin: { lat: origin.lat, lng: origin.lng },
-                destination: { lat: destination.lat, lng: destination.lng },
-                travelMode: travelMode as any,
-            },
-            (result, status) => {
-                if (status === "OK" && result) {
-                    const route = result.routes[0];
-                    if (route && route.legs && route.legs.length > 0) {
-                        const leg = route.legs[0];
+    const originStr = `${origin.lat},${origin.lng}`;
+    const destinationStr = `${destination.lat},${destination.lng}`;
+    const modeStr = travelMode.toLowerCase(); // API uses lowercase (e.g., 'walking')
 
-                        // Extract path from steps
-                        const path: Array<{ lat: number; lng: number }> = [];
-                        const instructions: string[] = [];
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${destinationStr}&mode=${modeStr}&key=${apiKey}`;
 
-                        if (leg.steps) {
-                            leg.steps.forEach(step => {
-                                // Add instructions
-                                if (step.instructions) {
-                                    // Remove HTML tags
-                                    const cleanInstruction = step.instructions.replace(/<[^>]*>/g, "");
-                                    instructions.push(cleanInstruction);
-                                }
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
 
-                                // Add path points if available
-                                if (step.path) {
-                                    step.path.forEach(point => {
-                                        try {
-                                            // Handle both function and property access for lat/lng
-                                            const lat = typeof point.lat === 'function' ? point.lat() : point.lat;
-                                            const lng = typeof point.lng === 'function' ? point.lng() : point.lng;
+        if (data.status === "OK" && data.routes && data.routes.length > 0) {
+            const route = data.routes[0];
+            if (route.legs && route.legs.length > 0) {
+                const leg = route.legs[0];
 
-                                            if (typeof lat === 'number' && typeof lng === 'number') {
-                                                path.push({ lat, lng });
-                                            }
-                                        } catch (e) {
-                                            console.error("Error extracting point data:", e);
-                                        }
-                                    });
-                                }
-                            });
+                const path: Array<{ lat: number; lng: number }> = [];
+                const instructions: string[] = [];
+
+                if (leg.steps) {
+                    leg.steps.forEach((step: any) => {
+                        if (step.html_instructions) {
+                            // Remove HTML tags
+                            const cleanInstruction = step.html_instructions.replace(/<[^>]*>/g, "");
+                            instructions.push(cleanInstruction);
                         }
-
-                        resolve({
-                            path,
-                            distance: {
-                                text: leg.distance?.text || "Unknown",
-                                value: leg.distance?.value || 0,
-                            },
-                            duration: {
-                                text: leg.duration?.text || "Unknown",
-                                value: leg.duration?.value || 0,
-                            },
-                            instructions,
-                        });
-                    } else {
-                        resolve(null);
-                    }
-                } else {
-                    console.error("Directions request failed:", status);
-                    resolve(null);
+                        // The Directions API path is an encoded polyline.
+                        // Decoding it client-side is common, but for server-side, 
+                        // if you need the exact path points, you'd use a polyline decoding library.
+                        // For now, we'll skip populating the 'path' array with individual points 
+                        // as it's often more for map rendering than for textual instructions.
+                        // If detailed path points are crucial for server processing, 
+                        // add a polyline decoding step here.
+                    });
                 }
+
+                // The Directions API polyline is available at route.overview_polyline.points
+                // If you need the path, you can decode this. For now, returning an empty path.
+                // Example of how you might include the polyline if needed for client later:
+                // path: route.overview_polyline ? [{ lat: 0, lng: 0, polyline: route.overview_polyline.points }] : [],
+                // For now, let's keep it simple and focus on textual instructions.
+
+                return {
+                    path: [], // Simplified: path points extraction from polyline is complex for server if not drawing map.
+                    // The map on the client will draw its own route if given origin/destination.
+                    distance: {
+                        text: leg.distance?.text || "Unknown",
+                        value: leg.distance?.value || 0,
+                    },
+                    duration: {
+                        text: leg.duration?.text || "Unknown",
+                        value: leg.duration?.value || 0,
+                    },
+                    instructions,
+                };
+            } else {
+                console.warn("No route legs found in Directions API response:", data);
+                return null;
             }
-        );
-    });
+        } else {
+            console.error("Directions API request failed:", data.status, data.error_message);
+            if (data.status === 'ZERO_RESULTS') {
+                // Potentially return a specific object or throw a custom error for no routes found
+                return {
+                    path: [],
+                    distance: { text: "N/A", value: 0 },
+                    duration: { text: "N/A", value: 0 },
+                    instructions: ["No route could be found between the origin and destination."]
+                };
+            }
+            return null;
+        }
+    } catch (error) {
+        console.error("Error fetching directions:", error);
+        return null;
+    }
 };
 
 /**

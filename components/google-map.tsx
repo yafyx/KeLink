@@ -12,6 +12,7 @@ import { motion } from "framer-motion";
 import { RouteDetails, RoutePoint, calculateRoute } from "@/lib/route-mapper";
 import ReactDOM from "react-dom/client";
 import React from "react";
+import { useRouter } from "next/navigation";
 
 const hideGoogleElements = `
   .gm-style-cc { display: none !important; }
@@ -86,12 +87,18 @@ const UserLocationMarkerIcon = () => (
 interface VendorMarkerIconProps {
   type: string;
   isSelected: boolean;
+  status: "active" | "inactive";
 }
 
-const VendorMarkerIcon = ({ type, isSelected }: VendorMarkerIconProps) => {
+const VendorMarkerIcon = ({
+  type,
+  isSelected,
+  status,
+}: VendorMarkerIconProps) => {
   const color = vendorTypeColors[type] || vendorTypeColors.default;
-  const scale = isSelected ? 1.2 : 1; // Adjust scale for bounce effect
+  const scale = isSelected ? 1.2 : 1;
   const bounceAnimation = isSelected ? "bounce 0.8s infinite" : "none";
+  const opacity = status === "active" ? 1 : 0.6;
 
   return (
     <div
@@ -100,6 +107,7 @@ const VendorMarkerIcon = ({ type, isSelected }: VendorMarkerIconProps) => {
         height: `${28 * scale}px`,
         transformOrigin: "bottom center",
         animation: bounceAnimation,
+        opacity: opacity,
       }}
     >
       <style>
@@ -293,11 +301,21 @@ const GoogleMapComponentFunction: React.FC<GoogleMapComponentProps> = ({
   const hasApiKey =
     apiKey && apiKey !== "YOUR_GOOGLE_MAPS_API_KEY_HERE" && apiKey.length > 10;
 
+  const router = useRouter();
+
   const { isLoaded, loadError } = useJsApiLoader({
     id: "google-map-script",
     googleMapsApiKey: apiKey,
     libraries,
   });
+
+  // Log peddlers data
+  useEffect(() => {
+    console.log("Peddlers data:", peddlers);
+    if (peddlers && peddlers.length > 0) {
+      console.log("First peddler status:", peddlers[0]?.status);
+    }
+  }, [peddlers]);
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -492,6 +510,11 @@ const GoogleMapComponentFunction: React.FC<GoogleMapComponentProps> = ({
     setSelectedVendor(null);
   }, []);
 
+  // Log selected vendor data
+  useEffect(() => {
+    console.log("Selected vendor data:", selectedVendor);
+  }, [selectedVendor]);
+
   const handleMarkerClick = (peddler: Peddler) => {
     setSelectedVendor(peddler);
     setSelectedMarkerInstance(peddlerMarkerRefs.current[peddler.id] || null);
@@ -603,6 +626,7 @@ const GoogleMapComponentFunction: React.FC<GoogleMapComponentProps> = ({
                       <VendorMarkerIcon
                         type={peddler.type}
                         isSelected={isSelected}
+                        status={peddler.status}
                       />
                     </AdvancedMarkerWrapper>
                   );
@@ -667,6 +691,13 @@ const GoogleMapComponentFunction: React.FC<GoogleMapComponentProps> = ({
                       <span>{selectedVendor.distance}</span>
                     </div>
                   )}
+                  <button
+                    onClick={() => router.push(`/peddler/${selectedVendor.id}`)}
+                    className="mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium py-1 px-2 rounded bg-blue-100 hover:bg-blue-200 transition-colors duration-150 ease-in-out"
+                    aria-label={`View profile of ${selectedVendor.name}`}
+                  >
+                    View Profile
+                  </button>
                 </div>
               </InfoWindow>
             )}
